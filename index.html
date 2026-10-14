@@ -22,6 +22,8 @@
         <nav class="main-nav">
           <a class="nav-link active" href="#inicio" aria-current="page"><span class="nav-icon" aria-hidden="true">⌂</span>Visão geral</a>
           <a class="nav-link" href="#historico"><span class="nav-icon" aria-hidden="true">◷</span>Meu histórico</a>
+          <a class="nav-link" href="#tratamentos"><span class="nav-icon" aria-hidden="true">＋</span>Tratamentos</a>
+          <a class="nav-link" href="#biblioteca"><span class="nav-icon" aria-hidden="true">▧</span>Biblioteca</a>
           <a class="nav-link" href="#relatorios"><span class="nav-icon" aria-hidden="true">▤</span>Relatórios</a>
           <a class="nav-link" href="#ajustes"><span class="nav-icon" aria-hidden="true">⚙</span>Preferências</a>
         </nav>
@@ -97,8 +99,13 @@
                 </div>
                 <span class="quiet-tag">Visão pessoal</span>
               </div>
-              <div id="week-chart" class="week-chart" role="img" aria-label="Gráfico de registros de humor dos últimos sete dias"></div>
-              <div class="chart-legend"><span><i></i> Registros por período</span><span class="chart-disclaimer">Um retrato, não um diagnóstico.</span></div>
+              <label class="chart-range">Período
+                <select id="chart-range" aria-label="Período do gráfico">
+                  <option value="7">7 dias</option><option value="30">30 dias</option><option value="90">90 dias</option>
+                </select>
+              </label>
+              <div id="week-chart" class="week-chart" role="img" aria-label="Gráfico de humor, energia e cognição"></div>
+              <div class="chart-legend"><span><i class="legend-mood"></i>Humor <i class="legend-energy"></i>Energia <i class="legend-cognition"></i>Cognição</span><span class="chart-disclaimer">Padrões pessoais, não diagnóstico.</span></div>
             </section>
 
             <section class="panel reflection-panel" aria-labelledby="reflection-title">
@@ -118,6 +125,52 @@
             <div id="recent-entries" class="recent-list" aria-live="polite"></div>
           </section>
 
+          <section class="panel care-panel" id="tratamentos" aria-labelledby="care-title">
+            <div class="panel-heading">
+              <div><p class="eyebrow">ORGANIZAÇÃO PESSOAL</p><h2 id="care-title">Tratamentos e consultas</h2></div>
+              <span class="quiet-tag">Você decide o que anotar</span>
+            </div>
+            <div class="care-grid">
+              <section class="care-card" aria-labelledby="medication-title">
+                <div class="care-card-heading">
+                  <span class="care-icon" aria-hidden="true">＋</span>
+                  <div><h3 id="medication-title">Meus medicamentos</h3><p>Organize o que sua equipe prescreveu.</p></div>
+                </div>
+                <form id="medication-form" class="inline-form">
+                  <label>Nome
+                    <input name="name" type="text" required maxlength="80" placeholder="Nome do medicamento">
+                  </label>
+                  <label>Orientação anotada <span class="optional-label">(opcional)</span>
+                    <input name="details" type="text" maxlength="100" placeholder="Como foi prescrito para você">
+                  </label>
+                  <label class="check-option"><input name="reminder" type="checkbox"> Lembrete diário neste navegador</label>
+                  <label>Horário do lembrete
+                    <input name="time" type="time" value="20:00">
+                  </label>
+                  <button class="button button-secondary button-small" type="submit">Adicionar</button>
+                </form>
+                <div id="medication-list" class="managed-list" aria-live="polite"></div>
+                <p class="care-disclaimer">O app não recomenda doses nem mudanças. Siga a orientação de quem prescreveu.</p>
+              </section>
+              <section class="care-card" aria-labelledby="appointment-title">
+                <div class="care-card-heading">
+                  <span class="care-icon calendar-icon" aria-hidden="true">◷</span>
+                  <div><h3 id="appointment-title">Próximas consultas</h3><p>Guarde datas para encontrar depois.</p></div>
+                </div>
+                <form id="appointment-form" class="inline-form">
+                  <label>Data e horário
+                    <input name="date" type="datetime-local" required>
+                  </label>
+                  <label>Tipo de consulta <span class="optional-label">(opcional)</span>
+                    <input name="kind" type="text" maxlength="60" placeholder="Psicóloga, psiquiatra…">
+                  </label>
+                  <button class="button button-secondary button-small" type="submit">Adicionar consulta</button>
+                </form>
+                <div id="appointment-list" class="managed-list" aria-live="polite"></div>
+              </section>
+            </div>
+          </section>
+
           <section class="panel report-panel" id="relatorios" aria-labelledby="report-title">
             <div class="report-icon" aria-hidden="true">▤</div>
             <div class="report-copy">
@@ -126,6 +179,36 @@
               <p>Prepare um resumo para compartilhar com psicóloga, psiquiatra ou familiares, somente se você quiser.</p>
             </div>
             <button class="button button-secondary" id="report-button" type="button">Preparar resumo</button>
+          </section>
+
+          <section class="panel library-panel" id="biblioteca" aria-labelledby="library-title">
+            <div class="panel-heading">
+              <div><p class="eyebrow">INFORMAÇÃO PARA CONVERSAR</p><h2 id="library-title">Biblioteca de cuidado</h2></div>
+              <span class="quiet-tag">Fontes públicas</span>
+            </div>
+            <p class="library-intro">Materiais de referência não substituem orientação profissional. Leia no seu ritmo e leve dúvidas para sua equipe.</p>
+            <div class="resource-grid">
+              <a class="resource-card" href="https://www.gov.br/saude/pt-br/assuntos/saude-de-a-a-z/s/saude-mental" target="_blank" rel="noopener noreferrer">
+                <span class="resource-type">MINISTÉRIO DA SAÚDE</span><strong>Saúde mental</strong><span>Informações e caminhos de cuidado no SUS <span aria-hidden="true">↗</span></span>
+              </a>
+              <article class="resource-card resource-prompt">
+                <span class="resource-type">PARA A PRÓXIMA CONVERSA</span><strong>Uma pergunta de cada vez</strong><span>O que mudou no sono, na energia ou na rotina desde o último encontro?</span>
+              </article>
+              <a class="resource-card" href="https://cvv.org.br/" target="_blank" rel="noopener noreferrer">
+                <span class="resource-type">APOIO EMOCIONAL</span><strong>CVV · 188</strong><span>Apoio emocional gratuito, 24 horas <span aria-hidden="true">↗</span></span>
+              </a>
+            </div>
+            <p class="library-note">Em emergência médica, procure o serviço de urgência da sua região (SAMU 192 no Brasil). O CVV oferece apoio emocional, mas não é serviço de emergência.</p>
+          </section>
+
+          <section class="panel private-panel" aria-labelledby="private-title">
+            <div class="private-symbol" aria-hidden="true">⌑</div>
+            <div class="private-copy">
+              <p class="eyebrow">ACESSO OPCIONAL</p>
+              <h2 id="private-title">Um espaço só seu</h2>
+              <p>Uma área protegida para registros pessoais, cifrada neste dispositivo. Não entra nos relatórios.</p>
+            </div>
+            <button class="button button-secondary" id="private-space-button" type="button">Acessar espaço privado</button>
           </section>
 
           <section class="panel settings-panel" id="ajustes" aria-labelledby="settings-title">
@@ -164,8 +247,8 @@
       <nav class="mobile-nav" aria-label="Navegação móvel">
         <a class="active" href="#inicio" aria-current="page"><span aria-hidden="true">⌂</span><small>Início</small></a>
         <a href="#historico"><span aria-hidden="true">◷</span><small>Histórico</small></a>
+        <a href="#tratamentos"><span aria-hidden="true">＋</span><small>Cuidado</small></a>
         <a href="#relatorios"><span aria-hidden="true">▤</span><small>Relatórios</small></a>
-        <a href="#ajustes"><span aria-hidden="true">⚙</span><small>Ajustes</small></a>
       </nav>
     </div>
 
@@ -202,6 +285,37 @@
             <select name="energy"><option value="">Prefiro não dizer</option><option>Bem baixa</option><option>Baixa</option><option>Habitual</option><option>Alta</option><option>Muito alta</option></select>
           </label>
         </div>
+        <div class="form-row">
+          <label>Clareza mental percebida <span class="optional-label">(opcional)</span>
+            <select name="cognition"><option value="">Prefiro não dizer</option><option value="1">Muito difícil</option><option value="2">Difícil</option><option value="3">Habitual</option><option value="4">Clara</option><option value="5">Muito clara</option></select>
+          </label>
+          <label>Velocidade dos pensamentos <span class="optional-label">(opcional)</span>
+            <select name="thoughtSpeed"><option value="">Prefiro não dizer</option><option>Mais lentos</option><option>Habitual</option><option>Mais rápidos</option>
+            </select>
+          </label>
+          <label>Como estavam os pensamentos? <span class="optional-label">(opcional)</span>
+            <select name="thoughtContent"><option value="">Prefiro não dizer</option><option>Claros</option><option>Difíceis de organizar</option><option>Acelerados</option><option>Repetitivos</option></select>
+          </label>
+        </div>
+        <div class="form-row">
+          <label>Qualidade do sono <span class="optional-label">(opcional)</span>
+            <select name="sleepQuality"><option value="">Prefiro não dizer</option><option>Muito ruim</option><option>Ruim</option><option>Razoável</option><option>Boa</option><option>Muito boa</option></select>
+          </label>
+          <label>Movimento / atividade física (minutos) <span class="optional-label">(opcional)</span>
+            <input name="activityMinutes" type="number" min="0" max="1440" step="5" placeholder="Ex.: 20">
+          </label>
+        </div>
+        <div class="form-row">
+          <label>Tempo aproximado ao ar livre / luz do dia (minutos) <span class="optional-label">(opcional)</span>
+            <input name="sunMinutes" type="number" min="0" max="1440" step="5" placeholder="Ex.: 15">
+          </label>
+          <label>Quando? <span class="optional-label">(horário aproximado)</span>
+            <select name="sunPeriod"><option value="">Prefiro não dizer</option><option>Manhã</option><option>Meio do dia</option><option>Tarde</option><option>Em vários períodos</option></select>
+          </label>
+          <label>Refeições com ultraprocessados <span class="optional-label">(opcional)</span>
+            <select name="processedMeals"><option value="">Prefiro não dizer</option><option value="0">Nenhuma</option><option value="1">Uma</option><option value="2">Duas</option><option value="3">Três ou mais</option></select>
+          </label>
+        </div>
         <details class="media-details">
           <summary>Adicionar áudio ou vídeo <span class="optional-label">(opcional)</span></summary>
           <p>O arquivo fica apenas neste navegador nesta versão. Evite dispositivos compartilhados e confira o armazenamento antes de incluir mídia.</p>
@@ -210,7 +324,7 @@
           </label>
           <span class="file-name" id="file-name">Nenhum arquivo selecionado</span>
         </details>
-        <p class="storage-warning">Este protótipo salva as anotações neste navegador, sem conta ou sincronização. Os dados não são criptografados e podem ser apagados ao limpar os dados do navegador. Não use em dispositivo compartilhado.</p>
+        <p class="storage-warning">Este protótipo salva as anotações neste navegador, sem conta ou sincronização. Os registros gerais não são criptografados e podem ser apagados ao limpar os dados do navegador. Não use em dispositivo compartilhado.</p>
         <div class="dialog-actions">
           <button class="button button-secondary" type="button" data-close>Cancelar</button>
           <button class="button button-primary" type="submit">Salvar anotação</button>
@@ -239,6 +353,10 @@
         <label>Quem vai receber? <span class="optional-label">(opcional, apenas para organizar)</span>
           <input name="recipient" type="text" maxlength="100" placeholder="Ex.: psicóloga, Dra. Ana">
         </label>
+        <fieldset class="report-options">
+          <legend>Conteúdo opcional</legend>
+          <label><input name="includeCare" type="checkbox"> Incluir lista de medicamentos e consultas futuras</label>
+        </fieldset>
         <div class="storage-warning">O resumo pode incluir informações sensíveis. Confirme com quem você confia e use um canal privado. A programação de envios automático ainda depende da integração segura com o servidor.</div>
         <div class="dialog-actions">
           <button class="button button-secondary" type="button" data-close>Cancelar</button>
@@ -254,6 +372,65 @@
       </div>
       <div id="media-player"></div>
       <p class="media-security-note">Este arquivo está armazenado neste navegador e não é criptografado.</p>
+    </dialog>
+
+    <dialog class="dialog private-dialog" id="private-dialog" aria-labelledby="private-dialog-title">
+      <form id="private-unlock-form">
+        <div class="dialog-heading">
+          <div><p class="eyebrow">ÁREA OPCIONAL · SOMENTE NESTE DISPOSITIVO</p><h2 id="private-dialog-title">Espaço privado</h2></div>
+          <button class="icon-button close-button" type="button" data-close aria-label="Fechar">×</button>
+        </div>
+        <p class="dialog-intro">Este espaço não é invisível: ele pode aparecer no histórico do navegador, no código da página ou em notificações do sistema. Os registros são cifrados localmente; a frase-senha não é armazenada nem recuperável. Use apenas num dispositivo confiável.</p>
+        <div id="private-setup-fields" hidden>
+          <label>Crie uma frase-senha longa <span class="optional-label">(12 caracteres ou mais)</span>
+            <input name="newPassphrase" type="password" minlength="12" autocomplete="new-password">
+          </label>
+          <label>Repita a frase-senha
+            <input name="confirmPassphrase" type="password" minlength="12" autocomplete="new-password">
+          </label>
+        </div>
+        <div id="private-unlock-fields" hidden>
+          <label>Frase-senha
+            <input name="passphrase" type="password" autocomplete="current-password">
+          </label>
+        </div>
+        <p id="private-error" class="private-error" aria-live="polite"></p>
+        <div class="dialog-actions">
+          <button class="button button-secondary" type="button" data-close>Cancelar</button>
+          <button class="button button-primary" id="private-unlock-button" type="submit">Abrir</button>
+        </div>
+      </form>
+      <section id="private-vault-content" hidden>
+        <div class="dialog-heading">
+          <div><p class="eyebrow">ÁREA CIFRADA</p><h2>Intimidade e sexualidade</h2></div>
+          <button class="button button-secondary button-small" id="private-lock-button" type="button">Bloquear agora</button>
+        </div>
+        <p class="dialog-intro">Registre apenas o que for útil para você. Não inclua nomes ou dados de outras pessoas. Seus relatos não são diagnóstico nem julgamento.</p>
+        <form id="private-entry-form" class="private-entry-form">
+          <label>Data
+            <input name="date" type="date" required>
+          </label>
+          <label>Como se sentiu em relação à intimidade? <span class="optional-label">(opcional)</span>
+            <select name="connection"><option value="">Prefiro não registrar</option><option>Confortável e conectado(a)</option><option>Neutro(a)</option><option>Desconfortável</option><option>Não se aplica</option></select>
+          </label>
+          <label>Desejo ou interesse, como você percebeu? <span class="optional-label">(opcional)</span>
+            <select name="desire"><option value="">Prefiro não registrar</option><option>Menor que o habitual para mim</option><option>Parecido com o habitual</option><option>Maior que o habitual para mim</option><option>Não se aplica</option></select>
+          </label>
+          <label>Limites e consentimento foram respeitados? <span class="optional-label">(opcional)</span>
+            <select name="consent"><option value="">Prefiro não responder</option><option>Sim</option><option>Não tenho certeza</option><option>Não</option><option>Não se aplica</option></select>
+          </label>
+          <label>Algo pareceu impulsivo ou fora do seu padrão? <span class="optional-label">(opcional)</span>
+            <select name="impulse"><option value="">Prefiro não registrar</option><option>Não</option><option>Talvez</option><option>Sim</option></select>
+          </label>
+          <label>Uma observação para você <span class="optional-label">(opcional)</span>
+            <textarea name="note" rows="3" maxlength="500" placeholder="Sem nomes ou detalhes identificáveis de outras pessoas."></textarea>
+          </label>
+          <button class="button button-primary" type="submit">Salvar neste espaço cifrado</button>
+        </form>
+        <div class="private-log-heading"><h3>Registros guardados</h3><button class="entry-action entry-delete" id="private-delete-all" type="button">Apagar todos</button></div>
+        <div id="private-entries" class="private-entries" aria-live="polite"></div>
+        <p class="storage-warning">Cifragem local não substitui segurança do aparelho. Frase-senha perdida significa que os dados não podem ser recuperados. O cofre não sincroniza, não é incluído nos relatórios e bloqueia ao sair da página. Não protege aparelho desbloqueado, extensões ou código do app comprometido.</p>
+      </section>
     </dialog>
 
     <div class="toast" id="toast" role="status" aria-live="polite"></div>

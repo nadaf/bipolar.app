@@ -1,6 +1,17 @@
 # bipolar.app
 
-Aplicativo em português brasileiro para registro pessoal de humor por período. O projeto é uma primeira versão estática instalável (PWA); o repositório não contém ainda API, autenticação, envio de relatórios ou sincronização.
+Aplicativo em português brasileiro para acompanhamento pessoal e organização de conversas com a equipe de cuidado. Esta versão é estática e instalável (PWA), com dados locais; ainda não inclui API, contas, autenticação OAuth, sincronização ou envio agendado. A cobertura de funcionalidades de outros produtos é uma meta de produto, não uma alegação de superioridade clínica.
+
+## Acompanhamento nesta versão
+
+- Registros por período de humor, energia, cognição percebida, velocidade e conteúdo dos pensamentos, sono e qualidade do sono, atividade física, tempo aproximado ao ar livre/luz do dia e horário aproximado, refeições com ultraprocessados, notas e anexos de áudio/vídeo.
+- Gráfico pessoal de humor, energia e clareza mental percebida, com janelas de 7, 30 e 90 dias.
+- Lista de medicamentos conforme prescrição, marcação diária de registro da dose e lembretes locais opcionais enquanto o app está aberto; agenda pessoal de consultas.
+- Resumos revisáveis com seleção explícita para incluir medicamentos e consultas. O espaço íntimo cifrado nunca é incluído.
+- Biblioteca inicial com fontes públicas e indicação de limites de apoio/emergência.
+- Área íntima opcional, acessada por botão discreto, protegida por frase-senha local e cifragem AES-GCM. Ela bloqueia após cinco minutos sem atividade e quando a página fica oculta.
+
+Os valores do gráfico são descrições de autorrelato, não escalas clínicas validadas. O tempo ao ar livre/luz do dia é anotado manualmente: o navegador não mede exposição ao sol nem fornece dados de clima. Não use o campo para definir metas de exposição; proteja-se de UV e siga orientações profissionais locais.
 
 ## Abrir localmente
 
@@ -18,10 +29,13 @@ A escala inicial tem sete opções subjetivas, de depressão intensa a euforia. 
 
 ## Privacidade e estado desta versão
 
-- Registros e preferências são armazenados localmente no navegador. Não há conta, criptografia, backup ou sincronização nesta primeira versão.
+- Registros gerais, tratamentos, consultas e preferências são armazenados localmente no navegador, sem criptografia, conta, backup ou sincronização. Revise antes de compartilhar e não use em dispositivo compartilhado.
 - Os anexos de áudio/vídeo são guardados no IndexedDB deste navegador, sem criptografia e sem envio/sincronização. O limite por arquivo é 25 MB; evite aparelhos compartilhados e confira o espaço disponível.
 - Relatórios são gerados sob ação do usuário e podem ser compartilhados pelo mecanismo do dispositivo ou baixados como texto. O app não envia e-mail nem agenda envios.
-- Lembretes usam a API de notificações do navegador e só disparam enquanto a página está aberta. Não são um serviço confiável de notificações em segundo plano.
+- Lembretes locais usam a API de notificações do navegador e só disparam enquanto a página está aberta; não são um serviço confiável de notificações em segundo plano.
+- A área íntima cifra seus registros no dispositivo usando uma chave derivada da frase-senha e Web Crypto. O app não armazena essa frase nem oferece recuperação; se você a perder, os registros não podem ser abertos. Isso não protege um dispositivo desbloqueado, extensões maliciosas ou a página/app comprometidos; o nome do app, a navegação e o próprio botão não são ocultados. Não inclua nomes ou dados identificáveis de outras pessoas.
+- A opção de marcar uma dose registra uma anotação pessoal; não confirma a ingestão e não substitui orientação médica. Lembretes são neutros e não mostram o nome do medicamento.
+- As entradas de relatório podem incluir informações sensíveis. A seleção para incluir medicamentos/consultas é desativada por padrão; os registros da área íntima ficam sempre de fora.
 - A PWA não é ferramenta de diagnóstico, tratamento, monitoramento clínico nem serviço de emergência. Em risco imediato, procure serviços locais de urgência e uma pessoa de confiança.
 
 ## Hospedagem
@@ -56,3 +70,4 @@ Relatórios e push devem exigir consentimento explícito e revogável. Não incl
 - Implementar OAuth no backend com credenciais de desenvolvimento e produção separadas.
 - Persistir anexos em armazenamento privado e oferecer exclusão/exportação.
 - Programar relatórios e notificações em serviços de fila/cron, respeitando as preferências de frequência e consentimento.
+- Avaliar integração com Apple Saúde e outros sistemas somente mediante suporte oficial, consentimento específico e arquitetura segura; esta PWA não acessa dados de saúde do aparelho.
