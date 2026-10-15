@@ -1,0 +1,40 @@
+# Segredos e configuração local — NUNCA publique
+app/config.php
+config.php
+*.local.php
+.env
+.env.*
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa*
+id_ed25519*
+
+# Dados de usuários, logs e batimentos dos crons
+storage/*
+!storage/.htaccess
+!storage/media/
+storage/media/*
+!storage/media/.gitkeep
+logs/
+*.log
+error_log
+
+# Dependências e artefatos de teste
+vendor/
+node_modules/
+tests/vendor/
+tests/js/node_modules/
+tests/tmp/
+tests/.phpunit.cache/
+.phpunit.result.cache
+loadtest/results/*
+!loadtest/results/.gitkeep
+
+# Pacotes e sistema
+*.zip
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

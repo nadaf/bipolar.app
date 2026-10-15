@@ -1,0 +1,15 @@
+parameters:
+  level: 6
+  phpVersion:
+    min: 80000
+    max: 80499
+  paths:
+    - ../app
+    - ../public_html
+    - ../cron
+    - ../tools
+  excludePaths:
+    - ../app/config.php
+  bootstrapFiles:
+    - tools/phpstan-bootstrap.php
+  treatPhpDocTypesAsCertain: false
