@@ -1,0 +1,28 @@
+{
+  "routes": [
+    {
+      "path": "/",
+      "title": "Meu diário"
+    },
+    {
+      "path": "/historico",
+      "title": "Histórico"
+    },
+    {
+      "path": "/panorama",
+      "title": "Meu panorama"
+    },
+    {
+      "path": "/relatorios",
+      "title": "Relatórios"
+    },
+    {
+      "path": "/cuidado",
+      "title": "Meu cuidado"
+    },
+    {
+      "path": "/configuracoes",
+      "title": "Configurações"
+    }
+  ]
+}

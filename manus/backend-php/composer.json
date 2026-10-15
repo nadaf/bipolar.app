@@ -1,0 +1,17 @@
+{
+  "name": "bipolar/app-backend",
+  "description": "Private PHP backend delivery dependencies for bipolar.app.br",
+  "type": "project",
+  "require": {
+    "php": ">=8.2",
+    "phpmailer/phpmailer": "^7.0",
+    "minishlink/web-push": "^10.0"
+  },
+  "config": {
+    "vendor-dir": "private/vendor",
+    "sort-packages": true,
+    "optimize-autoloader": true,
+    "platform-check": true
+  },
+  "prefer-stable": true
+}
