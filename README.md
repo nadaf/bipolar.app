@@ -35,3 +35,8 @@ Para instalar e saber mais, veja o [README da versão grok](grok/README.md).
 ## Licença
 
 A versão `grok/` usa a licença [AGPL-3.0](grok/LICENSE). As outras pastas são guardadas só como registro do experimento.
+
+## Próximos desafios (roadmap)
+
+1. **IA com o máximo de segurança para dados sensíveis:** reduzir ao mínimo o que vai para o provedor de IA, anonimizar e pseudonimizar antes de enviar, deixar a pessoa ver exatamente o que será enviado, e avaliar modelos que rodam localmente ou sem guardar dados.
+2. **Monitoramento de redes sociais (opcional e com consentimento):** um robô (por exemplo, com n8n ou outros agentes) que acompanhe as postagens da própria pessoa. Na mania, é comum aumentar a quantidade de posts e mudar o tom psicológico do que se escreve. A ideia é cruzar esses sinais com o diário e gerar alertas, sempre com a pessoa no controle.
