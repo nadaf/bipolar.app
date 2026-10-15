@@ -22,7 +22,7 @@ Site oficial: https://bipolar.app.br · Licença: **AGPL-3.0** · Idioma da inte
 
 ## Instalação rápida
 
-1. Copie `app/config.example.php` para `app/config.php` e preencha banco, SMTP, VAPID (`php tools/generate_vapid.php`) e `ai.secret_key` (`php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'`).
+1. Copie `app/config.example.php` para `app/config.php` e preencha banco, SMTP, VAPID (`php tools/generate_vapid.php`) e `ai.secret_key` (32 bytes aleatórios em base64; sem SSH, veja a seção 8.1 do README-INSTALACAO).
 2. Importe `schema.sql` no banco.
 3. Aponte o domínio para `public_html/` e mantenha `app/`, `cron/`, `storage/` e `tools/` **fora** da pasta pública.
 4. Agende os 3 crons (`cron/analyze_signals.php`, `cron/send_reminders.php`, `cron/send_reports.php`).

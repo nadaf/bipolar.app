@@ -119,6 +119,16 @@ espere 1–2 minutos e **apague a tarefa**. O script grava `storage/vapid.php` (
 
 O texto da notificação é **criptografado de ponta a ponta** (RFC 8291, aes128gcm, implementado em PHP com OpenSSL) e é sempre genérico (“Como está seu humor nesta tarde?”), com os botões “Registrar agora” e “Lembrar em 30 min”. Nenhum dado de saúde vai no texto. No iPhone, push funciona apenas com o app instalado na tela de início (iOS 16.4+).
 
+## 8.1 Extensões do PHP e chave da IA (sem SSH)
+
+- **Extensões:** cPanel → **Select PHP Version** → aba **Extensions** → marque `sodium` (obrigatória para a IA com chave própria) e `zip` (botão "Baixar tudo").
+- **`ai.secret_key`:** no cron do cPanel, `php` sozinho chama o *php-cgi*, que não aceita `-r`. Gere pelo navegador:
+  1. Crie `gera.php` na pasta do site com `<?php echo base64_encode(random_bytes(32));`
+  2. Abra `https://SEU-DOMINIO/gera.php`, copie o valor (44 caracteres, termina com `=`) e **apague o arquivo na hora**.
+  3. Cole em `'ai' => ['secret_key' => '...']` no `config.php`. **Nunca troque essa chave**: as chaves de IA salvas deixariam de abrir.
+- **Bloco `legal`:** preencha `controller` (nome e cidade do responsável) e `contact_email` no `config.php`; a Política de Privacidade usa esses dados.
+- **Cron em geral:** use sempre o caminho completo `/usr/local/bin/php` (o mesmo da tabela abaixo).
+
 ## 9. Tarefas agendadas (cPanel → Cron Jobs)
 
 | Frequência | Comando |
