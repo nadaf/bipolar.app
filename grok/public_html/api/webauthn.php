@@ -42,6 +42,39 @@ if (in_array($action, ['login_options', 'login_verify'], true)) {
     json_out(['ok' => true]);
 }
 
+// V4.4: passkey como segunda etapa do login por senha (só para a conta com login pendente)
+if (in_array($action, ['mfa_options', 'mfa_verify'], true)) {
+    if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_out(['erro' => 'Método não permitido.'], 405);
+    if (!csrf_valid($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '')) json_out(['erro' => 'Token CSRF inválido. Recarregue a página.'], 403);
+    $pend = mfa_pending();
+    if (!$pend) json_out(['erro' => 'O tempo para confirmar acabou. Entre de novo com e-mail e senha.'], 401);
+    if (!rate_limit('wamfa', 20, 900)) json_out(['erro' => 'Muitas tentativas. Aguarde 15 minutos.'], 429);
+    $st = $pdo->prepare('SELECT credential_id FROM webauthn_credentials WHERE user_id = ?');
+    $st->execute([$pend['uid']]);
+    $allow = array_map(function (array $r): array { return ['type' => 'public-key', 'id' => $r['credential_id'], 'transports' => ['internal', 'hybrid']]; }, $st->fetchAll());
+    if (!$allow) json_out(['erro' => 'Nenhuma biometria cadastrada nesta conta. Use o código do app autenticador.'], 404);
+    if ($action === 'mfa_options') {
+        json_out(['publicKey' => ['challenge' => b64url(webauthn_challenge('mfa')), 'rpId' => $rp, 'timeout' => 60000, 'userVerification' => 'required', 'allowCredentials' => $allow]]);
+    }
+    $in = json_input();
+    try {
+        $ch = webauthn_take_challenge('mfa');
+        $st = $pdo->prepare('SELECT * FROM webauthn_credentials WHERE cred_hash = ? AND user_id = ?');
+        $st->execute([hash('sha256', wa_field($in, 'rawId')), $pend['uid']]);
+        $c = $st->fetch();
+        if (!$c) throw new RuntimeException('Esta biometria não pertence a esta conta.');
+        $n = webauthn_verify_assertion(wa_field($in, 'clientDataJSON'), wa_field($in, 'authenticatorData'), wa_field($in, 'signature'), $ch, $rp, $origin, (string)$c['public_key_pem'], (int)$c['alg'], (int)$c['sign_count']);
+    } catch (RuntimeException $e) {
+        $_SESSION['mfa_pending']['tries'] = $pend['tries'] + 1;
+        json_out(['erro' => $e->getMessage()], 422);
+    }
+    $pdo->prepare('UPDATE webauthn_credentials SET sign_count = ?, last_used_at = UTC_TIMESTAMP() WHERE id = ?')->execute([$n, $c['id']]);
+    unset($_SESSION['mfa_pending']);
+    login_user((int)$c['user_id']);
+    lock_mark_unlocked();
+    json_out(['ok' => true]);
+}
+
 define('ALLOW_LOCKED', true); // desbloquear precisa funcionar com o app bloqueado
 $u = require_user_api();
 $locked = app_locked($u);
@@ -101,11 +134,16 @@ if ($action === 'reg_verify') {
 }
 if ($action === 'delete') {
     if (!private_unlocked($u)) json_out(['erro' => 'Para remover um aparelho, desbloqueie antes (PIN ou biometria).', 'bloqueado' => true], 423);
-    $pdo->prepare('DELETE FROM webauthn_credentials WHERE id = ? AND user_id = ?')->execute([(int)(json_input()['id'] ?? 0), $u['id']]);
+    $st = $pdo->prepare('DELETE FROM webauthn_credentials WHERE id = ? AND user_id = ?');
+    $st->execute([(int)(json_input()['id'] ?? 0), $u['id']]);
+    if ($st->rowCount() < 1) json_out(['erro' => 'Aparelho não encontrado.'], 404); // V4.4
     json_out(['ok' => true]);
 }
 if ($action === 'rename') {
     $in = json_input();
+    $st = $pdo->prepare('SELECT id FROM webauthn_credentials WHERE id = ? AND user_id = ?'); // V4.4: dono primeiro
+    $st->execute([(int)($in['id'] ?? 0), $u['id']]);
+    if (!$st->fetchColumn()) json_out(['erro' => 'Aparelho não encontrado.'], 404);
     $pdo->prepare('UPDATE webauthn_credentials SET name = ? WHERE id = ? AND user_id = ?')->execute([trim(mb_substr((string)($in['name'] ?? ''), 0, 100)) ?: 'Aparelho', (int)($in['id'] ?? 0), $u['id']]);
     json_out(['ok' => true]);
 }

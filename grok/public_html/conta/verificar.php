@@ -7,9 +7,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $uid = consume_auth_token($t, 'verify');
     if ($uid) {
         db()->prepare('UPDATE users SET email_verified_at = COALESCE(email_verified_at, UTC_TIMESTAMP()) WHERE id = ?')->execute([$uid]);
-        login_user($uid);
         flash('E-mail confirmado. Bem-vindo(a)!');
-        redirect('/');
+        login_or_mfa($uid); // V4.4
     }
 }
 $valid = find_auth_token($t, 'verify') !== null;

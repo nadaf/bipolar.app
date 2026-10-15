@@ -49,7 +49,7 @@ final class CsrfAuthzTest extends IntegrationCase
         $id = $this->entry($a, ['note' => 'SEGREDO-A', 'mood' => -1])['id'];
         $list = $b->get('/api/entries.php?from=2026-01-01&to=2026-12-31')['json']['entries'];
         $this->assertSame([], $list);
-        $this->assertSame(200, $b->json('DELETE', '/api/entries.php?id=' . $id, null)['status']);
+        $this->assertSame(404, $b->json('DELETE', '/api/entries.php?id=' . $id, null)['status'], 'V4.4: id de outra pessoa → 404');
         $this->assertSame(1, (int)db()->query("SELECT COUNT(*) FROM entries WHERE id = $id")->fetchColumn(), 'B não apaga entrada de A');
         // mesma data/período de B cria entrada própria, não sobrescreve a de A
         $this->entry($b, ['mood' => 3, 'note' => 'B']);
@@ -67,7 +67,7 @@ final class CsrfAuthzTest extends IntegrationCase
         $this->assertSame(200, $a->get('/api/media.php?id=' . $mid)['status']);
         $this->assertSame(404, $b->get('/api/media.php?id=' . $mid)['status']);
         $this->assertSame([], $b->get('/api/media.php')['json']['media']);
-        $b->json('DELETE', '/api/media.php?id=' . $mid, null);
+        $this->assertSame(404, $b->json('DELETE', '/api/media.php?id=' . $mid, null)['status']);
         $this->assertSame(200, $a->get('/api/media.php?id=' . $mid)['status'], 'arquivo de A continua');
         // B não consegue anexar mídia na entrada de A
         $r = $b->upload('/api/media.php', $this->png(), 'b.png', 'image/png', ['entry_id' => (string)$eid]);
@@ -82,8 +82,8 @@ final class CsrfAuthzTest extends IntegrationCase
         $mid = (int)db()->query('SELECT id FROM reminders WHERE user_id = ' . $this->uid('ra'))->fetchColumn();
         $this->assertSame([], $b->get('/api/recipients.php')['json']['recipients']);
         $this->assertSame([], $b->get('/api/reminders.php')['json']['reminders']);
-        $b->json('DELETE', "/api/recipients.php?id=$rid", null);
-        $b->json('DELETE', "/api/reminders.php?id=$mid", null);
+        $this->assertSame(404, $b->json('DELETE', "/api/recipients.php?id=$rid", null)['status']);
+        $this->assertSame(404, $b->json('DELETE', "/api/reminders.php?id=$mid", null)['status']);
         $this->assertSame(1, (int)db()->query("SELECT COUNT(*) FROM recipients WHERE id = $rid")->fetchColumn());
         $this->assertSame(1, (int)db()->query("SELECT COUNT(*) FROM reminders WHERE id = $mid")->fetchColumn());
         // push: a assinatura fica vinculada a quem a registrou

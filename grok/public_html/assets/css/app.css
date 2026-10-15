@@ -395,3 +395,8 @@ input[readonly] { background: var(--surface-2); }
 .ca-prev-table th, .ca-prev-table td { text-align: left; padding: .3rem .4rem; border-bottom: 1px solid var(--border, #ccc); }
 .prose .plain { background: var(--primary-soft); border-left: 5px solid var(--primary); border-radius: 12px; padding: .8rem 1rem; margin: 1rem 0; }
 .prose .plain h2 { margin-top: 0; }
+/* V4.4: verificação em duas etapas */
+.mfa-qr img { display: block; background: #fff; padding: 8px; border-radius: 8px; max-width: 100%; height: auto; }
+.mfa-secret { word-break: break-all; font-size: 1.05em; letter-spacing: .04em; }
+.mfa-codes { list-style: none; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr)); gap: .4rem; }
+.mfa-codes code { font-size: 1.05em; }

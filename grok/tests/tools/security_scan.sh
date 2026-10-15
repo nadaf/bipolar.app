@@ -4,10 +4,12 @@ set -u
 cd "$(dirname "$0")/../.."
 SRC="app public_html cron tools"
 fail=0
+# scan-allowlist.txt: linhas revisadas manualmente (nomes de tabela/coluna vindos de constantes do código, nunca do usuário).
+# Se uma dessas linhas mudar de número, a varredura volta a acusar e a linha precisa ser revisada de novo.
 check() { # descrição, regex, [exclusões]
   local desc="$1" re="$2"
   local out
-  out=$(grep -rnE --include="*.php" -e "$re" $SRC | grep -v 'app/config.php' || true)
+  out=$(grep -rnE --include="*.php" -e "$re" $SRC | grep -v 'app/config.php' | grep -vFf tests/tools/scan-allowlist.txt || true)
   if [ -n "$out" ]; then echo "FALHA: $desc"; echo "$out" | sed 's/^/   /'; fail=1; else echo "ok   : $desc"; fi
 }
 check "eval/assert dinâmico"            '\b(eval|assert)\s*\('

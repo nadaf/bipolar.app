@@ -70,29 +70,16 @@ As URIs de redirecionamento devem ser **exatamente**:
 
 | Provedor | Redirect URI |
 |---|---|
-| Google | `https://bipolar.app.br/auth/callback.php?provider=google` |
-| Microsoft | `https://bipolar.app.br/auth/callback.php?provider=microsoft` |
-| X | `https://bipolar.app.br/auth/callback.php?provider=x` |
+| Google | `https://bipolar.app.br/auth/callback.php` |
+| Microsoft | `https://bipolar.app.br/auth/callback.php` |
+| X | `https://bipolar.app.br/auth/callback.php` |
 
-### Google Cloud Console
-1. https://console.cloud.google.com → crie um projeto “Bipolar”.
-2. **APIs e serviços → Tela de consentimento OAuth** (Google Auth Platform): tipo *Externo*; nome do app, e‑mail de suporte, domínio autorizado `bipolar.app.br`, link da política `https://bipolar.app.br/privacidade.php`. Escopos: `openid`, `email`, `profile` (não sensíveis). Publique o app (sair de “Teste”).
-3. **Credenciais → Criar credenciais → ID do cliente OAuth → Aplicativo da Web**. Origem JavaScript: `https://bipolar.app.br`. URI de redirecionamento: a da tabela.
-4. Copie *Client ID* e *Client secret* para `oauth.google`.
+A mesma URI vale para os três (V4.4: sem `?provider=`, porque a Microsoft não aceita parâmetros na URI de apps com contas pessoais). O passo a passo completo, para quem não é desenvolvedor, está em `docs/LOGIN-SOCIAL.md`.
 
-### Microsoft Entra ID (Azure)
-1. https://portal.azure.com → **Microsoft Entra ID → Registros de aplicativo → Novo registro**.
-2. Tipos de conta: **“Contas em qualquer diretório organizacional e contas Microsoft pessoais”** (necessário para o endpoint `common`).
-3. URI de redirecionamento: plataforma **Web** → a da tabela.
-4. **Certificados e segredos → Novo segredo do cliente** → copie o **Valor** (não o ID) para `client_secret`. Anote a validade (máx. 24 meses) e renove antes de vencer.
-5. **Permissões de API**: Microsoft Graph delegadas `openid`, `email`, `profile`, `User.Read` (padrão).
-6. *ID do aplicativo (cliente)* → `oauth.microsoft.client_id`; `tenant` = `common`.
+### Passo a passo (Google, Microsoft e X)
+O guia completo, para quem não é desenvolvedor, está em **`docs/LOGIN-SOCIAL.md`**: criação das credenciais nos três consoles, tela de consentimento do Google, tipos de conta e validade do segredo na Microsoft, app confidencial no X, onde colar cada valor no `config.php`, lista de testes e erros comuns (`redirect_uri_mismatch`, `AADSTS50011`…).
 
-### X (Twitter) Developer Portal
-1. https://developer.x.com → **Projects & Apps** → crie um App dentro de um Project.
-2. **User authentication settings → Set up**: *App permissions* = Read; *Type of App* = **Web App, Automated App or Bot** (confidential client); *Callback URI* = a da tabela; *Website URL* = `https://bipolar.app.br`.
-3. Em **Keys and tokens → OAuth 2.0 Client ID and Client Secret** copie para `oauth.x`.
-4. Limitação: o OAuth 2.0 do X **não fornece e‑mail**. Usuários do X devem informar o e‑mail em *Conta* para receber lembretes por e‑mail.
+Resumo: Google e Microsoft usam `openid email profile` (a Microsoft também `User.Read`), o X usa `users.read tweet.read` e **não fornece e-mail** (quem entra pelo X informa o e-mail em *Conta*). Todos usam PKCE (S256) e `state`. Na Microsoft, `tenant` = `common` e tipo de conta **Any Entra ID Tenant + Personal Microsoft accounts**. No X, tipo **Web App, Automated App or Bot** (cliente confidencial).
 
 > Contas de provedores diferentes **não são unificadas** automaticamente por e‑mail (proteção contra sequestro de conta). Oriente o usuário a sempre entrar com o mesmo provedor.
 
@@ -121,11 +108,11 @@ O texto da notificação é **criptografado de ponta a ponta** (RFC 8291, aes128
 
 ## 8.1 Extensões do PHP e chave da IA (sem SSH)
 
-- **Extensões:** cPanel → **Select PHP Version** → aba **Extensions** → marque `sodium` (obrigatória para a IA com chave própria) e `zip` (botão "Baixar tudo").
+- **Extensões:** cPanel → **Select PHP Version** → aba **Extensions** → marque `sodium` (obrigatória para a IA com chave própria e para a verificação em duas etapas) e `zip` (botão "Baixar tudo").
 - **`ai.secret_key`:** no cron do cPanel, `php` sozinho chama o *php-cgi*, que não aceita `-r`. Gere pelo navegador:
   1. Crie `gera.php` na pasta do site com `<?php echo base64_encode(random_bytes(32));`
   2. Abra `https://SEU-DOMINIO/gera.php`, copie o valor (44 caracteres, termina com `=`) e **apague o arquivo na hora**.
-  3. Cole em `'ai' => ['secret_key' => '...']` no `config.php`. **Nunca troque essa chave**: as chaves de IA salvas deixariam de abrir.
+  3. Cole em `'ai' => ['secret_key' => '...']` no `config.php`. **Nunca troque essa chave**: as chaves de IA salvas deixariam de abrir e, a partir da V4.4, quem ativou a verificação em duas etapas só entraria com um código de recuperação. Sem ela, a verificação em duas etapas fica indisponível.
 - **Bloco `legal`:** preencha `controller` (nome e cidade do responsável) e `contact_email` no `config.php`; a Política de Privacidade usa esses dados.
 - **Cron em geral:** use sempre o caminho completo `/usr/local/bin/php` (o mesmo da tabela abaixo).
 
@@ -152,7 +139,8 @@ Confira o caminho do PHP CLI (pode ser `/usr/local/bin/ea-php82` ou `/opt/cpanel
 
 - Sessão `HttpOnly`, `Secure`, `SameSite=Lax`, regeneração de ID no login; CSRF em todas as requisições de escrita; `state` + PKCE (S256) em todos os provedores.
 - PDO com *prepared statements*; CSP restritiva, HSTS, `X-Frame-Options`, `nosniff`, `Permissions-Policy`.
-- Limite de tentativas (login, registros, uploads, convites).
+- Limite de tentativas (login, registros, uploads, convites, códigos da verificação em duas etapas).
+- **Verificação em duas etapas (V4.4)**, opcional, para contas de e-mail e senha: app autenticador (TOTP, RFC 6238) com janela de ±1 passo e bloqueio de reuso, 10 códigos de recuperação de uso único (só o hash fica guardado) e, se a pessoa tiver, a biometria (passkey) como segunda etapa. A chave do autenticador fica cifrada com uma subchave derivada de `ai.secret_key`: sem ela, a ativação fica bloqueada. Login por Google, Microsoft ou X não pede o código do Bipolar: a segunda etapa fica a cargo do provedor.
 - Mídias fora do `public_html`, nome aleatório, validação de MIME por `finfo`, limites por tipo, entregues somente ao dono via `/api/media.php` (com suporte a *Range* para vídeo).
 - Exportação JSON/CSV, exclusão total da conta, política de privacidade, opt‑in duplo dos destinatários e link de cancelamento em todo relatório.
 - **Backups**: cPanel → *Backup* (ou JetBackup). Dados de saúde são sensíveis — guarde backups com criptografia e restrinja acesso.

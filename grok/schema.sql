@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS users (
   ai_key_enc TEXT NULL,
   ai_key_last4 VARCHAR(4) NULL,
   ai_key_updated_at DATETIME NULL,
+  mfa_totp_secret_enc TEXT NULL,
+  mfa_enabled_at DATETIME NULL,
+  mfa_totp_last_step BIGINT UNSIGNED NULL,
   PRIMARY KEY (id),
   KEY idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -306,4 +309,16 @@ CREATE TABLE IF NOT EXISTS rate_limits (
   window_start INT UNSIGNED NOT NULL,
   hits INT UNSIGNED NOT NULL DEFAULT 0,
   PRIMARY KEY (rl_key)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- V4.4: codigos de recuperacao da verificacao em duas etapas (so o SHA-256 fica guardado)
+CREATE TABLE IF NOT EXISTS mfa_recovery_codes (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  code_hash CHAR(64) NOT NULL,
+  used_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_mfa_rc (user_id, code_hash),
+  CONSTRAINT fk_mfa_rc_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

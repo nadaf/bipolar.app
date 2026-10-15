@@ -32,8 +32,11 @@ return [
         'port' => 3306,
     ],
 
-    // Deixe client_id/client_secret vazios ('') para ocultar o botão do provedor.
+    // Deixe client_id/client_secret vazios ('') ou com os textos de exemplo (SEU_...) para ocultar o botão do provedor.
     // O site funciona só com e-mail e senha enquanto você não configurar nenhum OAuth.
+    // URI de retorno para cadastrar nos 3 consoles (V4.4, sem ?provider=): https://bipolar.app.br/auth/callback.php
+    // Passo a passo completo: docs/LOGIN-SOCIAL.md. Login com Google/Microsoft/X não pede o código da verificação em
+    // duas etapas do Bipolar: a segunda etapa fica a cargo do provedor (ative-a na sua conta Google/Microsoft/X).
     'oauth' => [
         'google' => [
             'client_id' => 'SEU_CLIENT_ID.apps.googleusercontent.com',
@@ -76,6 +79,8 @@ return [
     // IA opcional "Reflexões com IA" (V4.3): cada pessoa escolhe o provedor e cola a PRÓPRIA chave em Conta.
     'ai' => [
         // Chave do servidor que cifra as chaves das pessoas (libsodium). Sem ela, a IA fica indisponível.
+        // V4.4: também cifra (com uma subchave derivada) a chave da verificação em duas etapas. Sem ela, ninguém consegue ativar.
+        // ATENÇÃO: se trocar ou perder este valor, quem ativou a verificação em duas etapas só entra com um código de recuperação.
         // Gere UMA vez e guarde com cuidado:  php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;'
         // Se você perder ou trocar este valor, as chaves já salvas deixam de abrir e cada pessoa precisa colar de novo.
         'secret_key' => '',

@@ -98,7 +98,10 @@ if ($m === 'PATCH') {
     json_out(['ok' => true]);
 }
 if ($m === 'DELETE') {
-    $pdo->prepare('DELETE FROM recipients WHERE id = ? AND user_id = ?')->execute([(int)($_GET['id'] ?? 0), $u['id']]);
+    // V4.4: id de outra pessoa (ou já apagado) → 404, como nas demais rotas
+    $st = $pdo->prepare('DELETE FROM recipients WHERE id = ? AND user_id = ?');
+    $st->execute([(int)($_GET['id'] ?? 0), $u['id']]);
+    if ($st->rowCount() < 1) json_out(['erro' => 'Destinatário não encontrado.'], 404);
     json_out(['ok' => true]);
 }
 json_out(['erro' => 'Método não permitido.'], 405);

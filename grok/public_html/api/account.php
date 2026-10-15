@@ -33,7 +33,8 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         exit;
     }
     $user = $u;
-    unset($user['id'], $user['password_hash'], $user['session_epoch'], $user['sex_pin_hash'], $user['prefs'], $user['ai_key_enc']);
+    unset($user['id'], $user['password_hash'], $user['session_epoch'], $user['sex_pin_hash'], $user['prefs'], $user['ai_key_enc'], $user['mfa_totp_secret_enc'], $user['mfa_totp_last_step']);
+    $user['verificacao_duas_etapas'] = mfa_enabled($u); // V4.4: o segredo (cifrado) e os códigos nunca saem na exportação
     $user['tem_chave_ia'] = !empty($u['ai_key_enc']); // a chave de IA (cifrada) nunca sai na exportação
     $user['preferencias'] = user_prefs($u);
     $user['tem_senha'] = !empty($u['password_hash']);

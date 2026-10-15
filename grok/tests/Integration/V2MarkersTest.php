@@ -138,7 +138,7 @@ final class V2MarkersTest extends IntegrationCase
     {
         $c = $this->user('v2ui');
         $html = $c->get('/')['body'];
-        foreach (['id="form-day"', 'id="early-warning"', 'id="conta-modulos"', 'id="indicators"', 'name="include_sexuality"', 'app.js?v=9', 'app.css?v=9'] as $n) $this->assertStringContainsString($n, $html);
+        foreach (['id="form-day"', 'id="early-warning"', 'id="conta-modulos"', 'id="indicators"', 'name="include_sexuality"', 'app.js?v=10', 'app.css?v=10'] as $n) $this->assertStringContainsString($n, $html);
         $this->assertStringNotContainsString('name="sexualidade" value="1"', $html, 'opção de relatório só com o módulo ligado');
         $c->json('POST', '/api/account.php?action=prefs', ['modules' => ['ciclo' => true]]);
         $html = $c->get('/')['body'];

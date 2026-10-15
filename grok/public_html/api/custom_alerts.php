@@ -80,14 +80,18 @@ if ($action === 'save' || $action === 'preview') {
             'duplicate_of' => $dup ? ['id' => $dup['id'], 'name' => $dup['name']] : null]);
     }
     $id = (int)($in['id'] ?? 0);
-    // V4.3: bloqueia regra idêntica (mesmas condições): avisaria duas vezes nos mesmos dias
-    $dup = custom_find_duplicate(custom_rules($pdo, $u), $rule, $id);
-    if ($dup) json_out(['erro' => 'Você já tem um alerta com exatamente estas condições: “' . $dup['name'] . '”. Edite esse alerta ou mude alguma condição.', 'duplicado' => ['id' => $dup['id'], 'name' => $dup['name']]], 409);
-    $json = json_encode($rule['conditions'], JSON_UNESCAPED_UNICODE);
+    // V4.4: confere o dono ANTES da duplicidade (id de outra pessoa → 404, nunca 409)
+    $cur = null;
     if ($id > 0) {
         $cur = custom_find($pdo, $u, $id);
         if (!$cur) json_out(['erro' => 'Alerta não encontrado.'], 404);
         $needUnlock((int)$cur['is_private']);
+    }
+    // V4.3: bloqueia regra idêntica (mesmas condições): avisaria duas vezes nos mesmos dias
+    $dup = custom_find_duplicate(custom_rules($pdo, $u), $rule, $id);
+    if ($dup) json_out(['erro' => 'Você já tem um alerta com exatamente estas condições: “' . $dup['name'] . '”. Edite esse alerta ou mude alguma condição.', 'duplicado' => ['id' => $dup['id'], 'name' => $dup['name']]], 409);
+    $json = json_encode($rule['conditions'], JSON_UNESCAPED_UNICODE);
+    if ($id > 0 && $cur) {
         $claimed = version_guard($pdo, 'alert_rules', ['id' => $id, 'user_id' => $u['id']], client_version($in)); // V4.3.1
         $pdo->prepare('UPDATE alert_rules SET ' . ($claimed ? '' : 'version = version + 1, ') . 'name = ?, logic = ?, conditions_json = ?, severity = ?, notify_push = ?, notify_email = ?, cooldown_days = ?, is_private = ?, template = ? WHERE id = ? AND user_id = ?')
             ->execute([$rule['name'], $rule['logic'], $json, $rule['severity'], (int)$rule['notify_push'], (int)$rule['notify_email'], $rule['cooldown_days'], $rule['is_private'], $rule['template'], $id, $u['id']]);

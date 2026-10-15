@@ -42,6 +42,7 @@ page_head('Política de Privacidade'); ?>
 <li><strong>Biometria (passkeys):</strong> sua digital ou rosto nunca saem do aparelho. Guardamos apenas a chave pública, um contador e o nome que você deu ao aparelho.</li>
 <li><strong>Notificações push:</strong> o endereço de entrega do navegador e as chaves para cifrar a mensagem.</li>
 <li><strong>Chave de IA (opcional):</strong> o provedor, o modelo e a sua chave de API, guardada cifrada.</li>
+<li><strong>Verificação em duas etapas (opcional, contas com e-mail e senha):</strong> a chave do app autenticador, guardada cifrada, o número do último código aceito (para impedir que o mesmo código seja usado duas vezes) e os 10 códigos de recuperação, guardados só como <em>hash</em>. Quando você ativa ou desativa, enviamos um aviso por e-mail, sem a chave e sem códigos. Quem entra com uma conta externa usa a verificação em duas etapas do próprio provedor.</li>
 <li><strong>Dados técnicos:</strong> cookie de sessão; contadores de tentativas (para limitar abusos), guardados como <em>hash</em> do endereço IP e apagados em até 1 dia.</li>
 </ul>
 
@@ -56,7 +57,7 @@ page_head('Política de Privacidade'); ?>
 <h2>4. Onde ficam e como protegemos</h2>
 <ul>
 <li>O site fica em <?= e($hosting) ?>, com conexão sempre cifrada (HTTPS). Áudios, vídeos e imagens ficam fora da área pública do site e só são entregues a você, depois do login.</li>
-<li><strong>O que é cifrado:</strong> a conexão (HTTPS), as notificações push (de ponta a ponta, e sempre com texto genérico) e a sua chave de IA (libsodium, com uma chave do servidor). Senha e PIN são guardados só como <em>hash</em>.</li>
+<li><strong>O que é cifrado:</strong> a conexão (HTTPS), as notificações push (de ponta a ponta, e sempre com texto genérico) a sua chave de IA e a chave da verificação em duas etapas (libsodium, com chaves do servidor). Senha, PIN e códigos de recuperação são guardados só como <em>hash</em>.</li>
 <li><strong>O que não é cifrado no servidor:</strong> os registros, anotações e mídias ficam no banco de dados e no disco do servidor sem cifra própria. Por isso, quem opera o servidor ou a hospedagem tem acesso técnico a eles.</li>
 <li><strong>Registros técnicos (logs):</strong> o app não registra o conteúdo do que você escreve. Os logs guardam só erros técnicos (por exemplo, falha de envio de e-mail com o endereço mascarado, ou o código de erro do provedor de IA sem a sua chave e sem o que foi enviado) e a data e os contadores das tarefas automáticas. A hospedagem também mantém os registros de acesso do servidor web (endereço IP, data e página), conforme a política dela.</li>
 <li>Não há área de administração. As tarefas automáticas (alertas, lembretes, relatórios) rodam no servidor sem tela, e a situação delas existe só em arquivos internos, sem dados pessoais.</li>
@@ -92,7 +93,7 @@ page_head('Política de Privacidade'); ?>
 <h2>9. Por quanto tempo guardamos</h2>
 <ul>
 <li>Seus dados ficam guardados enquanto a conta existir. Não apagamos contas inativas automaticamente.</li>
-<li>Ao <strong>excluir a conta</strong>, apagamos na hora a conta e tudo ligado a ela: registros, marcadores, sexualidade, substâncias, mídias (os arquivos também), alertas e regras de alerta, pessoas de apoio, lembretes, biometria, notificações, chave e uso da IA.</li>
+<li>Ao <strong>excluir a conta</strong>, apagamos na hora a conta e tudo ligado a ela: registros, marcadores, sexualidade, substâncias, mídias (os arquivos também), alertas e regras de alerta, pessoas de apoio, lembretes, biometria, verificação em duas etapas e códigos de recuperação, notificações, chave e uso da IA.</li>
 <li>Cópias de segurança feitas pela hospedagem podem manter os dados por um período limitado, até serem sobrescritas, conforme a política da hospedagem.</li>
 <li>Contadores de tentativas: até 1 dia. Links de confirmação e redefinição de senha: expiram em poucas horas ou dias.</li>
 </ul>

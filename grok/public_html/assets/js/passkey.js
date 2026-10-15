@@ -37,7 +37,22 @@
     if (e && e.name === 'NotSupportedError') return 'Este aparelho ou navegador não oferece biometria compatível.';
     return (e && e.message) || 'Não foi possível usar a biometria.';
   }
-  window.BPPasskey = { supported, unlock, login, register, msg, post };
+  // V4.4: biometria como segunda etapa do login por senha
+  async function mfa(csrf) {
+    const o = await post('/api/webauthn.php?action=mfa_options', csrf);
+    const c = await navigator.credentials.get({ publicKey: prepGet(o.publicKey) });
+    return post('/api/webauthn.php?action=mfa_verify', csrf, assertion(c));
+  }
+  window.BPPasskey = { supported, unlock, login, register, msg, post, mfa };
+  const mb = document.getElementById('btn-passkey-mfa');
+  if (mb && supported()) {
+    mb.classList.remove('hidden');
+    mb.addEventListener('click', async () => {
+      const out = document.getElementById('passkey-msg');
+      out.textContent = '';
+      try { await mfa(document.querySelector('input[name=csrf]').value); location.href = '/'; } catch (e) { out.textContent = msg(e); }
+    });
+  }
 
   // Página de login: "Entrar com biometria"
   const lb = document.getElementById('btn-passkey-login');

@@ -1,7 +1,8 @@
 <?php
 require __DIR__ . '/../_boot.php';
 require_once APP_ROOT . '/lib/oauth.php';
-$p = (string)($_GET['provider'] ?? '');
+// V4.4: a URI de retorno não leva mais ?provider= (a Microsoft não aceita): o provedor vem do login iniciado nesta sessão
+$p = (string)($_GET['provider'] ?? (is_array($_SESSION['oauth'] ?? null) ? ($_SESSION['oauth']['p'] ?? '') : ''));
 try {
     if (!rate_limit('oauth_cb', 30, 300)) throw new RuntimeException('Muitas tentativas. Aguarde alguns minutos.');
     $identity = oauth_callback($p);

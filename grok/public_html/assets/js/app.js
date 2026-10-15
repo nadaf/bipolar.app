@@ -2,6 +2,7 @@
 (function () {
   'use strict';
   const B = JSON.parse(document.getElementById('boot').textContent);
+  document.addEventListener('bp:csrf', (e) => { B.csrf = e.detail; }); // V4.4: a ativação da verificação em duas etapas renova a sessão
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => Array.from(r.querySelectorAll(s));
   const LV = Object.fromEntries(B.levels.map((l) => [l.v, l]));
@@ -644,7 +645,7 @@
   }
   $('#media-history').addEventListener('click', async (e) => {
     const id = e.target.dataset.delMedia; if (!id || !(await askConfirm({ text: 'Excluir este arquivo definitivamente?', ok: 'Apagar', danger: true }))) return;
-    await api('/api/media.php?id=' + id, { method: 'DELETE' }); toast('Arquivo excluído.'); loadMediaHistory();
+    try { await api('/api/media.php?id=' + id, { method: 'DELETE' }); toast('Arquivo excluído.'); } catch (err) { toast(err.message, 'err'); } loadMediaHistory();
   });
 
   /* ---------- Relatórios / destinatários ---------- */
@@ -681,7 +682,7 @@
       return loadRecipients();
     }
     const id = e.target.dataset.delRc; if (!id || !(await askConfirm('Remover este destinatário? Ele não receberá mais relatórios.'))) return;
-    await api('/api/recipients.php?id=' + id, { method: 'DELETE' }); toast('Destinatário removido.'); loadRecipients();
+    try { await api('/api/recipients.php?id=' + id, { method: 'DELETE' }); toast('Destinatário removido.'); } catch (err) { toast(err.message, 'err'); } loadRecipients();
   });
   $('#form-recipient').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -719,7 +720,7 @@
   }
   $('#reminders').addEventListener('click', async (e) => {
     const id = e.target.dataset.delRm; if (!id) return;
-    await api('/api/reminders.php?id=' + id, { method: 'DELETE' }); toast('Lembrete removido.'); loadReminders();
+    try { await api('/api/reminders.php?id=' + id, { method: 'DELETE' }); toast('Lembrete removido.'); } catch (err) { toast(err.message, 'err'); } loadReminders();
   });
   $('#form-reminder').addEventListener('submit', async (e) => {
     e.preventDefault();

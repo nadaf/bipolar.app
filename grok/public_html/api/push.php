@@ -34,10 +34,16 @@ if ($action === 'test') {
     json_out($n > 0 ? ['ok' => true, 'enviadas' => $n] : ['erro' => 'Nenhum aparelho recebeu. Ative as notificações neste aparelho e tente de novo.'], $n > 0 ? 200 : 422);
 }
 if ($action === 'delete') {
-    $pdo->prepare('DELETE FROM push_subscriptions WHERE id = ? AND user_id = ?')->execute([(int)($in['id'] ?? 0), $u['id']]);
+    $st = $pdo->prepare('DELETE FROM push_subscriptions WHERE id = ? AND user_id = ?');
+    $st->execute([(int)($in['id'] ?? 0), $u['id']]);
+    if ($st->rowCount() < 1) json_out(['erro' => 'Aparelho não encontrado.'], 404); // V4.4
     json_out(['ok' => true]);
 }
 if ($action === 'rename') {
+    // V4.4: confere o dono antes (UPDATE com o mesmo nome devolve 0 linhas no MySQL, por isso não usamos rowCount aqui)
+    $st = $pdo->prepare('SELECT id FROM push_subscriptions WHERE id = ? AND user_id = ?');
+    $st->execute([(int)($in['id'] ?? 0), $u['id']]);
+    if (!$st->fetchColumn()) json_out(['erro' => 'Aparelho não encontrado.'], 404);
     $pdo->prepare('UPDATE push_subscriptions SET label = ? WHERE id = ? AND user_id = ?')->execute([trim(mb_substr((string)($in['label'] ?? ''), 0, 120)) ?: null, (int)($in['id'] ?? 0), $u['id']]);
     json_out(['ok' => true]);
 }

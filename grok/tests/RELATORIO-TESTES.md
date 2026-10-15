@@ -137,3 +137,17 @@ cd tests && composer install && (cd js && npm install)
 # 3) tudo
 ./run-all.sh            # variáveis opcionais: TEST_DB_HOST, TEST_DB_PORT, TEST_DB_NAME, TEST_DB_USER, TEST_DB_PASS, CHROME
 ```
+
+## V4.4 — verificação em duas etapas e correções do QA (15/10/2026)
+
+Execução de `tests/run-all.sh` em PHP 8.4.26 + MySQL 5.7.44: **tudo verde**.
+
+| Etapa | Resultado |
+|---|---|
+| PHPUnit — 250 testes, 2546 asserções (inclui `Unit/MfaUnitTest.php` com vetores RFC 6238/4226 e QR lido pelo jsQR, e `Integration/V44Test.php`) | ✅ |
+| `php -l`, PHPStan nível 6, ESLint | ✅ 0 erros |
+| Varredura de padrões inseguros | ✅ (linhas revisadas manualmente listadas em `tests/tools/scan-allowlist.txt`) |
+| Regressão V4.4 (`js/regress-v44.mjs`): ativação com QR, códigos de recuperação, login em 2 etapas em 1280px e 390px, CSP sem violações, axe claro/escuro | ✅ 23 verificações |
+| Regressões V4.1, axe-core, Lighthouse + PWA | ✅ 0 violações, acessibilidade 100 |
+
+Cobertos também: exclusão/renomeação de item de outra conta responde 404 em destinatários, registros, mídia, lembretes, push e passkeys; alerta personalizado confere o dono antes da checagem de duplicado.

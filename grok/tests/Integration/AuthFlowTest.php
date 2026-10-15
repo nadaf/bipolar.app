@@ -9,7 +9,7 @@ final class AuthFlowTest extends IntegrationCase
         $loc = (string)$c->header($r, 'Location');
         $this->assertStringStartsWith('https://accounts.google.com/o/oauth2/v2/auth?', $loc);
         parse_str((string)parse_url($loc, PHP_URL_QUERY), $q);
-        $this->assertSame('http://127.0.0.1:' . TestEnv::$devPort . '/auth/callback.php?provider=google', $q['redirect_uri']);
+        $this->assertSame('http://127.0.0.1:' . TestEnv::$devPort . '/auth/callback.php', $q['redirect_uri'], 'V4.4: sem query string (exigência da Microsoft)');
         foreach (['evil', 'https://evil.com', '../x', ''] as $p) {
             $r = $c->get('/auth/start.php?provider=' . rawurlencode($p));
             $this->assertSame(400, $r['status'], $p);

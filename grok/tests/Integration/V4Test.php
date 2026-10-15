@@ -182,7 +182,7 @@ final class V4Test extends IntegrationCase
         $o2 = $c2->json('POST', '/api/webauthn.php?action=reg_options', [])['json']['publicKey'];
         $this->assertSame(422, $c2->json('POST', '/api/webauthn.php?action=reg_verify', $wrong->create($o2))['status']);
         // outro usuário não remove a credencial
-        $this->assertSame(200, $c2->json('POST', '/api/webauthn.php?action=delete', ['id' => (int)$list['credentials'][0]['id']])['status']);
+        $this->assertSame(404, $c2->json('POST', '/api/webauthn.php?action=delete', ['id' => (int)$list['credentials'][0]['id']])['status']);
         $this->assertCount(1, $c->get('/api/webauthn.php?action=list')['json']['credentials']);
     }
 

@@ -18,6 +18,6 @@ function view_lock_screen(array $user): void {
     <p id="lock-msg" class="field-err" role="alert"></p>
     <form method="post" action="/auth/logout.php"><input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>"><button class="btn btn-ghost" type="submit">Sair da conta</button></form>
   </section>
-  <script src="/assets/js/passkey.js?v=3"></script>
+  <script src="/assets/js/passkey.js?v=4"></script>
 <?php page_foot();
 }

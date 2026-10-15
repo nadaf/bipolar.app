@@ -75,10 +75,10 @@ if ($m === 'POST') {
 if ($m === 'DELETE') {
     $st = $pdo->prepare('SELECT stored_name FROM media WHERE id = ? AND user_id = ?');
     $st->execute([(int)($_GET['id'] ?? 0), $u['id']]);
-    if ($n = $st->fetchColumn()) {
-        @unlink($dir . '/' . basename($n));
-        $pdo->prepare('DELETE FROM media WHERE id = ? AND user_id = ?')->execute([(int)$_GET['id'], $u['id']]);
-    }
+    $n = $st->fetchColumn();
+    if (!$n) json_out(['erro' => 'Arquivo não encontrado.'], 404); // V4.4
+    @unlink($dir . '/' . basename((string)$n));
+    $pdo->prepare('DELETE FROM media WHERE id = ? AND user_id = ?')->execute([(int)$_GET['id'], $u['id']]);
     json_out(['ok' => true]);
 }
 json_out(['erro' => 'Método não permitido.'], 405);

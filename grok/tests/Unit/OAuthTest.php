@@ -27,7 +27,7 @@ final class OAuthTest extends TestCase
         $this->assertGreaterThanOrEqual(43, strlen($s['verifier']));
         $this->assertSame(pkce_challenge($s['verifier']), $q['code_challenge']);
         $this->assertSame('S256', $q['code_challenge_method']);
-        $this->assertSame(cfg('app_url') . '/auth/callback.php?provider=' . $p, $q['redirect_uri']);
+        $this->assertSame(cfg('app_url') . '/auth/callback.php', $q['redirect_uri']);
         $this->assertSame('code', $q['response_type']);
     }
     public function testUnknownProvider(): void

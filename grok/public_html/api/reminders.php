@@ -17,7 +17,9 @@ if ($m === 'POST') {
     json_out(['ok' => true]);
 }
 if ($m === 'DELETE') {
-    $pdo->prepare('DELETE FROM reminders WHERE id = ? AND user_id = ?')->execute([(int)($_GET['id'] ?? 0), $u['id']]);
+    $st = $pdo->prepare('DELETE FROM reminders WHERE id = ? AND user_id = ?');
+    $st->execute([(int)($_GET['id'] ?? 0), $u['id']]);
+    if ($st->rowCount() < 1) json_out(['erro' => 'Lembrete não encontrado.'], 404); // V4.4
     json_out(['ok' => true]);
 }
 json_out(['erro' => 'Método não permitido.'], 405);

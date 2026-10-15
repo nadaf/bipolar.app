@@ -27,20 +27,37 @@ function oauth_providers(): array {
         ],
     ];
 }
+/**
+ * V4.4: valor ainda de exemplo? Vazio, ou com marcadores do config.example.php ("SEU_CLIENT_ID...", "SEU_X_CLIENT_SECRET",
+ * "TROQUE...", "...", "<...>", "xxxx"), em qualquer posição e sem diferenciar maiúsculas.
+ */
+function oauth_placeholder(string $v): bool {
+    $v = trim($v);
+    if ($v === '') return true;
+    if (preg_match('/SEU_|SUA_|YOUR_|TROQUE|PREENCHA|COLE_AQUI|CHANGE_?ME|PLACEHOLDER|\.\.\.|…|[<>]|^x{4,}$/i', $v)) return true;
+    return false;
+}
 /** Um provedor só aparece se tiver credenciais preenchidas (não vazias nem placeholders do exemplo). */
 function oauth_configured(string $p): bool {
-    $id = trim((string)cfg("oauth.$p.client_id", ''));
+    $id = (string)cfg("oauth.$p.client_id", '');
     $secret = trim((string)cfg("oauth.$p.client_secret", ''));
-    $placeholder = function (string $v): bool { return $v === '' || stripos($v, 'SEU_') === 0 || strpos($v, 'SEU_CLIENT') !== false; };
-    if ($placeholder($id)) return false;
-    if ($p !== 'x' && $placeholder($secret)) return false; // X permite cliente público (sem segredo)
-    return $p !== 'x' || $secret === '' || !$placeholder($secret);
+    if (oauth_placeholder($id)) return false;
+    if ($p === 'x') return $secret === '' || !oauth_placeholder($secret); // X permite cliente público (sem segredo)
+    return !oauth_placeholder($secret);
 }
 /** @return array<string,array<string,string>> */
 function oauth_enabled_providers(): array {
     return array_filter(oauth_providers(), function ($k) { return oauth_configured($k); }, ARRAY_FILTER_USE_KEY);
 }
-function oauth_redirect_uri(string $p): string { return rtrim(cfg('app_url'), '/') . '/auth/callback.php?provider=' . $p; }
+/**
+ * V4.4: URI de retorno SEM parâmetros (https://bipolar.app.br/auth/callback.php), igual para os 3 provedores.
+ * A Microsoft não aceita query string na URI de apps com contas pessoais (tenant 'common'). O provedor vem da sessão (state).
+ * 'oauth.<provedor>.redirect_uri' no config.php permite manter uma URI antiga já cadastrada no console.
+ */
+function oauth_redirect_uri(string $p): string {
+    $custom = trim((string)cfg("oauth.$p.redirect_uri", ''));
+    return $custom !== '' ? $custom : rtrim((string)cfg('app_url'), '/') . '/auth/callback.php';
+}
 
 function pkce_challenge(string $verifier): string { return b64url(hash('sha256', $verifier, true)); }
 

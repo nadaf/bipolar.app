@@ -27,6 +27,7 @@ require APP_ROOT . '/lib/auth.php';
 require APP_ROOT . '/lib/mood.php';
 require APP_ROOT . '/lib/validate.php';
 require APP_ROOT . '/lib/password_auth.php';
+require_once APP_ROOT . '/lib/mfa.php'; // V4.4
 require APP_ROOT . '/lib/markers.php';
 require APP_ROOT . '/lib/lock.php';
 

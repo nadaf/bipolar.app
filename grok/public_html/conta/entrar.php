@@ -16,8 +16,7 @@ if (!valid_email($email) || $pw === '' || strlen($pw) > 1000) {
 $r = login_email($email, $pw);
 if ($r['status'] === 'ok') {
     unset($_SESSION['old_email']);
-    login_user((int)$r['uid']);
-    redirect('/');
+    login_or_mfa((int)$r['uid']); // V4.4: com a verificação em duas etapas ativa, pede o código antes de entrar
 }
 if ($r['status'] === 'unverified') {
     flash('Confirme seu e-mail antes de entrar. Procure a mensagem na caixa de entrada (e no spam) ou peça um novo link em “Reenviar confirmação”.', 'err');

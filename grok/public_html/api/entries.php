@@ -93,7 +93,9 @@ if ($m === 'POST') {
 
 if ($m === 'DELETE') {
     $id = (int)($_GET['id'] ?? 0);
-    $pdo->prepare('DELETE FROM entries WHERE id = ? AND user_id = ?')->execute([$id, $u['id']]);
+    $st = $pdo->prepare('DELETE FROM entries WHERE id = ? AND user_id = ?');
+    $st->execute([$id, $u['id']]);
+    if ($st->rowCount() < 1) json_out(['erro' => 'Registro não encontrado.'], 404); // V4.4
     json_out(['ok' => true]);
 }
 json_out(['erro' => 'Método não permitido.'], 405);

@@ -34,7 +34,7 @@ if (!$user) {
     <p class="small">Ao entrar, você concorda com a <a href="/privacidade.php">Política de Privacidade</a> e os <a href="/termos.php">Termos de Uso</a>. Seus dados são seus: exporte ou exclua a qualquer momento.</p>
   </section>
   <script src="/assets/js/auth.js?v=1"></script>
-  <script src="/assets/js/passkey.js?v=3"></script>
+  <script src="/assets/js/passkey.js?v=4"></script>
 <?php page_foot(); exit; }
 
 if (app_locked($user)) { require_once APP_ROOT . '/views/lock.php'; view_lock_screen($user); exit; }
@@ -62,6 +62,7 @@ page_head('Diário', 'app'); ?>
 ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP) ?></script>
 
 <h1 class="sr-only">Diário de humor</h1>
+<?= flash_html() /* V4.4: avisos do login (ex.: códigos de recuperação restantes) */ ?>
 <nav class="tabs" aria-label="Seções">
   <div role="tablist" id="tablist">
     <button role="tab" id="tab-registrar" aria-controls="painel-registrar" aria-selected="true">✎ <span>Registrar</span></button>
@@ -364,6 +365,7 @@ page_head('Diário', 'app'); ?>
     <p>Você entra com uma conta externa (Google, Microsoft ou X), por isso não há senha para alterar aqui.</p>
     <?php endif; ?>
   </div>
+  <?php require_once APP_ROOT . '/views/account_mfa.php'; view_account_mfa($user); ?>
   <div class="card">
     <h2>Seus dados (LGPD)</h2>
     <p>Baixe uma cópia dos seus dados quando quiser. O pacote completo (ZIP) traz tudo: registros, marcadores, sexualidade, substâncias, alertas, destinatários, lembretes e todos os áudios, vídeos e imagens.</p>
@@ -378,6 +380,7 @@ page_head('Diário', 'app'); ?>
   </div>
 </section>
 <script src="/assets/js/auth.js?v=1"></script>
-<script src="/assets/js/passkey.js?v=3"></script>
-<script src="/assets/js/app.js?v=9"></script>
+<script src="/assets/js/passkey.js?v=4"></script>
+<script src="/assets/js/app.js?v=10"></script>
+<script src="/assets/js/mfa.js?v=1"></script>
 <?php page_foot();

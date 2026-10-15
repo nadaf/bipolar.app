@@ -35,7 +35,7 @@ final class SchemaCompatTest extends TestCase
     {
         $schema = (string)file_get_contents(TestEnv::ROOT . '/schema.sql');
         preg_match_all('/CREATE TABLE IF NOT EXISTS (\w+) \((.*?)\) ENGINE/s', $schema, $tables, PREG_SET_ORDER);
-        $this->assertCount(16, $tables);
+        $this->assertCount(17, $tables); // V4.4: + mfa_recovery_codes
         foreach ($tables as [, $name, $body]) {
             $this->assertStringContainsString('utf8mb4', $schema);
             preg_match_all('/^\s*(\w+) VARCHAR\((\d+)\)/m', $body, $cols, PREG_SET_ORDER);
@@ -133,8 +133,8 @@ final class SchemaCompatTest extends TestCase
             $mig42 = (string)file_get_contents(TestEnv::ROOT . '/migrations/2026-10-21-v4-2-alertas-personalizados.sql');
             self::runSql($pdo, $mig42);
             self::runSql($pdo, $mig42);
-            // V4.3 e V4.3.1: colunas de IA e de versão (concorrência otimista), cada uma rodada duas vezes (#1060 pulado)
-            foreach (['2026-10-23-v4-3-ia-chave-propria.sql', '2026-10-25-v4-3-1-versao-registros.sql'] as $mf) {
+            // V4.3, V4.3.1 e V4.4: colunas de IA, de versão e da verificação em duas etapas, cada uma rodada duas vezes (#1060 pulado)
+            foreach (['2026-10-23-v4-3-ia-chave-propria.sql', '2026-10-25-v4-3-1-versao-registros.sql', '2026-10-27-v4-4-verificacao-duas-etapas.sql'] as $mf) {
                 $sqlM = (string)file_get_contents(TestEnv::ROOT . '/migrations/' . $mf);
                 self::runSql($pdo, $sqlM);
                 self::runSql($pdo, $sqlM);
@@ -143,7 +143,7 @@ final class SchemaCompatTest extends TestCase
             $this->assertSame(['0', null], array_map(fn($v) => $v === null ? null : (string)$v, $pdo->query('SELECT include_custom_alerts, invite_status FROM recipients')->fetch(PDO::FETCH_NUM)));
             $cols = function (string $t) use ($pdo): array { return $pdo->query("SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$t' ORDER BY COLUMN_NAME")->fetchAll(PDO::FETCH_ASSOC); };
             $migrated = [];
-            foreach (['users', 'entries', 'recipients', 'daily_markers', 'sexuality_log', 'substance_log', 'push_subscriptions', 'alerts', 'webauthn_credentials', 'ai_usage', 'alert_rules'] as $t) $migrated[$t] = $cols($t);
+            foreach (['users', 'entries', 'recipients', 'daily_markers', 'sexuality_log', 'substance_log', 'push_subscriptions', 'alerts', 'webauthn_credentials', 'ai_usage', 'alert_rules', 'mfa_recovery_codes'] as $t) $migrated[$t] = $cols($t);
             $this->assertSame('0', (string)$pdo->query('SELECT include_sexuality FROM recipients')->fetchColumn(), 'sexualidade nunca vem ligada');
             $this->assertSame('1', (string)$pdo->query('SELECT include_markers FROM recipients')->fetchColumn());
             // compara com schema.sql completo

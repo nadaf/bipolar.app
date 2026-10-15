@@ -13,7 +13,7 @@ function page_head(string $title, string $bodyClass = ''): void { ?>
 <link rel="icon" href="/assets/icons/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=9">
+<link rel="stylesheet" href="/assets/css/app.css?v=10">
 <script src="/assets/js/theme.js?v=1"></script>
 </head>
 <body class="<?= e($bodyClass) ?>">

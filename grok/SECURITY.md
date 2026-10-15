@@ -19,7 +19,8 @@ Este projeto guarda dados de saúde mental. Levamos falhas de segurança muito a
 - Nunca publique `app/config.php` (está no `.gitignore`). Ele contém a senha do banco, do SMTP, a chave privada VAPID e a `ai.secret_key`.
 - Mantenha `app/`, `cron/`, `storage/` e `tools/` **fora** da pasta pública do site.
 - Deixe `dev_login` em `false` e `loadtest_bypass_ratelimit_token` vazio em produção.
-- Se uma chave vazar: troque a senha do banco/SMTP, gere novas chaves VAPID e, se for a `ai.secret_key`, gere outra (as pessoas precisarão colar suas chaves de IA de novo).
+- Se uma chave vazar: troque a senha do banco/SMTP, gere novas chaves VAPID e, se for a `ai.secret_key`, gere outra (as pessoas precisarão colar suas chaves de IA de novo, e quem usa a verificação em duas etapas precisará entrar com um código de recuperação e ativá-la de novo).
+- Verificação em duas etapas (V4.4): vale só para contas de e-mail e senha. Quem entra por Google, Microsoft ou X depende da segunda etapa do próprio provedor. Entrar com passkey (biometria) na página inicial também não pede o código, porque a passkey já é um fator forte (algo que você tem, desbloqueado por biometria ou PIN do aparelho).
 
 ## Não existe área de administração
 
