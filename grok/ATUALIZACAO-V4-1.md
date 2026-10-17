@@ -41,15 +41,15 @@ Tempo estimado: 15 minutos. Há **uma migração curta** (seção 2) e **uma con
 
 | Arquivo(s) do pacote | Enviar para |
 |---|---|
-| `public_html/.htaccess`, `index.php`, `escala.php`, `registro-rapido.php`, `offline.html`, `sw.js`, `404.php` (**novo**), `como-funcionam-os-alertas.php` (**novo**) | `/home1/rona3541/bipolar.app.br/` |
-| `public_html/api/account.php`, `ai.php`, `day.php`, `entries.php`, `recipients.php`, `webauthn.php` | `/home1/rona3541/bipolar.app.br/api/` |
-| `public_html/assets/css/app.css` | `/home1/rona3541/bipolar.app.br/assets/css/` |
-| `public_html/assets/js/app.js`, `passkey.js` | `/home1/rona3541/bipolar.app.br/assets/js/` |
-| `app/config.example.php` (só referência; **não** renomeie) | `/home1/rona3541/app/` |
-| `app/lib/ai.php`, `helpers.php`, `markers.php`, `report.php`, `signals.php` | `/home1/rona3541/app/lib/` |
-| `app/views/account_modules.php`, `day_panels.php`, `layout.php`, `lock.php` | `/home1/rona3541/app/views/` |
-| `cron/analyze_signals.php`, `send_reminders.php`, `send_reports.php` | `/home1/rona3541/cron/` |
-| `tools/test_xai.php` (**novo**) | `/home1/rona3541/tools/` |
+| `public_html/.htaccess`, `index.php`, `escala.php`, `registro-rapido.php`, `offline.html`, `sw.js`, `404.php` (**novo**), `como-funcionam-os-alertas.php` (**novo**) | `/home/SEU_USUARIO/bipolar.app.br/` |
+| `public_html/api/account.php`, `ai.php`, `day.php`, `entries.php`, `recipients.php`, `webauthn.php` | `/home/SEU_USUARIO/bipolar.app.br/api/` |
+| `public_html/assets/css/app.css` | `/home/SEU_USUARIO/bipolar.app.br/assets/css/` |
+| `public_html/assets/js/app.js`, `passkey.js` | `/home/SEU_USUARIO/bipolar.app.br/assets/js/` |
+| `app/config.example.php` (só referência; **não** renomeie) | `/home/SEU_USUARIO/app/` |
+| `app/lib/ai.php`, `helpers.php`, `markers.php`, `report.php`, `signals.php` | `/home/SEU_USUARIO/app/lib/` |
+| `app/views/account_modules.php`, `day_panels.php`, `layout.php`, `lock.php` | `/home/SEU_USUARIO/app/views/` |
+| `cron/analyze_signals.php`, `send_reminders.php`, `send_reports.php` | `/home/SEU_USUARIO/cron/` |
+| `tools/test_xai.php` (**novo**) | `/home/SEU_USUARIO/tools/` |
 | `migrations/`, `schema.sql`, `*.md` | **não** envie (documentação e SQL para o phpMyAdmin) |
 
 Atenção:
@@ -78,13 +78,13 @@ SHOW INDEX FROM recipients WHERE Key_name = 'uq_recipient_user_email';
 - O mesmo SQL está em `migrations/2026-10-19-v4-1-destinatarios-unicos.sql`.
 
 ## 3. Cron: nada muda
-As tarefas continuam as mesmas. Elas agora gravam um “batimento” (só data/hora e contadores) em `/home1/rona3541/storage/heartbeat-*.json`, mostrado em **Conta → Tarefas automáticas**. Antes da primeira execução depois da atualização, aparece “ainda não registrada”.
+As tarefas continuam as mesmas. Elas agora gravam um “batimento” (só data/hora e contadores) em `/home/SEU_USUARIO/storage/heartbeat-*.json`, mostrado em **Conta → Tarefas automáticas**. Antes da primeira execução depois da atualização, aparece “ainda não registrada”.
 
 ## 4. IA: conferir a configuração da xAI (resolve o erro 502)
 
 **Causa provável do 502:** o app esperava no máximo 20 s pela xAI. O modelo `grok-4.7` usa raciocínio “high” por padrão e muitas vezes passa disso. A conexão era cortada e o app respondia 502.
 
-1. cPanel → Gerenciador de Arquivos → `/home1/rona3541/app/config.php` → **Editar**. No bloco `'xai' => [ ... ]`, confira:
+1. cPanel → Gerenciador de Arquivos → `/home/SEU_USUARIO/app/config.php` → **Editar**. No bloco `'xai' => [ ... ]`, confira:
    ```php
    'api_key' => 'xai-...',                                // chave válida, com créditos, do console.x.ai
    'model' => 'grok-4.7',                                 // precisa aparecer na lista do teste abaixo
@@ -95,14 +95,14 @@ As tarefas continuam as mesmas. Elas agora gravam um “batimento” (só data/h
    Sem as duas linhas novas, o app já usa `low` e 60 s. Se o teste disser que o modelo não aceita `reasoning_effort`, use `'reasoning_effort' => ''`.
 2. **Teste de diagnóstico.** Ele não mostra a chave e faz no máximo 1 chamada pequena a cada 10 minutos.
    - cPanel → **Cron Jobs** → “Uma vez por minuto” → comando:
-     `/usr/local/bin/php /home1/rona3541/tools/test_xai.php`
-   - Espere 2 minutos e abra `/home1/rona3541/storage/logs/xai-test.log`. Ele mostra:
+     `/usr/local/bin/php /home/SEU_USUARIO/tools/test_xai.php`
+   - Espere 2 minutos e abra `/home/SEU_USUARIO/storage/logs/xai-test.log`. Ele mostra:
      - se a chave existe;
      - os modelos liberados para a chave, e se o configurado está na lista;
      - o resultado de uma chamada real, com o tempo gasto;
      - uma dica em português se algo falhar (chave, modelo, limite/créditos, tempo).
    - **Apague esse cron job** depois de ler o resultado.
-3. Erros futuros da IA ficam em `/home1/rona3541/storage/logs/ai.log`, com o código e a mensagem da xAI e sem a chave.
+3. Erros futuros da IA ficam em `/home/SEU_USUARIO/storage/logs/ai.log`, com o código e a mensagem da xAI e sem a chave.
 
 ## 5. Conferência rápida depois de enviar
 - `https://www.bipolar.app.br/` → vai para `https://bipolar.app.br/`.

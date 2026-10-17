@@ -35,7 +35,7 @@ O k6 **interrompe sozinho** (código de saída 99) quando, após 30 s de dados:
 Windows: `winget install k6 --source winget` · macOS: `brew install k6` · Linux: veja https://grafana.com/docs/k6/latest/set-up/install-k6/
 
 ### 2. Libere o teste no `config.php` do servidor (temporário)
-Edite `/home1/rona3541/app/config.php` e preencha (gere valores aleatórios, por exemplo em https://www.random.org/strings/ ou com `openssl rand -hex 24`):
+Edite `/home/SEU_USUARIO/app/config.php` e preencha (gere valores aleatórios, por exemplo em https://www.random.org/strings/ ou com `openssl rand -hex 24`):
 
 ```php
 'loadtest_bypass_ratelimit_token' => 'COLE_AQUI_48_CARACTERES_ALEATORIOS',
@@ -49,10 +49,10 @@ Sem isso, o limite de **30 logins / 15 min por IP** e de **120 registros / hora 
 **a) Cron do cPanel (recomendado)** — cPanel → *Cron Jobs* → adicione para daqui a 2 minutos (ou “Once Per Minute” e apague depois):
 
 ```
-/usr/local/bin/php /home1/rona3541/tools/seed_loadtest.php --count=100 --password='Carga-Teste-2026!' --days=30 >> /home1/rona3541/loadtest-seed.log 2>&1
+/usr/local/bin/php /home/SEU_USUARIO/tools/seed_loadtest.php --count=100 --password='Carga-Teste-2026!' --days=30 >> /home/SEU_USUARIO/loadtest-seed.log 2>&1
 ```
 
-Confira `/home1/rona3541/loadtest-seed.log` no Gerenciador de Arquivos (“contas criadas: 100”) e **apague o cron**.
+Confira `/home/SEU_USUARIO/loadtest-seed.log` no Gerenciador de Arquivos (“contas criadas: 100”) e **apague o cron**.
 (Rodar mais vezes não duplica nada.) Se o `php` do cron não for o 8.x, use `/usr/local/bin/ea-php83` ou `/opt/cpanel/ea-php83/root/usr/bin/php`.
 
 **b) Navegador** — preencha `'loadtest_admin_secret' => '<32+ caracteres>'` no config, abra `https://bipolar.app.br/loadtest-admin.php`,
@@ -79,7 +79,7 @@ Por segurança o script **se recusa** a rodar contra `bipolar.app.br` sem `CONFI
 
 ### 5. Limpe tudo (obrigatório)
 1. Apague as contas: cron único com
-   `/usr/local/bin/php /home1/rona3541/tools/cleanup_loadtest.php --yes >> /home1/rona3541/loadtest-seed.log 2>&1`
+   `/usr/local/bin/php /home/SEU_USUARIO/tools/cleanup_loadtest.php --yes >> /home/SEU_USUARIO/loadtest-seed.log 2>&1`
    (sem `--yes` ele só lista), ou o botão **Apagar TODAS as contas loadtest+** no painel.
 2. No `config.php`, volte **`'loadtest_bypass_ratelimit_token' => ''`** e **`'loadtest_admin_secret' => ''`**.
 3. Apague os crons criados e o arquivo `loadtest-seed.log`.

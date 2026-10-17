@@ -4,7 +4,7 @@ Este pacote parte da **V4.3.1 já instalada** e traz **só os arquivos que mudar
 
 Tempo estimado: 15 minutos. **Primeiro rode o SQL (seção 1), depois envie os arquivos (seção 2).**
 
-## 1. SQL (phpMyAdmin → banco `rona3541_bipolargrok` → aba SQL)
+## 1. SQL (phpMyAdmin → banco `SEU_USUARIO_bipolar` → aba SQL)
 
 Faça antes o backup: phpMyAdmin → **Exportar** → Rápido → SQL → Executar.
 
@@ -36,15 +36,15 @@ CREATE TABLE IF NOT EXISTS mfa_recovery_codes (
 
 | Arquivo(s) do pacote | Enviar para |
 |---|---|
-| `public_html/index.php`, `privacidade.php`, `sw.js` | `/home1/rona3541/bipolar.app.br/` |
-| `public_html/api/account.php`, `custom_alerts.php`, `entries.php`, `media.php`, `mfa.php` (novo), `push.php`, `recipients.php`, `reminders.php`, `webauthn.php` | `/home1/rona3541/bipolar.app.br/api/` |
-| `public_html/assets/css/app.css` | `/home1/rona3541/bipolar.app.br/assets/css/` |
-| `public_html/assets/js/app.js`, `mfa.js` (novo), `passkey.js` | `/home1/rona3541/bipolar.app.br/assets/js/` |
-| `public_html/auth/callback.php` | `/home1/rona3541/bipolar.app.br/auth/` |
-| `public_html/conta/entrar.php`, `mfa.php` (novo), `verificar.php` | `/home1/rona3541/bipolar.app.br/conta/` |
-| `app/bootstrap.php`, `config.example.php` | `/home1/rona3541/app/` |
-| `app/lib/mfa.php` (novo), `qr.php` (novo), `oauth.php` | `/home1/rona3541/app/lib/` |
-| `app/views/account_mfa.php` (novo), `layout.php`, `lock.php` | `/home1/rona3541/app/views/` |
+| `public_html/index.php`, `privacidade.php`, `sw.js` | `/home/SEU_USUARIO/bipolar.app.br/` |
+| `public_html/api/account.php`, `custom_alerts.php`, `entries.php`, `media.php`, `mfa.php` (novo), `push.php`, `recipients.php`, `reminders.php`, `webauthn.php` | `/home/SEU_USUARIO/bipolar.app.br/api/` |
+| `public_html/assets/css/app.css` | `/home/SEU_USUARIO/bipolar.app.br/assets/css/` |
+| `public_html/assets/js/app.js`, `mfa.js` (novo), `passkey.js` | `/home/SEU_USUARIO/bipolar.app.br/assets/js/` |
+| `public_html/auth/callback.php` | `/home/SEU_USUARIO/bipolar.app.br/auth/` |
+| `public_html/conta/entrar.php`, `mfa.php` (novo), `verificar.php` | `/home/SEU_USUARIO/bipolar.app.br/conta/` |
+| `app/bootstrap.php`, `config.example.php` | `/home/SEU_USUARIO/app/` |
+| `app/lib/mfa.php` (novo), `qr.php` (novo), `oauth.php` | `/home/SEU_USUARIO/app/lib/` |
+| `app/views/account_mfa.php` (novo), `layout.php`, `lock.php` | `/home/SEU_USUARIO/app/views/` |
 | `docs/`, `migrations/`, `schema.sql`, `tests/`, `*.md` | **não** envie (guia, SQL, testes e documentação) |
 
 - **Não substitua o seu `config.php`.** O `config.example.php` só ganhou comentários.

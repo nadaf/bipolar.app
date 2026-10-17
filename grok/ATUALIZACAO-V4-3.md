@@ -4,7 +4,7 @@ Este pacote parte da **V4.2 já instalada** e traz **só os arquivos que mudaram
 
 Tempo estimado: 20 minutos. **Primeiro rode o SQL (seção 1), depois envie os arquivos (seção 2) e então ajuste o `config.php` (seção 3).**
 
-## 1. SQL (phpMyAdmin → banco `rona3541_bipolargrok` → aba SQL)
+## 1. SQL (phpMyAdmin → banco `SEU_USUARIO_bipolar` → aba SQL)
 
 Faça antes o backup: phpMyAdmin → **Exportar** → Rápido → SQL → Executar. No Gerenciador de Arquivos, compacte e baixe `bipolar.app.br`, `app`, `cron` e `tools`.
 
@@ -28,33 +28,33 @@ ALTER TABLE users ADD COLUMN ai_key_updated_at DATETIME NULL;
 
 | Arquivo(s) do pacote | Enviar para |
 |---|---|
-| `public_html/index.php`, `privacidade.php`, `termos.php` (**novo**), `sw.js` | `/home1/rona3541/bipolar.app.br/` |
-| `public_html/conta/cadastro.php` | `/home1/rona3541/bipolar.app.br/conta/` |
-| `public_html/api/account.php`, `ai.php`, `custom_alerts.php` | `/home1/rona3541/bipolar.app.br/api/` |
-| `public_html/assets/css/app.css` | `/home1/rona3541/bipolar.app.br/assets/css/` |
-| `public_html/assets/js/app.js` | `/home1/rona3541/bipolar.app.br/assets/js/` |
-| `app/lib/ai.php`, `custom_alerts.php`, `helpers.php`, `ai_providers.php` (**novo**), `cron_status.php` (**novo**) | `/home1/rona3541/app/lib/` |
-| `app/views/account_v4.php`, `layout.php` | `/home1/rona3541/app/views/` |
-| `app/config.example.php` | `/home1/rona3541/app/` (só referência; **não** substitui o `config.php`) |
-| `tools/cron_status.php` (**novo**) | `/home1/rona3541/tools/` |
+| `public_html/index.php`, `privacidade.php`, `termos.php` (**novo**), `sw.js` | `/home/SEU_USUARIO/bipolar.app.br/` |
+| `public_html/conta/cadastro.php` | `/home/SEU_USUARIO/bipolar.app.br/conta/` |
+| `public_html/api/account.php`, `ai.php`, `custom_alerts.php` | `/home/SEU_USUARIO/bipolar.app.br/api/` |
+| `public_html/assets/css/app.css` | `/home/SEU_USUARIO/bipolar.app.br/assets/css/` |
+| `public_html/assets/js/app.js` | `/home/SEU_USUARIO/bipolar.app.br/assets/js/` |
+| `app/lib/ai.php`, `custom_alerts.php`, `helpers.php`, `ai_providers.php` (**novo**), `cron_status.php` (**novo**) | `/home/SEU_USUARIO/app/lib/` |
+| `app/views/account_v4.php`, `layout.php` | `/home/SEU_USUARIO/app/views/` |
+| `app/config.example.php` | `/home/SEU_USUARIO/app/` (só referência; **não** substitui o `config.php`) |
+| `tools/cron_status.php` (**novo**) | `/home/SEU_USUARIO/tools/` |
 | `migrations/`, `schema.sql`, `docs/`, `tests/`, `*.md`, `LICENSE`, `.gitignore` | **não** envie (SQL, testes e documentação) |
 
 **Apague do servidor** (foram removidos nesta versão):
-- `/home1/rona3541/bipolar.app.br/loadtest-admin.php` (painel que parecia área de administração);
-- `/home1/rona3541/tools/test_xai.php` (substituído pelo botão “Testar chave” no app).
+- `/home/SEU_USUARIO/bipolar.app.br/loadtest-admin.php` (painel que parecia área de administração);
+- `/home/SEU_USUARIO/tools/test_xai.php` (substituído pelo botão “Testar chave” no app).
 
 Atenção:
 - Envie **todos** os arquivos de `app/lib/` juntos: eles dependem uns dos outros.
 - O service worker mudou (`bp-v8`, com `app.js?v=8` e `app.css?v=8`). Se algo parecer antigo, feche e abra o app de novo.
 - A hospedagem precisa das extensões PHP **sodium** (criptografia das chaves) e **zip** (exportação completa). No cPanel: **Selecionar versão do PHP → Extensões** e marque `sodium` e `zip`. Sem `zip`, o botão “Baixar tudo (ZIP)” simplesmente não aparece; o JSON e o CSV continuam funcionando.
 
-## 3. Ajuste o `config.php` (`/home1/rona3541/app/config.php`)
+## 3. Ajuste o `config.php` (`/home/SEU_USUARIO/app/config.php`)
 
 ### 3.1 Chave do servidor para criptografar as chaves de IA (obrigatório para a chave própria)
 
 Gere 32 bytes aleatórios. O jeito mais simples: crie uma tarefa cron **única** no cPanel com
 ```
-php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;' > /home1/rona3541/chave-ia.txt
+php -r 'echo base64_encode(random_bytes(32)), PHP_EOL;' > /home/SEU_USUARIO/chave-ia.txt
 ```
 Abra o arquivo, copie o valor e **apague o arquivo e a tarefa**. Depois acrescente ao `config.php` (dentro do `return [ ... ]`):
 
@@ -94,8 +94,8 @@ Enquanto `controller` estiver vazio, a página mostra “a pessoa responsável p
 As 3 tarefas continuam iguais. A caixa **Conta → Tarefas automáticas** e o endpoint `api/account.php?action=cron` **foram removidos**: o projeto não tem mais nenhuma área ou função de administração.
 
 Para conferir as tarefas, use:
-- o arquivo `/home1/rona3541/storage/logs/cron.log` (uma linha por execução: data, nome e contagens);
-- ou, por SSH ou cron, `php /home1/rona3541/tools/cron_status.php` (pelo navegador responde 403).
+- o arquivo `/home/SEU_USUARIO/storage/logs/cron.log` (uma linha por execução: data, nome e contagens);
+- ou, por SSH ou cron, `php /home/SEU_USUARIO/tools/cron_status.php` (pelo navegador responde 403).
 
 ## O que mudou
 

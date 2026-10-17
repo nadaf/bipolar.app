@@ -4,11 +4,11 @@ Este pacote parte da **V3 já instalada** (migração V3 aplicada e arquivos da 
 
 | Pasta no servidor | Conteúdo |
 |---|---|
-| `/home1/rona3541/bipolar.app.br/` | arquivos do site (= `public_html/` do pacote) |
-| `/home1/rona3541/app/` | código interno e `config.php` (**o seu `config.php` não está no pacote e não é substituído**) |
-| `/home1/rona3541/cron/` | tarefas agendadas |
-| `/home1/rona3541/tools/` | ferramentas |
-| `/home1/rona3541/storage/` | criada automaticamente pelo gerador VAPID (fora do site, permissão 700/600) |
+| `/home/SEU_USUARIO/bipolar.app.br/` | arquivos do site (= `public_html/` do pacote) |
+| `/home/SEU_USUARIO/app/` | código interno e `config.php` (**o seu `config.php` não está no pacote e não é substituído**) |
+| `/home/SEU_USUARIO/cron/` | tarefas agendadas |
+| `/home/SEU_USUARIO/tools/` | ferramentas |
+| `/home/SEU_USUARIO/storage/` | criada automaticamente pelo gerador VAPID (fora do site, permissão 700/600) |
 
 Tempo estimado: 20 minutos. Há **uma migração** (seção 2), um **cron novo** (seção 3) e duas configurações opcionais: VAPID (seção 4) e chave da xAI (seção 5).
 
@@ -21,15 +21,15 @@ Tempo estimado: 20 minutos. Há **uma migração** (seção 2), um **cron novo**
 
 | Arquivo(s) do pacote | Enviar para |
 |---|---|
-| `public_html/index.php`, `privacidade.php`, `escala.php`, `sw.js`, `registro-rapido.php` (**novo**) | `/home1/rona3541/bipolar.app.br/` |
-| `public_html/api/account.php`, `day.php`, `push.php`, `recipients.php`, `alerts.php` (**novo**), `webauthn.php` (**novo**), `ai.php` (**novo**) | `/home1/rona3541/bipolar.app.br/api/` |
-| `public_html/assets/css/app.css` | `/home1/rona3541/bipolar.app.br/assets/css/` |
-| `public_html/assets/js/app.js`, `passkey.js` (**novo**), `quick.js` (**novo**) | `/home1/rona3541/bipolar.app.br/assets/js/` |
-| `app/bootstrap.php`, `app/config.example.php` (só referência; **não** renomeie) | `/home1/rona3541/app/` |
-| `app/lib/auth.php`, `markers.php`, `webpush.php`, `alerts.php` (**novo**), `signals.php` (**novo**), `lock.php` (**novo**), `webauthn.php` (**novo**), `ai.php` (**novo**) | `/home1/rona3541/app/lib/` |
-| `app/views/layout.php`, `lock.php` (**novo**), `account_v4.php` (**novo**) | `/home1/rona3541/app/views/` |
-| `cron/send_reminders.php`, `cron/analyze_signals.php` (**novo**) | `/home1/rona3541/cron/` |
-| `tools/generate_vapid.php` | `/home1/rona3541/tools/` |
+| `public_html/index.php`, `privacidade.php`, `escala.php`, `sw.js`, `registro-rapido.php` (**novo**) | `/home/SEU_USUARIO/bipolar.app.br/` |
+| `public_html/api/account.php`, `day.php`, `push.php`, `recipients.php`, `alerts.php` (**novo**), `webauthn.php` (**novo**), `ai.php` (**novo**) | `/home/SEU_USUARIO/bipolar.app.br/api/` |
+| `public_html/assets/css/app.css` | `/home/SEU_USUARIO/bipolar.app.br/assets/css/` |
+| `public_html/assets/js/app.js`, `passkey.js` (**novo**), `quick.js` (**novo**) | `/home/SEU_USUARIO/bipolar.app.br/assets/js/` |
+| `app/bootstrap.php`, `app/config.example.php` (só referência; **não** renomeie) | `/home/SEU_USUARIO/app/` |
+| `app/lib/auth.php`, `markers.php`, `webpush.php`, `alerts.php` (**novo**), `signals.php` (**novo**), `lock.php` (**novo**), `webauthn.php` (**novo**), `ai.php` (**novo**) | `/home/SEU_USUARIO/app/lib/` |
+| `app/views/layout.php`, `lock.php` (**novo**), `account_v4.php` (**novo**) | `/home/SEU_USUARIO/app/views/` |
+| `cron/send_reminders.php`, `cron/analyze_signals.php` (**novo**) | `/home/SEU_USUARIO/cron/` |
+| `tools/generate_vapid.php` | `/home/SEU_USUARIO/tools/` |
 | `migrations/`, `docs/`, `schema.sql`, `*.md` | **não** envie (documentação e SQL para o phpMyAdmin) |
 
 Atenção:
@@ -122,7 +122,7 @@ SHOW TABLES LIKE 'ai_usage';
 cPanel → **Cron Jobs** → **Adicionar novo**, configuração personalizada: minuto `7`, demais campos `*` (uma vez por hora). Comando:
 
 ```
-/usr/local/bin/php /home1/rona3541/cron/analyze_signals.php >> /home1/rona3541/cron/alerts.log 2>&1
+/usr/local/bin/php /home/SEU_USUARIO/cron/analyze_signals.php >> /home/SEU_USUARIO/cron/alerts.log 2>&1
 ```
 
 Os crons existentes (`send_reminders.php`, `send_reports.php`) continuam iguais. O de lembretes agora também envia push com os botões **Registrar agora** e **Lembrar em 30 min**.
@@ -131,16 +131,16 @@ Os alertas aparecem no app mesmo sem esse cron (são recalculados ao abrir o His
 ## 4. Notificações push (VAPID), sem SSH
 Se o seu `config.php` **já tem** `vapid.public_key` e `vapid.private_key` preenchidas, pule esta seção (não troque as chaves: isso desliga as inscrições existentes).
 1. cPanel → **Cron Jobs** → adicione uma tarefa com todos os campos `*` (todo minuto) e o comando:
-   `/usr/local/bin/php /home1/rona3541/tools/generate_vapid.php >> /home1/rona3541/cron/vapid.log 2>&1`
-2. Espere 1–2 minutos. Abra `/home1/rona3541/cron/vapid.log` no Gerenciador de Arquivos: deve dizer que as chaves foram geradas.
+   `/usr/local/bin/php /home/SEU_USUARIO/tools/generate_vapid.php >> /home/SEU_USUARIO/cron/vapid.log 2>&1`
+2. Espere 1–2 minutos. Abra `/home/SEU_USUARIO/cron/vapid.log` no Gerenciador de Arquivos: deve dizer que as chaves foram geradas.
 3. **Apague essa tarefa do cron.** (Ela não faz mal se rodar de novo, porque nunca sobrescreve chaves, mas não precisa ficar lá.)
-4. O app passa a ler as chaves de `/home1/rona3541/storage/vapid.php` automaticamente. Se preferir tê-las no `config.php`, copie o trecho de `storage/vapid-config.txt`.
+4. O app passa a ler as chaves de `/home/SEU_USUARIO/storage/vapid.php` automaticamente. Se preferir tê-las no `config.php`, copie o trecho de `storage/vapid-config.txt`.
 5. Teste: app → **Lembretes** → **Ativar notificações neste aparelho** → **Testar** ao lado do aparelho. No iPhone a notificação só funciona com o app adicionado à Tela de Início (iOS 16.4+); as instruções estão na própria tela.
 
 ## 5. “Reflexões com IA” (IA, opcional)
 Sem chave, o recurso fica **desligado e escondido**. Para ativar:
 1. Crie a chave em https://console.x.ai → **API Keys** e defina um limite de gasto na conta da xAI.
-2. Gerenciador de Arquivos → `/home1/rona3541/app/config.php` → **Editar** → antes do `];` final, cole (ajuste a chave):
+2. Gerenciador de Arquivos → `/home/SEU_USUARIO/app/config.php` → **Editar** → antes do `];` final, cole (ajuste a chave):
 
 ```php
     'xai' => [
@@ -166,7 +166,7 @@ O bloco `webauthn` é recomendado mesmo sem IA: ele fixa o domínio da biometria
 - Entre no app → **Conta → Biometria**: cadastre a digital/rosto; marque **Bloquear o app inteiro ao abrir**, feche e reabra o app e desbloqueie.
 - Saia e use **Entrar com biometria** na tela inicial.
 - **Histórico → Alertas** mostra “Nenhum alerta” ou os alertas com o botão **Faz sentido / Não faz sentido**.
-- `/home1/rona3541/cron/alerts.log` registra uma linha por execução.
+- `/home/SEU_USUARIO/cron/alerts.log` registra uma linha por execução.
 - Confirme que `config.php` continua com `'dev_login' => false`.
 
 ## Como desfazer

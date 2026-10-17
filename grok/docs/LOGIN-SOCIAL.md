@@ -36,7 +36,7 @@ Tempo estimado: 20 a 30 minutos por provedor. Conferido em **outubro de 2026**. 
 
 ### Onde os valores vão no servidor
 
-Tudo vai no arquivo **`/home1/rona3541/app/config.php`** (fora da pasta pública). Edite pelo **cPanel → Gerenciador de Arquivos**: clique com o botão direito em `config.php` → **Edit**. Faça uma cópia antes (botão **Copy**, nome `config.php.bak`) e apague a cópia depois que tudo funcionar.
+Tudo vai no arquivo **`/home/SEU_USUARIO/app/config.php`** (fora da pasta pública). Edite pelo **cPanel → Gerenciador de Arquivos**: clique com o botão direito em `config.php` → **Edit**. Faça uma cópia antes (botão **Copy**, nome `config.php.bak`) e apague a cópia depois que tudo funcionar.
 
 O bloco a preencher é este (ele já existe no seu `config.php`; troque só o que está entre aspas):
 

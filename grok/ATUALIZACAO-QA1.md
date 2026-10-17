@@ -4,10 +4,10 @@ Para o servidor de **bipolar.app.br** (cPanel, PHP 8.3, MySQL 5.7), na organiza�
 
 | Pasta no servidor | Conteúdo |
 |---|---|
-| `/home1/rona3541/bipolar.app.br/` | arquivos do site (equivale a `public_html/` do pacote) |
-| `/home1/rona3541/app/` | código interno e `config.php` |
-| `/home1/rona3541/cron/` | tarefas agendadas |
-| `/home1/rona3541/tools/` | ferramentas de linha de comando (crie a pasta se ainda não existir) |
+| `/home/SEU_USUARIO/bipolar.app.br/` | arquivos do site (equivale a `public_html/` do pacote) |
+| `/home/SEU_USUARIO/app/` | código interno e `config.php` |
+| `/home/SEU_USUARIO/cron/` | tarefas agendadas |
+| `/home/SEU_USUARIO/tools/` | ferramentas de linha de comando (crie a pasta se ainda não existir) |
 
 **Banco de dados: nenhuma mudança.** Não há migração nesta atualização.
 **Seu `config.php` não é substituído.** As chaves novas são opcionais (seção 3).
@@ -21,20 +21,20 @@ Tempo estimado: 10 minutos.
 
 | Arquivo(s) do pacote | Enviar para |
 |---|---|
-| `public_html/index.php`, `public_html/privacidade.php`, `public_html/offline.html`, `public_html/sw.js` | `/home1/rona3541/bipolar.app.br/` |
-| `public_html/loadtest-admin.php` (**novo** — fica desativado, responde 404) | `/home1/rona3541/bipolar.app.br/` |
-| `public_html/api/entries.php`, `public_html/api/recipients.php`, `public_html/api/reminders.php`, `public_html/api/account.php` | `/home1/rona3541/bipolar.app.br/api/` |
-| `public_html/assets/css/app.css` | `/home1/rona3541/bipolar.app.br/assets/css/` |
-| `public_html/assets/js/app.js` | `/home1/rona3541/bipolar.app.br/assets/js/` |
-| `app/config.example.php` (só referência; **não** renomeie para config.php) | `/home1/rona3541/app/` |
-| `app/lib/helpers.php`, `auth.php`, `oauth.php`, `smtp.php`, `report.php`, `validate.php`, `password_auth.php`, `loadtest.php` (**novo**) | `/home1/rona3541/app/lib/` |
-| `app/views/layout.php` | `/home1/rona3541/app/views/` |
-| `cron/send_reminders.php`, `cron/send_reports.php` | `/home1/rona3541/cron/` |
-| `tools/seed_loadtest.php`, `tools/cleanup_loadtest.php` (**novos**) | `/home1/rona3541/tools/` |
+| `public_html/index.php`, `public_html/privacidade.php`, `public_html/offline.html`, `public_html/sw.js` | `/home/SEU_USUARIO/bipolar.app.br/` |
+| `public_html/loadtest-admin.php` (**novo** — fica desativado, responde 404) | `/home/SEU_USUARIO/bipolar.app.br/` |
+| `public_html/api/entries.php`, `public_html/api/recipients.php`, `public_html/api/reminders.php`, `public_html/api/account.php` | `/home/SEU_USUARIO/bipolar.app.br/api/` |
+| `public_html/assets/css/app.css` | `/home/SEU_USUARIO/bipolar.app.br/assets/css/` |
+| `public_html/assets/js/app.js` | `/home/SEU_USUARIO/bipolar.app.br/assets/js/` |
+| `app/config.example.php` (só referência; **não** renomeie para config.php) | `/home/SEU_USUARIO/app/` |
+| `app/lib/helpers.php`, `auth.php`, `oauth.php`, `smtp.php`, `report.php`, `validate.php`, `password_auth.php`, `loadtest.php` (**novo**) | `/home/SEU_USUARIO/app/lib/` |
+| `app/views/layout.php` | `/home/SEU_USUARIO/app/views/` |
+| `cron/send_reminders.php`, `cron/send_reports.php` | `/home/SEU_USUARIO/cron/` |
+| `tools/seed_loadtest.php`, `tools/cleanup_loadtest.php` (**novos**) | `/home/SEU_USUARIO/tools/` |
 | `README-INSTALACAO.md`, `ATUALIZACAO-QA1.md`, pasta `loadtest/` | **não** envie: são documentação e o kit de teste de carga, que roda no seu computador |
 
 Atenção:
-- Os arquivos de `public_html/` vão para **`bipolar.app.br/`** (a pasta do domínio adicional), **não** para `/home1/rona3541/public_html/`.
+- Os arquivos de `public_html/` vão para **`bipolar.app.br/`** (a pasta do domínio adicional), **não** para `/home/SEU_USUARIO/public_html/`.
 - **Nunca** coloque `app/`, `cron/` ou `tools/` dentro de `bipolar.app.br/`.
 - Envie **todos** os arquivos da lista juntos: `index.php`, `app.js`, `app.css` e `layout.php` dependem uns dos outros.
 

@@ -4,7 +4,7 @@ Este pacote parte da **V4.3 já instalada** e traz **só os arquivos que mudaram
 
 Tempo estimado: 10 minutos. **Primeiro rode o SQL (seção 1), depois envie os arquivos (seção 2).**
 
-## 1. SQL (phpMyAdmin → banco `rona3541_bipolargrok` → aba SQL)
+## 1. SQL (phpMyAdmin → banco `SEU_USUARIO_bipolar` → aba SQL)
 
 Faça antes o backup: phpMyAdmin → **Exportar** → Rápido → SQL → Executar.
 
@@ -27,11 +27,11 @@ ALTER TABLE sexuality_log ADD COLUMN version INT UNSIGNED NOT NULL DEFAULT 1;
 
 | Arquivo(s) do pacote | Enviar para |
 |---|---|
-| `public_html/index.php`, `registro-rapido.php`, `sw.js` | `/home1/rona3541/bipolar.app.br/` |
-| `public_html/api/ai.php`, `custom_alerts.php`, `day.php`, `entries.php`, `recipients.php` | `/home1/rona3541/bipolar.app.br/api/` |
-| `public_html/assets/js/app.js`, `passkey.js`, `quick.js` | `/home1/rona3541/bipolar.app.br/assets/js/` |
-| `app/lib/helpers.php`, `custom_alerts.php` | `/home1/rona3541/app/lib/` |
-| `app/views/layout.php`, `lock.php` | `/home1/rona3541/app/views/` |
+| `public_html/index.php`, `registro-rapido.php`, `sw.js` | `/home/SEU_USUARIO/bipolar.app.br/` |
+| `public_html/api/ai.php`, `custom_alerts.php`, `day.php`, `entries.php`, `recipients.php` | `/home/SEU_USUARIO/bipolar.app.br/api/` |
+| `public_html/assets/js/app.js`, `passkey.js`, `quick.js` | `/home/SEU_USUARIO/bipolar.app.br/assets/js/` |
+| `app/lib/helpers.php`, `custom_alerts.php` | `/home/SEU_USUARIO/app/lib/` |
+| `app/views/layout.php`, `lock.php` | `/home/SEU_USUARIO/app/views/` |
 | `migrations/`, `schema.sql`, `tests/`, `*.md` | **não** envie (SQL, testes e documentação) |
 
 - O service worker mudou (`bp-v9`, com `app.js?v=9`, `app.css?v=9`, `passkey.js?v=3` e `quick.js?v=2`). Se algo parecer antigo, feche e abra o app de novo.
@@ -43,12 +43,12 @@ O código está certo: `privacidade.php` lê `cfg('legal.controller')`, e `cfg()
 
 1. **Dois blocos `'legal'` no `config.php`.** Se você colou o seu bloco e o bloco do exemplo (com `'controller' => ''`) continuou mais abaixo, o PHP usa o **último** e o nome some. Deixe só um.
 2. **Bloco dentro de outro bloco.** O `'legal' => [...]` precisa estar direto no `return [ ... ]`, não dentro de `'ai'`, `'db'` etc.
-3. **Arquivo antigo.** Confira se o `config.php` editado é o `/home1/rona3541/app/config.php` (e não uma cópia), e se `/home1/rona3541/bipolar.app.br/privacidade.php` é o da V4.3 (deve conter `cfg('legal.controller'`).
+3. **Arquivo antigo.** Confira se o `config.php` editado é o `/home/SEU_USUARIO/app/config.php` (e não uma cópia), e se `/home/SEU_USUARIO/bipolar.app.br/privacidade.php` é o da V4.3 (deve conter `cfg('legal.controller'`).
 4. **Cache do PHP (OPcache).** No cPanel, **Selecionar versão do PHP → Opções** e salve qualquer opção, ou aguarde alguns minutos.
 
 Para tirar a dúvida, crie uma tarefa cron **única** com o comando abaixo, veja o arquivo e **apague o arquivo e a tarefa**:
 ```
-php -r '$c = require "/home1/rona3541/app/config.php"; var_dump($c["legal"]["controller"] ?? null);' > /home1/rona3541/legal-teste.txt
+php -r '$c = require "/home/SEU_USUARIO/app/config.php"; var_dump($c["legal"]["controller"] ?? null);' > /home/SEU_USUARIO/legal-teste.txt
 ```
 Se aparecer `string(...) "Ronaldo Nadaf, Cuiabá/MT"`, o config está certo e o servidor está com o `privacidade.php` antigo ou em cache. Se aparecer `NULL` ou `string(0) ""`, ajuste o `config.php` (itens 1 e 2).
 

@@ -1,5 +1,5 @@
 -- V4.2: alertas personalizados, convites não entregues e entrega pendente de alertas.
--- Rode no phpMyAdmin (banco rona3541_bipolargrok → aba SQL). Pode rodar de novo sem problema:
+-- Rode no phpMyAdmin (banco SEU_USUARIO_bipolar → aba SQL). Pode rodar de novo sem problema:
 -- se aparecer #1060 (Duplicate column name) ou #1061 (Duplicate key name), essa linha já foi aplicada: pule e siga.
 CREATE TABLE IF NOT EXISTS alert_rules (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,

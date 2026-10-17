@@ -4,7 +4,7 @@ Este pacote parte da **V4.1 já instalada** e traz **só os arquivos que mudaram
 
 Tempo estimado: 15 minutos. **Primeiro rode o SQL (seção 1), depois envie os arquivos (seção 2).**
 
-## 1. SQL (phpMyAdmin → banco `rona3541_bipolargrok` → aba SQL)
+## 1. SQL (phpMyAdmin → banco `SEU_USUARIO_bipolar` → aba SQL)
 
 Faça antes o backup: phpMyAdmin → **Exportar** → Rápido → SQL → Executar. No Gerenciador de Arquivos, compacte e baixe `bipolar.app.br`, `app`, `cron` e `tools`.
 
@@ -50,13 +50,13 @@ ALTER TABLE recipients ADD COLUMN invite_error_at DATETIME NULL;
 
 | Arquivo(s) do pacote | Enviar para |
 |---|---|
-| `public_html/index.php`, `relatorio.php`, `sw.js` | `/home1/rona3541/bipolar.app.br/` |
-| `public_html/api/account.php`, `ai.php`, `alerts.php`, `day.php`, `entries.php`, `recipients.php`, `custom_alerts.php` (**novo**) | `/home1/rona3541/bipolar.app.br/api/` |
-| `public_html/assets/css/app.css` | `/home1/rona3541/bipolar.app.br/assets/css/` |
-| `public_html/assets/js/app.js` | `/home1/rona3541/bipolar.app.br/assets/js/` |
-| `app/lib/ai.php`, `alerts.php`, `helpers.php`, `markers.php`, `report.php`, `signals.php`, `custom_alerts.php` (**novo**) | `/home1/rona3541/app/lib/` |
-| `app/views/account_modules.php`, `day_panels.php`, `layout.php` | `/home1/rona3541/app/views/` |
-| `cron/analyze_signals.php`, `send_reports.php` | `/home1/rona3541/cron/` |
+| `public_html/index.php`, `relatorio.php`, `sw.js` | `/home/SEU_USUARIO/bipolar.app.br/` |
+| `public_html/api/account.php`, `ai.php`, `alerts.php`, `day.php`, `entries.php`, `recipients.php`, `custom_alerts.php` (**novo**) | `/home/SEU_USUARIO/bipolar.app.br/api/` |
+| `public_html/assets/css/app.css` | `/home/SEU_USUARIO/bipolar.app.br/assets/css/` |
+| `public_html/assets/js/app.js` | `/home/SEU_USUARIO/bipolar.app.br/assets/js/` |
+| `app/lib/ai.php`, `alerts.php`, `helpers.php`, `markers.php`, `report.php`, `signals.php`, `custom_alerts.php` (**novo**) | `/home/SEU_USUARIO/app/lib/` |
+| `app/views/account_modules.php`, `day_panels.php`, `layout.php` | `/home/SEU_USUARIO/app/views/` |
+| `cron/analyze_signals.php`, `send_reports.php` | `/home/SEU_USUARIO/cron/` |
 | `migrations/`, `schema.sql`, `docs/`, `*.md` | **não** envie (SQL e documentação) |
 
 Atenção:
