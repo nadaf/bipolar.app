@@ -106,7 +106,7 @@ function report_html(array $user, array $d, bool $withNotes, bool $withMediaList
  * Substâncias: apenas dias com uso por substância e dias acima do habitual, só quando $withSubst (e módulo ligado).
  * @return array<string,mixed>
  */
-function markers_report_data(int $uid, string $fromDate, string $toDate, bool $withSex, bool $withSubst = false): array {
+function markers_report_data(int $uid, string $fromDate, string $toDate, bool $withSex, bool $withSubst = false, bool $withFood = false): array {
     $pdo = db();
     $base = date('Y-m-d', (int)strtotime("$fromDate -28 days"));
     $q = function (string $sql) use ($pdo, $uid, $base, $toDate): array { $st = $pdo->prepare($sql); $st->execute([$uid, $base, $toDate]); return $st->fetchAll(); };
@@ -139,7 +139,15 @@ function markers_report_data(int $uid, string $fromDate, string $toDate, bool $w
         'alert_days' => array_keys(array_filter($ind, function ($x) { return $x['level'] !== 'ok'; })),
         'sex' => null,
         'subst' => null,
+        'food' => null,
     ];
+    // V4.7: alimentação só com opt-in (por destinatário ou na impressão) e com o módulo ligado; só contagens de dias
+    if ($withFood && $prefs['modules']['alimentacao']) {
+        $d['food'] = ['days' => count(array_filter($mk, function ($r) { return ($r['food_sweets'] ?? null) !== null || ($r['food_processed'] ?? null) !== null || ($r['food_binge'] ?? null) !== null; })),
+            'sweets' => count(array_filter($mk, function ($r) { return (int)($r['food_sweets'] ?? 0) >= 2; })),
+            'processed' => count(array_filter($mk, function ($r) { return (int)($r['food_processed'] ?? 0) >= 2; })),
+            'binge' => count(array_filter($mk, function ($r) { return (int)($r['food_binge'] ?? 0) === 1; }))];
+    }
     if ($withSubst && $prefs['modules']['substancias']) {
         $sb = array_values(array_filter($subAll, $in));
         $per = []; $any = []; $above = [];
@@ -162,7 +170,7 @@ function markers_report_data(int $uid, string $fromDate, string $toDate, bool $w
 
 /** @param array<string,mixed> $m */
 function markers_report_html(array $m): string {
-    if (!$m['days'] && !$m['attention'] && !$m['alert'] && !($m['sex']['days'] ?? 0) && !($m['subst']['days'] ?? 0)) return '';
+    if (!$m['days'] && !$m['attention'] && !$m['alert'] && !($m['sex']['days'] ?? 0) && !($m['subst']['days'] ?? 0) && !($m['food']['days'] ?? 0)) return '';
     $row = function (string $k, string $v): string { return '<tr><td style="padding:6px;border-bottom:1px solid #e3e8ec;color:#50606c">' . e($k) . '</td><td style="padding:6px;border-bottom:1px solid #e3e8ec"><strong>' . e($v) . '</strong></td></tr>'; };
     $n = function ($v, string $suf = '') { return $v === null ? '—' : fmt_num($v, 1) . $suf; };
     $h = '<h2 style="font-size:16px;margin:28px 0 8px">Marcadores diários e sinais de alerta</h2><table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px">';
@@ -175,6 +183,11 @@ function markers_report_html(array $m): string {
     $h .= $row('Dias com pensamentos / fala acelerados', $m['racing'] . ' / ' . $m['speech']);
     $h .= $row('Dias com gastos impulsivos · irritabilidade', $m['spending'] . ' · ' . $m['irrit']);
     $h .= $row('Dias com estresse', (string)$m['stress']);
+    if (($m['food'] ?? null) !== null) {
+        $f = $m['food'];
+        $h .= $row('Alimentação — dias com doces / ultraprocessados (moderado ou mais)', $f['sweets'] . ' / ' . $f['processed']);
+        $h .= $row('Alimentação — dias em que comeu fora de hora / compulsão', (string)$f['binge']);
+    }
     if ($m['sex'] !== null) {
         $s = $m['sex'];
         $h .= $row('Sexualidade — desejo médio (−2 a +2)', $s['libido_avg'] === null ? '—' : fmt_num($s['libido_avg'], 1, true));

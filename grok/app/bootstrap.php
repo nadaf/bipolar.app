@@ -30,6 +30,7 @@ require APP_ROOT . '/lib/password_auth.php';
 require_once APP_ROOT . '/lib/mfa.php'; // V4.4
 require APP_ROOT . '/lib/markers.php';
 require APP_ROOT . '/lib/lock.php';
+require APP_ROOT . '/lib/extensions.php'; // V4.7: ponto de extensão (desligado sem app/ext/)
 
 if (PHP_SAPI !== 'cli') {
     set_exception_handler(function (Throwable $e) {

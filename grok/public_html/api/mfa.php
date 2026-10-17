@@ -17,7 +17,8 @@ $action = (string)($_GET['action'] ?? 'status');
 $status = function () use ($pdo, $u, $uid): array {
     $on = mfa_enabled($u);
     return ['available' => mfa_available(), 'eligible' => mfa_eligible($u), 'enabled' => $on,
-        'enabled_at' => $on ? (string)$u['mfa_enabled_at'] : null, 'recovery_left' => $on ? mfa_recovery_left($pdo, $uid) : 0];
+        'enabled_at' => $on ? (mfa_enabled_at_local($u)['iso'] ?? null) : null, 'enabled_at_br' => $on ? (mfa_enabled_at_local($u)['br'] ?? null) : null, // V4.7: no fuso da pessoa (antes saía em UTC)
+        'recovery_left' => $on ? mfa_recovery_left($pdo, $uid) : 0];
 };
 if ($_SERVER['REQUEST_METHOD'] === 'GET') json_out($status());
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') json_out(['erro' => 'Método não permitido.'], 405);

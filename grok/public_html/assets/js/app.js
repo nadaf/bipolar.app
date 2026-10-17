@@ -11,14 +11,25 @@
   const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   function announce(msg) { const l = $('#sr-live'); l.textContent = ''; setTimeout(() => { l.textContent = msg; }, 50); }
-  function toast(msg, type) {
+  // V4.7: um único toast, criado já na carga (região aria-live existe antes da mensagem). Some sozinho (~4 s; erros 7 s),
+  // ao tocar, ao trocar de aba/tela e ao voltar ao app depois do prazo (timers do Android congelam em segundo plano).
+  const TOAST_MS = { ok: 4000, warn: 7000, err: 7000 };
+  function toastEl() {
     let t = $('#toast');
-    if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+    if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite'); t.setAttribute('aria-atomic', 'true'); document.body.appendChild(t); }
     if (!t.dataset.bound) { t.dataset.bound = '1'; t.title = 'Toque para fechar'; t.addEventListener('click', hideToast); }
-    t.textContent = msg; t.dataset.type = type || 'ok'; t.classList.add('show');
-    clearTimeout(t._h); t._h = setTimeout(hideToast, type === 'err' || type === 'warn' ? 7000 : 4000);
+    return t;
   }
-  function hideToast() { const t = $('#toast'); if (t) { clearTimeout(t._h); t.classList.remove('show'); } }
+  function toast(msg, type) {
+    const t = toastEl(), ty = type || 'ok', ms = TOAST_MS[ty] || 4000;
+    t.textContent = msg; t.dataset.type = ty; t.setAttribute('role', ty === 'err' ? 'alert' : 'status'); t.classList.add('show');
+    clearTimeout(t._h); t._until = Date.now() + ms; t._h = setTimeout(hideToast, ms);
+  }
+  function hideToast() { const t = $('#toast'); if (t) { clearTimeout(t._h); t._until = 0; t.classList.remove('show'); } }
+  toastEl();
+  document.addEventListener('visibilitychange', () => { const t = $('#toast'); if (t && t.classList.contains('show') && (document.hidden || Date.now() >= (t._until || 0))) hideToast(); });
+  addEventListener('pagehide', hideToast); addEventListener('popstate', hideToast);
+  addEventListener('keydown', (e) => { if (e.key === 'Escape' && !$('dialog[open]')) hideToast(); });
   // V4.2: o toast nunca cobre a barra de abas inferior (celular): mede a altura real da barra
   (function watchTabbar() {
     const bar = $('.tabs'); if (!bar) return;
@@ -214,6 +225,9 @@
   const validTime = (v) => /^([01]\d|2[0-3]):[0-5]\d$/.test(v);
   $$('.time24').forEach(time24);
   const entryDate = dateField('entry-date');
+  // V4.7.2: toda troca de data feita pelo app (Hoje/Editar/Novo registro/salvar/IA) também recarrega "Meu dia".
+  // Antes só o calendário e o campo de texto avisavam; os outros caminhos deixavam no bloco os dados da data anterior.
+  { const rawSet = entryDate.set; entryDate.set = (iso) => { rawSet(iso); queueMicrotask(daySync); }; }
   const rFrom = dateField('r-from'), rTo = dateField('r-to');
 
   /* ---------- Abas (padrão ARIA tabs) ---------- */
@@ -258,7 +272,7 @@
   // Um registro existente nunca entra em edição sozinho: aparece em leitura com o botão Editar.
   // O período/data marcados no formulário e o registro em edição são sempre conferidos antes de salvar.
   function curSlot() { return { d: entryDate.get(), p: (form.querySelector('input[name=period]:checked') || {}).value }; }
-  function setPeriod(p) { const r = $('#p-' + p); if (r) r.checked = true; }
+  function setPeriod(p) { const r = $('#p-' + p); if (r) r.checked = true; if (typeof fillPeriodFields === 'function') fillPeriodFields(); }
   // V4.3: keepDate mantém a data escolhida depois de salvar um dia passado (antes voltava para hoje)
   function resetForm(preferFree = false, keepDate = null, lastPeriod = null) {
     $('#entry-date').max = todayISO();
@@ -344,7 +358,7 @@
     else blankForm();
   }
   $('#entry-date').addEventListener('datechange', () => loadSlot());
-  $$('input[name=period]').forEach((r) => r.addEventListener('change', () => loadSlot()));
+  $$('input[name=period]').forEach((r) => r.addEventListener('change', () => { fillPeriodFields(); loadSlot(); }));
   $('#btn-new-entry').addEventListener('click', () => { resetForm(); $('#entry-date-br').focus(); });
   function focusForm() {
     form.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
@@ -627,9 +641,20 @@
     $('#heatmap').innerHTML = html + '</div></div>';
     const sc = $('#heatmap .hm-scroll'); sc.scrollLeft = sc.scrollWidth;
   }
+  // V4.7: estresse e alimentação do mesmo período, no Histórico
+  const FOOD_LV = ['nenhum', 'pouco', 'moderado', 'muito'], STRESS_LV = ['não', 'leve', 'moderado', 'intenso'];
+  function periodExtras(e) {
+    const p = [];
+    if (e.pm_stress != null) p.push('Estresse: ' + STRESS_LV[+e.pm_stress]);
+    if (e.pm_stress_note) p.push('“' + esc(e.pm_stress_note) + '”');
+    if (e.pm_sweets != null) p.push('Doces: ' + FOOD_LV[+e.pm_sweets]);
+    if (e.pm_processed != null) p.push('Ultraprocessados: ' + FOOD_LV[+e.pm_processed]);
+    if (+e.pm_binge === 1) p.push('comeu fora de hora');
+    return p.length ? '<br><small class="pm-extras">' + p.join(' · ') + '</small>' : '';
+  }
   function drawTable(entries) {
     if (!entries.length) { $('#history-table').innerHTML = '<p class="muted">Sem registros.</p>'; return; }
-    const rows = entries.slice().reverse().map((e) => '<tr><td>' + fmtBR(e.entry_date) + '</td><td>' + esc(B.periods[e.period]) + '</td><td><span class="chip lvl' + (+e.mood + 3) + '"><span aria-hidden="true">' + LV[+e.mood].icon + '</span> ' + sign(+e.mood) + '</span> ' + esc(LV[+e.mood].label) + '</td><td>' + (e.sleep_hours !== null ? fmtNum(e.sleep_hours, 1) + ' h' : '—') + '</td><td>' + (e.medication_taken === null ? '—' : +e.medication_taken ? 'Sim' : 'Não') + '</td><td>' + esc(e.tags || '') + (e.note ? '<br><small>' + esc(e.note) + '</small>' : '') + '</td></tr>').join('');
+    const rows = entries.slice().reverse().map((e) => '<tr><td>' + fmtBR(e.entry_date) + '</td><td>' + esc(B.periods[e.period]) + '</td><td><span class="chip lvl' + (+e.mood + 3) + '"><span aria-hidden="true">' + LV[+e.mood].icon + '</span> ' + sign(+e.mood) + '</span> ' + esc(LV[+e.mood].label) + '</td><td>' + (e.sleep_hours !== null ? fmtNum(e.sleep_hours, 1) + ' h' : '—') + '</td><td>' + (e.medication_taken === null ? '—' : +e.medication_taken ? 'Sim' : 'Não') + '</td><td>' + esc(e.tags || '') + (e.note ? '<br><small>' + esc(e.note) + '</small>' : '') + periodExtras(e) + '</td></tr>').join('');
     $('#history-table').innerHTML = '<table><caption class="sr-only">Registros de humor</caption><thead><tr><th scope="col">Data</th><th scope="col">Período</th><th scope="col">Humor</th><th scope="col">Sono</th><th scope="col">Medicação</th><th scope="col">Notas</th></tr></thead><tbody>' + rows + '</tbody></table>';
   }
   async function loadMediaHistory() {
@@ -671,7 +696,7 @@
           : bad ? '<span class="badge warn">' + (r.invite_status === 'recusado' ? 'convite recusado: confira o e-mail' : 'convite não enviado') + '</span> <button type="button" class="btn btn-ghost btn-sm" data-resend-rc="' + r.id + '" aria-label="Reenviar convite para ' + esc(r.name) + '">Reenviar convite</button>'
           : '<span class="badge"><span aria-hidden="true">⏳</span> aguardando confirmação</span>';
         const f = FREQ[r.frequency] + (r.frequency === 'semanal' ? ' (' + WD[r.weekday] + ')' : r.frequency === 'personalizada' ? ' (a cada ' + r.interval_days + ' dias)' : '');
-        return '<li><div><strong>' + esc(r.name) + '</strong> · ' + esc(B.roles[r.role]) + '<br><span class="muted">' + esc(r.email) + ' · ' + f + (+r.include_notes ? ' · com anotações' : ' · sem anotações') + (+r.include_markers ? ' · com marcadores' : '') + (+r.include_sexuality ? ' · com resumo de sexualidade' : '') + (+r.include_substances ? ' · com resumo de substâncias' : '') + (+r.include_alerts ? ' · recebe alertas de apoio' : '') + (+r.include_custom_alerts ? ' · com contagem de alertas personalizados' : '') + '</span></div>' + st + ' <button type="button" class="btn btn-ghost btn-sm" data-del-rc="' + r.id + '" aria-label="Remover ' + esc(r.name) + '">Remover</button></li>';
+        return '<li><div><strong>' + esc(r.name) + '</strong> · ' + esc(B.roles[r.role]) + '<br><span class="muted">' + esc(r.email) + ' · ' + f + (+r.include_notes ? ' · com anotações' : ' · sem anotações') + (+r.include_markers ? ' · com marcadores' : '') + (+r.include_sexuality ? ' · com resumo de sexualidade' : '') + (+r.include_substances ? ' · com resumo de substâncias' : '') + (+r.include_food ? ' · com resumo de alimentação' : '') + (+r.include_alerts ? ' · recebe alertas de apoio' : '') + (+r.include_custom_alerts ? ' · com contagem de alertas personalizados' : '') + '</span></div>' + st + ' <button type="button" class="btn btn-ghost btn-sm" data-del-rc="' + r.id + '" aria-label="Remover ' + esc(r.name) + '">Remover</button></li>';
       }).join('') : '<li class="muted">Nenhum destinatário cadastrado.</li>';
     } catch { ul.innerHTML = '<li class="muted">Não foi possível carregar.</li>'; }
   }
@@ -688,9 +713,10 @@
     e.preventDefault();
     const f = e.target; if (!f.reportValidity()) return;
     const d = Object.fromEntries(new FormData(f));
-    d.include_markers = !!d.include_markers; d.include_sexuality = !!d.include_sexuality; d.include_substances = !!d.include_substances; d.include_alerts = !!d.include_alerts; d.include_custom_alerts = !!d.include_custom_alerts;
+    d.include_markers = !!d.include_markers; d.include_sexuality = !!d.include_sexuality; d.include_substances = !!d.include_substances; d.include_food = !!d.include_food; d.include_alerts = !!d.include_alerts; d.include_custom_alerts = !!d.include_custom_alerts;
     const sens = [];
     if (d.include_alerts) sens.push('Alertas: no máximo uma vez por semana, um e-mail curto dizendo que você pode precisar de apoio — sem detalhes.');
+    if (d.include_food) sens.push('Alimentação: só a contagem de dias (doces, ultraprocessados, comer fora de hora).');
     if (d.include_substances) sens.push('Substâncias: só a contagem de dias com uso por tipo.');
     if (d.include_sexuality) sens.push('Sexualidade: só a média do desejo e os dias com sinais de risco.');
     if (d.include_custom_alerts) sens.push('Alertas personalizados: só quantos foram atendidos no período.');
@@ -804,15 +830,48 @@
   $('#d-bed').addEventListener('change', sleepCalc); $('#d-wake').addEventListener('change', sleepCalc);
   $('#d-bed').addEventListener('input', sleepCalc); $('#d-wake').addEventListener('input', sleepCalc);
   let sexState = { enabled: false, locked: false };
+  // V4.7: estresse/acontecimentos e alimentação são POR PERÍODO. Trocar Manhã/Tarde/Noite (ou a data) mostra só o que foi
+  // salvo naquele período; nada de um período aparece em outro.
+  let dayPeriodRows = { date: null, rows: [] };
+  function fillPeriodFields() {
+    const dayForm = document.getElementById('form-day'); if (!dayForm) return; // pode rodar antes da inicialização desta seção
+    const p = curPeriod(), d = entryDate.get();
+    $$('.day-period-name').forEach((x) => { x.textContent = B.periods[p] || '—'; });
+    const row = dayPeriodRows.date === d ? (dayPeriodRows.rows.find((x) => x.period === p) || {}) : {};
+    setRadio(dayForm, 'stress_level', row.stress_level); setRadio(dayForm, 'food_sweets', row.food_sweets); setRadio(dayForm, 'food_processed', row.food_processed);
+    if (dayForm.elements.stress_note) dayForm.elements.stress_note.value = row.stress_note == null ? '' : row.stress_note;
+    if (dayForm.elements.food_binge) dayForm.elements.food_binge.checked = +row.food_binge === 1;
+    dayForm.dataset.period = p;
+  }
+  // V4.7.2: "Meu dia" sempre mostra a data escolhida. dayWant = data pedida; dayLoaded = data cujos dados estão no
+  // formulário (null enquanto carrega ou se não deu para carregar). Uma resposta atrasada de outra data é descartada,
+  // e não se salva por cima de um dia que não foi carregado.
+  let dayReq = 0, dayWant = null, dayLoaded = null;
+  function daySync() { const d = entryDate.get(); if (d && d !== dayWant) loadDay(); }
+  function dayBlank(d) {
+    dayForm.reset(); sexForm.reset(); sexVersion = null;
+    dayPeriodRows = { date: d, rows: [] }; fillPeriodFields(); sleepCalc();
+  }
+  function dayNote(msg) { const n = $('#day-load-note'); if (!n) return; n.textContent = msg || ''; n.classList.toggle('hidden', !msg); }
   async function loadDay() {
-    const d = entryDate.get(); if (!d || !navigator.onLine) return;
+    const d = entryDate.get(); if (!d) return;
+    const my = ++dayReq; dayWant = d;
     $('#day-date-label').textContent = '(' + fmtBR(d) + ')';
+    if (dayLoaded !== d) { dayLoaded = null; dayBlank(d); } // nada de outra data fica no bloco enquanto busca
+    if (!navigator.onLine) { if (!dayLoaded) dayNote('Sem conexão: os dados de ' + fmtBR(d) + ' aparecem quando a internet voltar.'); return; }
     let r;
-    try { r = await api('/api/day.php?from=' + d + '&to=' + d); } catch { return; }
+    try { r = await api('/api/day.php?from=' + d + '&to=' + d); } catch {
+      if (my === dayReq && !dayLoaded) dayNote('Não foi possível carregar os dados de ' + fmtBR(d) + '. Tente de novo em instantes.');
+      return;
+    }
+    if (my !== dayReq || entryDate.get() !== d) return; // a pessoa já trocou de data: resposta antiga não entra
+    dayLoaded = d; dayNote('');
     const m = r.markers[0] || {};
     dayForm.reset();
-    ['bed_time', 'wake_time', 'sleep_quality', 'sun_minutes', 'sun_period', 'caffeine_cups', 'alcohol_units', 'substances', 'exercise_minutes', 'spending_amount', 'cycle_phase', 'stress_note'].forEach((k) => { const i = dayForm.elements[k]; if (i) i.value = m[k] == null ? '' : m[k]; });
-    ['racing_thoughts', 'fast_speech', 'impulsive_spending', 'irritability_day', 'stress_level'].forEach((k) => setRadio(dayForm, k, m[k]));
+    ['bed_time', 'wake_time', 'sleep_quality', 'sun_minutes', 'sun_period', 'caffeine_cups', 'alcohol_units', 'substances', 'exercise_minutes', 'spending_amount', 'cycle_phase'].forEach((k) => { const i = dayForm.elements[k]; if (i) i.value = m[k] == null ? '' : m[k]; });
+    ['racing_thoughts', 'fast_speech', 'impulsive_spending', 'irritability_day'].forEach((k) => setRadio(dayForm, k, m[k]));
+    dayPeriodRows = { date: d, rows: r.period_markers || [] };
+    fillPeriodFields();
     $$('input[name=dose]', dayForm).forEach((c) => { c.checked = !!(m.doses && m.doses[c.value]); });
     $$('input[name=sign]', dayForm).forEach((c) => { c.checked = (m.signs || []).includes(+c.value); });
     sleepCalc();
@@ -842,14 +901,22 @@
     w.classList.remove('hidden');
   }
   $('#entry-date').addEventListener('datechange', loadDay);
+  addEventListener('online', () => { if (dayLoaded !== entryDate.get()) loadDay(); });
+  function dayReady(d) {
+    if (dayLoaded === d) return true;
+    toast('Os dados de ' + fmtBR(d) + ' ainda não foram carregados. Aguarde um instante e salve de novo.', 'err');
+    loadDay(); return false;
+  }
   dayForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const d = entryDate.get(); if (!d) return toast('Escolha a data no topo do formulário.', 'err');
-    const p = { entry_date: d };
+    if (!dayReady(d)) return;
+    const p = { entry_date: d, period: curPeriod() };
     $$('[data-mod]', dayForm).forEach((sec) => {
       if (sec.hidden) return;
       $$('input,select', sec).forEach((i) => {
         if (i.name === 'dose' || i.name === 'sign') return;
+        if (i.type === 'checkbox') { p[i.name] = i.checked ? 1 : null; return; }
         if (i.type === 'radio') { if (i.checked) p[i.name] = i.value === '' ? null : +i.value; return; }
         p[i.name] = i.value === '' ? null : (i.type === 'number' ? +i.value : i.value);
       });
@@ -857,7 +924,7 @@
     if (!$('[data-mod=medicacao]', dayForm).hidden) { p.doses = {}; $$('input[name=dose]', dayForm).forEach((c) => { p.doses[c.value] = c.checked ? 1 : 0; }); }
     if (!$('[data-mod=sinais]', dayForm).hidden) p.signs = $$('input[name=sign]:checked', dayForm).map((c) => +c.value);
     for (const k of ['bed_time', 'wake_time']) if (p[k] != null && !validTime(p[k])) { toast('Horário inválido. Use 24 horas, por exemplo 23:30.', 'err'); dayForm.elements[k].focus(); return; }
-    try { const r = await api('/api/day.php', { method: 'POST', json: p }); toast('Seu dia foi salvo.'); announce('Marcadores do dia salvos.'); loadDay(); afterDataSave(r); } catch (err) { toast(err.message, 'err'); }
+    try { const r = await api('/api/day.php', { method: 'POST', json: p }); toast('Seu dia foi salvo (' + B.periods[p.period] + ').'); announce('Marcadores do dia salvos. Estresse e alimentação ficaram na ' + B.periods[p.period] + '.'); loadDay(); afterDataSave(r); } catch (err) { toast(err.message, 'err'); }
   });
   function syncBlur() { $('#sex-body').inert = sexForm.classList.contains('blurred'); }
   function onlineToggle() { $('#sx-online-f').classList.toggle('hidden', !$('input[name=activities][value=online]', sexForm).checked); }
@@ -868,6 +935,7 @@
   }));
   $('#sex-reveal').addEventListener('click', () => { sexForm.classList.remove('blurred'); syncBlur(); $('#sex-reveal').classList.add('hidden'); $('input[name=libido]', sexForm).focus(); });
   $('#sex-hide').addEventListener('click', async () => {
+    if (privHidden('sex')) return revealPriv('sex');
     sexForm.classList.add('blurred'); syncBlur(); $('#sex-reveal').classList.remove('hidden'); $('#sex-reveal').focus();
     if (sexState.has_pin) { try { await api('/api/day.php?action=lock', { method: 'POST', json: {} }); } catch { /* ok */ } loadDay(); }
   });
@@ -892,10 +960,31 @@
   function reblurPrivate() {
     Object.keys(PRIV).forEach((k) => { if (!blurPref[k]) return; PRIV[k].form.classList.add('blurred'); PRIV[k].sync(); $('#' + k + '-reveal').classList.remove('hidden'); });
   }
+  // V4.7: o botão do cabeçalho alterna — "Revelar" enquanto os dados estão ocultos (desfocados ou trancados), "Ocultar" quando visíveis.
+  // O texto muda junto com o estado, por isso NÃO usa aria-pressed (WAI-ARIA: botão de alternância tem rótulo fixo).
+  const PRIV_NAME = { sex: 'Sexualidade', subst: 'Substâncias' };
+  function privLocked(k) { return !$('#' + k + '-locked').classList.contains('hidden'); }
+  function privHidden(k) { return PRIV[k].form.classList.contains('blurred') || privLocked(k); }
+  function syncHideBtn(k) {
+    const b = $('#' + k + '-hide'); if (!b) return;
+    const verb = privHidden(k) ? 'Revelar' : 'Ocultar';
+    if (b.textContent !== verb) b.textContent = verb;
+    b.setAttribute('aria-label', verb + ' dados de ' + PRIV_NAME[k]);
+  }
+  function revealPriv(k) {
+    if (privLocked(k)) { $('#' + k + '-pin').focus(); announce('Digite seu PIN para revelar.'); return; }
+    $('#' + k + '-reveal').click();
+  }
+  Object.keys(PRIV).forEach((k) => {
+    const mo = new MutationObserver(() => syncHideBtn(k));
+    mo.observe(PRIV[k].form, { attributes: true, attributeFilter: ['class'] }); mo.observe($('#' + k + '-locked'), { attributes: true, attributeFilter: ['class'] });
+    syncHideBtn(k);
+  });
   $('#sex-pin').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#sex-unlock').click(); } });
   sexForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const d = entryDate.get(); if (!d) return toast('Escolha a data no topo do formulário.', 'err');
+    if (!dayReady(d)) return;
     const g = (n) => { const r = $('input[name=' + n + ']:checked', sexForm); return r && r.value !== '' ? +r.value : null; };
     const p = { entry_date: d, libido: g('libido'), different_from_usual: g('different_from_usual'), activities: $$('input[name=activities]:checked', sexForm).map((c) => c.value),
       frequency: sexForm.elements.frequency.value === '' ? null : +sexForm.elements.frequency.value, online_minutes: sexForm.elements.online_minutes.value === '' ? null : +sexForm.elements.online_minutes.value, note: sexForm.elements.note.value };
@@ -987,6 +1076,7 @@
   });
   $('#subst-reveal').addEventListener('click', () => { suForm.classList.remove('blurred'); suSyncBlur(); $('#subst-reveal').classList.add('hidden'); $('#su-sub').focus(); });
   $('#subst-hide').addEventListener('click', async () => {
+    if (privHidden('subst')) return revealPriv('subst');
     suForm.classList.add('blurred'); suSyncBlur(); $('#subst-reveal').classList.remove('hidden'); $('#subst-reveal').focus();
     if (sexState.has_pin) { try { await api('/api/day.php?action=lock', { method: 'POST', json: {} }); } catch { /* ok */ } loadDay(); }
   });
@@ -1065,6 +1155,7 @@
     if (m.type === 'mood') return '−3 a +3';
     if (m.type === 'libido') return '−2 (bem menor) a +2 (bem maior)';
     if (m.type === 'scale') return '0 não · 1 leve · 2 moderado · 3 intenso';
+    if (m.type === 'food') return '0 nenhum · 1 pouco · 2 moderado · 3 muito';
     if (m.type === 'bool') return '1 sim · 0 não';
     return fmtNum(m.min, 0) + ' a ' + fmtNum(m.max, 0) + (m.unit ? ' ' + m.unit : '');
   }

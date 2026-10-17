@@ -114,7 +114,7 @@ final class V44Test extends IntegrationCase
         $uid = $this->emailUser($email);
         $c = $this->dev();
         $this->assertSame('/', $c->header($this->passwordLogin($c, $email), 'Location'), 'sem MFA: entra direto');
-        $this->assertSame(['available' => true, 'eligible' => true, 'enabled' => false, 'enabled_at' => null, 'recovery_left' => 0], $c->get('/api/mfa.php')['json']);
+        $this->assertSame(['available' => true, 'eligible' => true, 'enabled' => false, 'enabled_at' => null, 'enabled_at_br' => null, 'recovery_left' => 0], $c->get('/api/mfa.php')['json']);
         TestEnv::clearMails();
         [$key, $codes] = $this->enable($c);
         $this->assertTrue($this->loggedIn($c), 'quem ativou continua dentro');

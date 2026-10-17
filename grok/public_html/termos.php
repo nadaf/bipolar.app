@@ -29,6 +29,7 @@ page_head('Termos de Uso'); ?>
 <ul>
 <li>Você precisa ter 18 anos ou mais.</li>
 <li>Use dados verdadeiros, guarde bem sua senha e cadastre biometria ou PIN se quiser proteger as seções privadas.</li>
+<li>Recomendamos ativar a <strong>verificação em duas etapas</strong> (código do aplicativo autenticador, em Conta). Guarde os <strong>códigos de recuperação</strong> em lugar seguro: são eles que permitem entrar se você perder o celular. Cada código vale uma vez. Quem entra com Google, Microsoft ou X ativa a verificação em duas etapas na conta do próprio provedor.</li>
 <li>Só cadastre como pessoa de apoio quem concordar em receber seus relatórios; ela precisa confirmar o convite.</li>
 </ul>
 

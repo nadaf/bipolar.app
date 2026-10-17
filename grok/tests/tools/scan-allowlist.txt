@@ -1,6 +1,8 @@
 app/lib/helpers.php:42:
 app/lib/helpers.php:45:
 app/lib/helpers.php:49:
-public_html/api/day.php:81:
+public_html/api/day.php:86:
 cron/analyze_signals.php:15:
 cron/analyze_signals.php:16:
+app/lib/extensions.php:59:
+app/lib/extensions.php:75:

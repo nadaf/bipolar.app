@@ -252,3 +252,9 @@ function cron_heartbeat_read(string $name): ?array {
     $d = json_decode((string)@file_get_contents($f), true);
     return is_array($d) && isset($d['at']) ? $d : null;
 }
+
+/** V4.6: cor principal da marca da instalação ('brand' => ['color' => '#RRGGBB']) ou null para a cor padrão. */
+function brand_color(): ?string {
+    $c = strtolower(trim((string)cfg('brand.color', '')));
+    return preg_match('/^#[0-9a-f]{6}$/', $c) ? $c : null;
+}

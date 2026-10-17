@@ -95,6 +95,7 @@ CREATE TABLE IF NOT EXISTS recipients (
   include_markers TINYINT(1) NOT NULL DEFAULT 1,
   include_sexuality TINYINT(1) NOT NULL DEFAULT 0,
   include_substances TINYINT(1) NOT NULL DEFAULT 0,
+  include_food TINYINT(1) NOT NULL DEFAULT 0,
   include_alerts TINYINT(1) NOT NULL DEFAULT 0,
   last_alert_at DATETIME NULL,
   include_custom_alerts TINYINT(1) NOT NULL DEFAULT 0,
@@ -179,6 +180,9 @@ CREATE TABLE IF NOT EXISTS daily_markers (
   cycle_phase VARCHAR(20) NULL,
   stress_level TINYINT NULL,
   stress_note VARCHAR(500) NULL,
+  food_sweets TINYINT NULL,
+  food_processed TINYINT NULL,
+  food_binge TINYINT NULL,
   doses_json TEXT NULL,
   signs_json TEXT NULL,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -321,4 +325,23 @@ CREATE TABLE IF NOT EXISTS mfa_recovery_codes (
   PRIMARY KEY (id),
   UNIQUE KEY uq_mfa_rc (user_id, code_hash),
   CONSTRAINT fk_mfa_rc_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- V4.7: acontecimentos/estresse e alimentacao POR PERIODO do dia (manha, tarde, noite).
+-- Em daily_markers ficam so os totais do dia (maior valor dos periodos), recalculados pelo app a cada gravacao.
+CREATE TABLE IF NOT EXISTS period_markers (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  user_id INT UNSIGNED NOT NULL,
+  entry_date DATE NOT NULL,
+  period ENUM('manha','tarde','noite') NOT NULL,
+  stress_level TINYINT NULL,
+  stress_note VARCHAR(500) NULL,
+  food_sweets TINYINT NULL,
+  food_processed TINYINT NULL,
+  food_binge TINYINT NULL,
+  migrated TINYINT(1) NOT NULL DEFAULT 0,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_pm_user_day_period (user_id, entry_date, period),
+  CONSTRAINT fk_pm_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

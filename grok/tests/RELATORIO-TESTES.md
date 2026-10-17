@@ -2,6 +2,23 @@
 
 Data da execução: 14/10/2026 (atualizado após as correções do QA 1) · Resultado final: **tudo verde** (`tests/run-all.sh`).
 
+## V4.5: páginas públicas e pedidos de contato (15/10/2026)
+
+Ambiente desta rodada: **PHP 8.4.26** (é o único PHP instalado nesta máquina; PHP 8.3, o de produção, coberto pela análise estática do PHPStan com `phpVersion` 8.0–8.4), **MySQL 5.7.44**, Chrome headless.
+
+| Etapa | Resultado |
+|---|---|
+| PHPUnit (suíte inteira) | ✅ 290 testes, 2727 asserções, 0 falhas |
+| `Unit/LeadsUnitTest.php` | subdomínio (21 casos: tamanho 3–30, `a-z0-9-`, maiúsculas, acento, `_`, `.`, espaço, hífen no início/fim, `--`, reservados), honeypot, carimbo de tempo (mínimo, expiração, outra sessão, adulterado, tipos inválidos), validação completa dos 2 formulários (inclusive injeção de cabeçalho no e-mail), preço 49,90 nos 2 planos, hash do IP, CSV com proteção contra fórmulas e aspas, limpeza de 12 meses que preserva `fechado` |
+| PHPStan nível 6 | ✅ 0 erros |
+| `php -l` | ✅ |
+| Varredura de padrões inseguros | ✅ 0 ocorrências |
+| ESLint | ✅ 0 problemas |
+| `js/regress-v45.mjs` (axe-core WCAG 2.2 AA com a **CSP real**, sem bypass) | ✅ 24 auditorias, 0 violações: `/profissionais.php`, `/comecar.php`, `/`, `/privacidade.php`, formulário com erros e indicação enviada × claro/escuro × 1280/390 px; 0 violações de CSP no console |
+| Lighthouse (12 auditorias: 6 páginas × celular/desktop) | ✅ Acessibilidade, Boas práticas e SEO **100** em todas, inclusive `/profissionais.php` e `/comecar.php`; PWA instalável e offline |
+
+Capturas de tela: `/workspace/qa/v45-local/` (1280 e 390 px, claro e escuro, mais erro e sucesso).
+
 ## Ambientes realmente testados
 
 | Componente | Versões |

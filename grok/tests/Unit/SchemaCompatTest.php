@@ -35,7 +35,8 @@ final class SchemaCompatTest extends TestCase
     {
         $schema = (string)file_get_contents(TestEnv::ROOT . '/schema.sql');
         preg_match_all('/CREATE TABLE IF NOT EXISTS (\w+) \((.*?)\) ENGINE/s', $schema, $tables, PREG_SET_ORDER);
-        $this->assertCount(17, $tables); // V4.4: + mfa_recovery_codes
+        // V4.4: + mfa_recovery_codes, V4.7: + period_markers. leads/billing_* (V4.5/V4.6) foram para o módulo privado (schema-private.sql).
+        $this->assertCount(18, $tables);
         foreach ($tables as [, $name, $body]) {
             $this->assertStringContainsString('utf8mb4', $schema);
             preg_match_all('/^\s*(\w+) VARCHAR\((\d+)\)/m', $body, $cols, PREG_SET_ORDER);
@@ -95,9 +96,9 @@ final class SchemaCompatTest extends TestCase
             foreach ($pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN) as $t) $pdo->exec("DROP TABLE `$t`");
             $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
             $old = (string)file_get_contents(TestEnv::ROOT . '/schema.sql');
-            $old = preg_replace('/  (prefs|sex_pin_hash|include_markers|include_sexuality|include_substances|include_alerts|last_alert_at|label|last_ok_at|snooze_until|include_custom_alerts|invite_status|invite_error_at) [^\n]*\n/', '', $old);
+            $old = preg_replace('/  (prefs|sex_pin_hash|include_markers|include_sexuality|include_substances|include_alerts|last_alert_at|label|last_ok_at|snooze_until|include_custom_alerts|invite_status|invite_error_at|food_sweets|food_processed|food_binge|include_food) [^\n]*\n/', '', $old);
             $old = preg_replace('/  UNIQUE KEY uq_recipient_user_email[^\n]*\n/', '', (string)$old);
-            $old = preg_replace('/CREATE TABLE IF NOT EXISTS (daily_markers|sexuality_log|substance_log|alerts|webauthn_credentials|ai_usage|alert_rules) .*?;\n/s', '', (string)$old);
+            $old = preg_replace('/CREATE TABLE IF NOT EXISTS (daily_markers|sexuality_log|substance_log|alerts|webauthn_credentials|ai_usage|alert_rules|period_markers) .*?;\n/s', '', (string)$old);
             self::runSql($pdo, (string)$old);
             $this->assertSame([], $pdo->query("SHOW TABLES LIKE 'daily_markers'")->fetchAll());
             $pdo->exec("INSERT INTO users (name) VALUES ('antigo')");
@@ -133,17 +134,32 @@ final class SchemaCompatTest extends TestCase
             $mig42 = (string)file_get_contents(TestEnv::ROOT . '/migrations/2026-10-21-v4-2-alertas-personalizados.sql');
             self::runSql($pdo, $mig42);
             self::runSql($pdo, $mig42);
-            // V4.3, V4.3.1 e V4.4: colunas de IA, de versão e da verificação em duas etapas, cada uma rodada duas vezes (#1060 pulado)
-            foreach (['2026-10-23-v4-3-ia-chave-propria.sql', '2026-10-25-v4-3-1-versao-registros.sql', '2026-10-27-v4-4-verificacao-duas-etapas.sql'] as $mf) {
+            // V4.3, V4.3.1, V4.4 e V4.5: colunas de IA, de versão e da verificação em duas etapas, cada uma rodada duas vezes (#1060 pulado)
+            // V4.7: dia antigo com estresse (valia para o dia inteiro) — vai para o último período registrado, uma única vez
+            $pdo->exec("INSERT INTO daily_markers (user_id, entry_date, stress_level, stress_note) VALUES (1, '2026-10-01', 3, 'briga'), (1, '2026-10-02', 1, NULL), (1, '2026-10-03', NULL, NULL)");
+            $pdo->exec("INSERT INTO entries (user_id, entry_date, period, mood) VALUES (1, '2026-10-01', 'manha', 0), (1, '2026-10-01', 'tarde', 1)");
+            foreach (['2026-10-23-v4-3-ia-chave-propria.sql', '2026-10-25-v4-3-1-versao-registros.sql', '2026-10-27-v4-4-verificacao-duas-etapas.sql', '2026-11-03-v4-7-periodos-alimentacao.sql', '2026-11-04-v4-7-1-limpeza-vazios.sql'] as $mf) {
                 $sqlM = (string)file_get_contents(TestEnv::ROOT . '/migrations/' . $mf);
                 self::runSql($pdo, $sqlM);
                 self::runSql($pdo, $sqlM);
             }
             $this->assertSame(['alert_rules'], $pdo->query("SHOW TABLES LIKE 'alert_rules'")->fetchAll(PDO::FETCH_COLUMN));
+            $pm = $pdo->query('SELECT entry_date, period, stress_level, stress_note, migrated FROM period_markers ORDER BY entry_date')->fetchAll(PDO::FETCH_NUM);
+            $this->assertSame([['2026-10-01', 'tarde', '3', 'briga', '1'], ['2026-10-02', 'noite', '1', null, '1']], array_map(fn($r) => array_map(fn($v) => $v === null ? null : (string)$v, $r), $pm), 'estresse antigo copiado uma vez, sem perder o valor do dia');
+            $this->assertSame('3', (string)$pdo->query("SELECT stress_level FROM daily_markers WHERE entry_date = '2026-10-01'")->fetchColumn(), 'daily_markers preservado');
+            // V4.7.1: limpeza apaga só linhas sem nenhum dado (10-03 estava vazio), e de novo depois de novos vazios
+            $this->assertSame(['2026-10-01', '2026-10-02'], $pdo->query('SELECT entry_date FROM daily_markers ORDER BY entry_date')->fetchAll(PDO::FETCH_COLUMN), 'dia vazio apagado, dias com dados mantidos');
+            $pdo->exec("INSERT INTO period_markers (user_id, entry_date, period) VALUES (1, '2026-10-05', 'manha'), (1, '2026-10-05', 'tarde')");
+            $pdo->exec("UPDATE period_markers SET food_binge = 0 WHERE entry_date = '2026-10-05' AND period = 'tarde'");
+            $pdo->exec("INSERT INTO daily_markers (user_id, entry_date, doses_json) VALUES (1, '2026-10-06', NULL), (1, '2026-10-07', '{\"a\":1}')");
+            self::runSql($pdo, (string)file_get_contents(TestEnv::ROOT . '/migrations/2026-11-04-v4-7-1-limpeza-vazios.sql'));
+            $this->assertSame(['2026-10-01|tarde', '2026-10-02|noite', '2026-10-05|tarde'], $pdo->query("SELECT CONCAT(entry_date, '|', period) FROM period_markers ORDER BY entry_date, period")->fetchAll(PDO::FETCH_COLUMN), 'food_binge = 0 (não) é dado e fica');
+            $this->assertSame(['2026-10-01', '2026-10-02', '2026-10-07'], $pdo->query('SELECT entry_date FROM daily_markers ORDER BY entry_date')->fetchAll(PDO::FETCH_COLUMN));
+            $this->assertSame('0', (string)$pdo->query('SELECT include_food FROM recipients')->fetchColumn(), 'alimentação nunca vem ligada para quem já recebe relatório');
             $this->assertSame(['0', null], array_map(fn($v) => $v === null ? null : (string)$v, $pdo->query('SELECT include_custom_alerts, invite_status FROM recipients')->fetch(PDO::FETCH_NUM)));
             $cols = function (string $t) use ($pdo): array { return $pdo->query("SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$t' ORDER BY COLUMN_NAME")->fetchAll(PDO::FETCH_ASSOC); };
             $migrated = [];
-            foreach (['users', 'entries', 'recipients', 'daily_markers', 'sexuality_log', 'substance_log', 'push_subscriptions', 'alerts', 'webauthn_credentials', 'ai_usage', 'alert_rules', 'mfa_recovery_codes'] as $t) $migrated[$t] = $cols($t);
+            foreach (['users', 'entries', 'recipients', 'daily_markers', 'sexuality_log', 'substance_log', 'push_subscriptions', 'alerts', 'webauthn_credentials', 'ai_usage', 'alert_rules', 'mfa_recovery_codes', 'period_markers'] as $t) $migrated[$t] = $cols($t);
             $this->assertSame('0', (string)$pdo->query('SELECT include_sexuality FROM recipients')->fetchColumn(), 'sexualidade nunca vem ligada');
             $this->assertSame('1', (string)$pdo->query('SELECT include_markers FROM recipients')->fetchColumn());
             // compara com schema.sql completo

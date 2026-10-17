@@ -9,7 +9,7 @@ $pf = user_prefs($user);
   <p class="small">Escolha o que aparece em “Meu dia”. O registro de humor por período continua com um toque.</p>
   <form id="form-prefs" novalidate>
     <fieldset class="checks"><legend class="sr-only">Módulos</legend>
-      <?php foreach (DAY_MODULES as $k => [$l]): if ($k === 'sexualidade' || $k === 'substancias') continue; ?>
+      <?php foreach (DAY_MODULES as $k => [$l]): if ($k === 'sexualidade' || $k === 'substancias' || !tenant_module_available($k)) continue; ?>
       <label class="check"><input type="checkbox" name="mod_<?= $k ?>" value="1"<?= $pf['modules'][$k] ? ' checked' : '' ?>> <span><?= e($l) ?></span></label>
       <?php endforeach; ?>
     </fieldset>
@@ -37,6 +37,7 @@ $pf = user_prefs($user);
       <button type="button" class="btn btn-sm" id="med-more">+ Mais um horário</button>
     </details>
 
+    <?php if (tenant_module_available('sexualidade')): ?>
     <details class="extras" id="sex-settings">
       <summary>🔒 Sexualidade (privado)</summary>
       <p class="small">Na hipomania e na mania é comum o desejo sexual aumentar, surgirem novas parcerias, sexo sem proteção ou muito tempo em apps e conteúdo online — muitas vezes seguido de arrependimento. Esses sinais costumam aparecer cedo e quase nunca são perguntados nas consultas. O módulo é para todas as orientações, identidades e formatos de relação, e não julga: o que importa é a <strong>mudança em relação ao seu normal</strong>.</p>
@@ -50,6 +51,7 @@ $pf = user_prefs($user);
       <label class="check"><input type="checkbox" name="sex_blur" value="1"<?= $pf['sex_blur'] ? ' checked' : '' ?>> <span>Borrar a seção até eu tocar para mostrar</span></label>
       <p class="small"><a href="/privacidade.php#sexualidade" target="_blank" rel="noopener">Por que isso ajuda? (fontes científicas)</a></p>
     </details>
+    <?php endif; if (tenant_module_available('substancias')): ?>
     <details class="extras" id="subst-settings">
       <summary>🔒 Substâncias (privado, redução de danos)</summary>
       <p class="small">Para registrar álcool, cannabis, tabaco e outras substâncias sem julgamento: quantidade, período, motivo, efeito no humor e se foi mais que o habitual. Ajuda a ver padrões (por exemplo, sono e humor no dia seguinte) e a conversar abertamente com seu psiquiatra sobre interações com a medicação.</p>
@@ -61,6 +63,7 @@ $pf = user_prefs($user);
       <label class="check"><input type="checkbox" name="mod_substancias" value="1"<?= $pf['modules']['substancias'] ? ' checked' : '' ?>> <span>Ativar o módulo Substâncias</span></label>
       <label class="check"><input type="checkbox" name="subst_blur" value="1"<?= $pf['subst_blur'] ? ' checked' : '' ?>> <span>Borrar a seção até eu tocar para mostrar</span></label>
     </details>
+    <?php endif; ?>
     <div class="form-actions"><button class="btn btn-primary" type="submit">Salvar módulos</button></div>
   </form>
 

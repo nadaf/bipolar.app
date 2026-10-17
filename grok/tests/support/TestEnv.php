@@ -2,6 +2,8 @@
 final class TestEnv
 {
     public const ROOT = __DIR__ . '/../..';
+    /** V4.7: a árvore testada tem o módulo privado (app/ext/module.php)? */
+    public static function hasPrivate(): bool { return is_file(self::ROOT . '/app/ext/module.php'); }
     public static string $tmp;
     public static int $devPort;
     public static int $prodPort;
@@ -38,6 +40,8 @@ final class TestEnv
         require_once self::ROOT . '/app/lib/webauthn.php';
         require_once self::ROOT . '/app/lib/alerts.php';
         require_once self::ROOT . '/app/lib/ai.php';
+        // V4.7: o módulo privado (pedidos de contato/cobrança) só existe na árvore completa do site
+        if (is_file(self::ROOT . '/app/lib/leads.php')) require_once self::ROOT . '/app/lib/leads.php';
         self::resetDb();
 
         $php = PHP_BINARY;
@@ -130,6 +134,8 @@ final class TestEnv
             'ai' => $dev ? ['secret_key' => base64_encode(str_repeat('k', 32)), 'allow_private_urls' => true] : [],
             // V4.3.1: produção simulada com o bloco legal no nível de cima, como no config.php real
             'legal' => $dev ? [] : ['controller' => 'Ronaldo Nadaf, Cuiabá/MT', 'contact_email' => 'privacidade@bipolar.app.br'],
+            // V4.5: páginas públicas; dev pede 2 s de preenchimento, prod usa o padrão (3 s)
+            'sales' => $dev ? ['notify_email' => 'dono@example.com', 'min_seconds' => 2, 'max_per_hour' => 5] : [],
             'media' => ['max_audio_mb' => 2, 'max_video_mb' => 3, 'max_image_mb' => 1],
         ];
         $file = self::$tmp . "/config.$name.php";
@@ -143,7 +149,9 @@ final class TestEnv
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
         foreach ($pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN) as $t) $pdo->exec("DROP TABLE `$t`");
         $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
-        foreach (array_filter(array_map('trim', explode(';', (string)file_get_contents(self::ROOT . '/schema.sql')))) as $stmt) {
+        $sql = (string)file_get_contents(self::ROOT . '/schema.sql');
+        if (is_file(self::ROOT . '/schema-private.sql')) $sql .= "\n" . file_get_contents(self::ROOT . '/schema-private.sql'); // V4.7: módulo privado
+        foreach (array_filter(array_map('trim', explode(';', $sql))) as $stmt) {
             if (preg_match('/^(--[^\n]*\n\s*)*$/', $stmt . "\n")) continue;
             $pdo->exec($stmt);
         }

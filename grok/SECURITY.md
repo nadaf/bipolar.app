@@ -29,3 +29,4 @@ Por desenho, não há papel de administrador nem rota para ver dados de outras p
 ---
 
 **English:** please report vulnerabilities privately via GitHub Security Advisories or seguranca@bipolar.app.br. Do not access other people's data and do not load-test the production site.
+

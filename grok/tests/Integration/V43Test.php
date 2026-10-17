@@ -19,6 +19,8 @@ final class V43Test extends IntegrationCase
                 $src = (string)file_get_contents($path);
                 // a lista de senhas fracas contém "admin123", que não é rota nem papel
                 $src = str_replace("'admin123'", '', $src);
+                // V4.5: a lista de nomes PROIBIDOS como subdomínio contém "admin" justamente para bloqueá-lo (não é rota nem papel)
+                $src = (string)preg_replace('/const SUBDOMAIN_RESERVED = \[.*?\];/s', '', $src);
                 $this->assertDoesNotMatchRegularExpression('/is_admin|admin_|role\s*=>?\s*[\'"]admin|[\'"]admin[\'"]|\/admin\b/i', $src, "referência a admin em $path");
             }
         }

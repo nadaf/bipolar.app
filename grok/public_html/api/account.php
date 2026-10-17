@@ -10,16 +10,24 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
     try { $utz = new DateTimeZone((string)($u['timezone'] ?? 'America/Sao_Paulo')); } catch (Exception $e) { $utz = new DateTimeZone('America/Sao_Paulo'); }
     $stamp = (new DateTime('now', $utz))->format('Y-m-d-His'); // nome do arquivo no fuso do usuário
     $fmt = (string)($_GET['format'] ?? 'json');
+    // V4.7: estresse e alimentação por período entram nas mesmas linhas do CSV (data + período)
+    $pmRows = $q('SELECT entry_date, period, stress_level, stress_note, food_sweets, food_processed, food_binge, updated_at FROM period_markers WHERE user_id = ? ORDER BY entry_date, period');
+    $pm = [];
+    foreach ($pmRows as $r) $pm[$r['entry_date'] . '|' . $r['period']] = $r;
     /** Formato Excel-BR: separador ";", vírgula decimal, datas dd/mm/aaaa, UTF-8 com BOM */
-    $csv = function (array $entries) use ($u): string {
+    $csv = function (array $entries) use ($u, $pm): string {
         $out = fopen('php://temp', 'w+');
         if ($out === false) return '';
         fwrite($out, "\xEF\xBB\xBF");
-        fputcsv($out, ['data', 'período', 'humor', 'descrição', 'sono_h', 'irritabilidade', 'ansiedade', 'energia', 'medicação', 'anotação', 'etiquetas', 'criado_em (' . tz_label_br((string)$u['timezone']) . ')'], ';', '"', '\\');
+        fputcsv($out, ['data', 'período', 'humor', 'descrição', 'sono_h', 'irritabilidade', 'ansiedade', 'energia', 'medicação', 'anotação', 'etiquetas', 'criado_em (' . tz_label_br((string)$u['timezone']) . ')', 'estresse', 'acontecimento', 'doces', 'ultraprocessados', 'comeu_fora_de_hora'], ';', '"', '\\');
+        $lv = function ($v): string { return $v === null ? '' : (FOOD_LEVELS[(int)$v] ?? (string)$v); };
         $tzUser = new DateTimeZone((string)$u['timezone']);
         foreach ($entries as $r) {
             $created = (new DateTime((string)$r['created_at'], new DateTimeZone('UTC')))->setTimezone($tzUser)->format('d/m/Y H:i');
-            fputcsv($out, [date('d/m/Y', (int)strtotime((string)$r['entry_date'])), PERIODS[$r['period']], $r['mood'], mood_label((int)$r['mood']), fmt_num($r['sleep_hours'], 1), $r['irritability'], $r['anxiety'], $r['energy'], $r['medication_taken'] === null ? '' : ($r['medication_taken'] ? 'sim' : 'não'), $r['note'], $r['tags'], $created], ';', '"', '\\');
+            fputcsv($out, [date('d/m/Y', (int)strtotime((string)$r['entry_date'])), PERIODS[$r['period']], $r['mood'], mood_label((int)$r['mood']), fmt_num($r['sleep_hours'], 1), $r['irritability'], $r['anxiety'], $r['energy'], $r['medication_taken'] === null ? '' : ($r['medication_taken'] ? 'sim' : 'não'), $r['note'], $r['tags'], $created,
+                $pm[$r['entry_date'] . '|' . $r['period']]['stress_level'] ?? '', $pm[$r['entry_date'] . '|' . $r['period']]['stress_note'] ?? '',
+                $lv($pm[$r['entry_date'] . '|' . $r['period']]['food_sweets'] ?? null), $lv($pm[$r['entry_date'] . '|' . $r['period']]['food_processed'] ?? null),
+                isset($pm[$r['entry_date'] . '|' . $r['period']]['food_binge']) ? ((int)$pm[$r['entry_date'] . '|' . $r['period']]['food_binge'] ? 'sim' : 'não') : ''], ';', '"', '\\');
         }
         rewind($out);
         $s = (string)stream_get_contents($out);
@@ -45,8 +53,9 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         'identidades' => $q('SELECT provider, created_at FROM oauth_identities WHERE user_id = ?'),
         'registros' => $entries,
         'midias' => $q('SELECT id, kind, mime, size_bytes, original_name, created_at FROM media WHERE user_id = ?'),
-        'destinatarios' => $q('SELECT name, email, role, frequency, interval_days, weekday, include_notes, include_markers, include_sexuality, include_substances, include_alerts, include_custom_alerts, invite_status, confirmed_at, last_sent_at FROM recipients WHERE user_id = ?'),
-        'marcadores_diarios' => $q('SELECT entry_date, bed_time, wake_time, sleep_quality, sun_minutes, sun_period, caffeine_cups, alcohol_units, substances, exercise_minutes, racing_thoughts, fast_speech, impulsive_spending, spending_amount, irritability_day, cycle_phase, stress_level, stress_note, doses_json, signs_json, updated_at FROM daily_markers WHERE user_id = ? ORDER BY entry_date'),
+        'destinatarios' => $q('SELECT name, email, role, frequency, interval_days, weekday, include_notes, include_markers, include_sexuality, include_substances, include_food, include_alerts, include_custom_alerts, invite_status, confirmed_at, last_sent_at FROM recipients WHERE user_id = ?'),
+        'marcadores_diarios' => $q('SELECT entry_date, bed_time, wake_time, sleep_quality, sun_minutes, sun_period, caffeine_cups, alcohol_units, substances, exercise_minutes, racing_thoughts, fast_speech, impulsive_spending, spending_amount, irritability_day, cycle_phase, stress_level, stress_note, food_sweets, food_processed, food_binge, doses_json, signs_json, updated_at FROM daily_markers WHERE user_id = ? ORDER BY entry_date'),
+        'marcadores_por_periodo' => $pmRows,
         'sexualidade' => $q('SELECT entry_date, libido, activities, frequency, online_minutes, different_from_usual, note, updated_at FROM sexuality_log WHERE user_id = ? ORDER BY entry_date'),
         'substancias' => $q('SELECT entry_date, period, substance, form, other_name, amount, reason, mood_effect, above_usual, created_at FROM substance_log WHERE user_id = ? ORDER BY entry_date, id'),
         'alertas' => $q('SELECT rule_code, custom_rule_id, is_private, severity, period_start, period_end, title, explanation, feedback, created_at FROM alerts WHERE user_id = ? ORDER BY created_at'),

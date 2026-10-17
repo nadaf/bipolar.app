@@ -5,14 +5,17 @@ function view_day_panels(array $user): void {
 $pf = user_prefs($user);
 $mods = $pf['modules'];
 $hide = function (string $k) use ($mods): string { return $mods[$k] ? '' : ' hidden'; };
-$scale = function (string $id, string $name, string $label): string {
+$scale = function (string $id, string $name, string $label, ?array $levels = null): string {
     $h = '<fieldset class="field mini-scale"><legend>' . e($label) . '</legend><div class="seg seg-sm">';
-    foreach (['' => '—', '0' => 'Não', '1' => 'Leve', '2' => 'Moderado', '3' => 'Intenso'] as $v => $l) {
-        $h .= '<input type="radio" name="' . $name . '" id="' . $id . '-' . ($v === '' ? 'x' : $v) . '" value="' . $v . '"' . ($v === '' ? ' checked' : '') . '><label for="' . $id . '-' . ($v === '' ? 'x' : $v) . '">' . $l . '</label>';
+    foreach ($levels ?? ['' => '—', '0' => 'Não', '1' => 'Leve', '2' => 'Moderado', '3' => 'Intenso'] as $v => $l) {
+        $v = (string)$v;
+        $sr = $v === '' ? '<span class="sr-only">Não informado</span>' : '';
+        $h .= '<input type="radio" name="' . $name . '" id="' . $id . '-' . ($v === '' ? 'x' : $v) . '" value="' . $v . '"' . ($v === '' ? ' checked' : '') . '><label for="' . $id . '-' . ($v === '' ? 'x' : $v) . '">' . ($v === '' ? '<span aria-hidden="true">' . $l . '</span>' . $sr : $l) . '</label>';
     }
     return $h . '</div></fieldset>';
 };
-$anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] || $mods['estresse'] || $mods['medicacao'] || $mods['sinais'] || $mods['ciclo'];
+$foodLv = ['' => '—', '0' => 'Nenhum', '1' => 'Pouco', '2' => 'Moderado', '3' => 'Muito'];
+$anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] || $mods['estresse'] || $mods['alimentacao'] || $mods['medicacao'] || $mods['sinais'] || $mods['ciclo'];
 ?>
 <div id="early-warning" class="notice warn-early hidden" role="status" aria-live="polite"></div>
 
@@ -21,7 +24,8 @@ $anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] ||
     <h2>Meu dia <span class="hint" id="day-date-label"></span></h2>
     <a href="#conta-modulos" class="small" id="link-modulos">Escolher o que aparece</a>
   </div>
-  <p class="small">Tudo opcional. Preencha só o que fizer sentido — vale para o dia inteiro, não para cada período.</p>
+  <p id="day-load-note" class="notice small hidden" role="status" aria-live="polite"></p>
+  <p class="small">Tudo opcional. Preencha só o que fizer sentido. Sono, sol, hábitos, pensamentos e medicação valem para o dia inteiro. <strong>Acontecimentos/estresse e Alimentação são do período</strong> escolhido em “Como você está?” (<span class="day-period-name">—</span>).</p>
 
   <details class="extras" data-mod="sono"<?= $hide('sono') ?>>
     <summary>😴 Sono</summary>
@@ -60,10 +64,18 @@ $anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] ||
     <?= $scale('d-ir', 'irritability_day', 'Irritabilidade no dia') ?>
   </details>
 
-  <details class="extras" data-mod="estresse"<?= $hide('estresse') ?>>
-    <summary>🌧 Acontecimentos e estresse</summary>
-    <?= $scale('d-st', 'stress_level', 'Nível de estresse') ?>
+  <details class="extras" data-mod="estresse" data-per-period<?= $hide('estresse') ?>>
+    <summary>🌧 Acontecimentos e estresse <span class="hint">· <span class="day-period-name">—</span></span></summary>
+    <?= $scale('d-st', 'stress_level', 'Nível de estresse neste período') ?>
     <div class="field"><label for="d-stn">O que aconteceu? <span class="hint">(ex.: mudança, perda, conflito, viagem)</span></label><input id="d-stn" name="stress_note" maxlength="500"></div>
+  </details>
+
+  <details class="extras" data-mod="alimentacao" data-per-period<?= $hide('alimentacao') ?>>
+    <summary>🍽 Alimentação <span class="hint">· <span class="day-period-name">—</span></span></summary>
+    <p class="small">Sem julgamento: mudanças no apetite e na vontade de doces acompanham muitas fases do humor.</p>
+    <?= $scale('d-fsw', 'food_sweets', 'Doces', $foodLv) ?>
+    <?= $scale('d-fpr', 'food_processed', 'Industrializados / ultraprocessados', $foodLv) ?>
+    <label class="check"><input type="checkbox" id="d-fbi" name="food_binge" value="1"> <span>Comi fora de hora / compulsão</span></label>
   </details>
 
   <details class="extras" data-mod="medicacao"<?= $hide('medicacao') ?>>
@@ -91,7 +103,7 @@ $anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] ||
 <form id="form-sex" class="card sex-card<?= $mods['sexualidade'] ? '' : ' hidden' ?><?= $pf['sex_blur'] ? ' blurred' : '' ?>" novalidate aria-labelledby="sex-title">
   <div class="row between">
     <h2 id="sex-title">🔒 Sexualidade <span class="hint">(privado)</span></h2>
-    <button type="button" class="btn btn-ghost btn-sm" id="sex-hide">Ocultar</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="sex-hide" aria-controls="sex-body" aria-label="<?= $pf['sex_blur'] ? 'Revelar' : 'Ocultar' ?> dados de Sexualidade"><?= $pf['sex_blur'] ? 'Revelar' : 'Ocultar' ?></button>
   </div>
   <div id="sex-locked" class="sex-locked hidden">
     <p>Esta seção está protegida por PIN.</p>
@@ -121,7 +133,7 @@ $anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] ||
 <form id="form-subst" class="card sex-card subst-card<?= $mods['substancias'] ? '' : ' hidden' ?><?= $pf['subst_blur'] ? ' blurred' : '' ?>" novalidate aria-labelledby="subst-title">
   <div class="row between">
     <h2 id="subst-title">🔒 Substâncias <span class="hint">(privado)</span></h2>
-    <button type="button" class="btn btn-ghost btn-sm" id="subst-hide">Ocultar</button>
+    <button type="button" class="btn btn-ghost btn-sm" id="subst-hide" aria-controls="subst-body" aria-label="<?= $pf['subst_blur'] ? 'Revelar' : 'Ocultar' ?> dados de Substâncias"><?= $pf['subst_blur'] ? 'Revelar' : 'Ocultar' ?></button>
   </div>
   <div id="subst-locked" class="sex-locked hidden">
     <p>Esta seção está protegida pelo seu PIN.</p>

@@ -27,6 +27,10 @@ if ($m === 'GET') {
     $q = function (string $sql) use ($pdo, $u, $base, $to): array { $st = $pdo->prepare($sql); $st->execute([$u['id'], $base, $to]); return $st->fetchAll(); };
     $entries = $q('SELECT entry_date, period, mood, sleep_hours, energy, irritability FROM entries WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date');
     $markers = $q('SELECT * FROM daily_markers WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date');
+    // V4.7: estresse/acontecimentos e alimentação por período (só o intervalo pedido)
+    $stp = $pdo->prepare('SELECT entry_date, period, stress_level, stress_note, food_sweets, food_processed, food_binge FROM period_markers WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date, period');
+    $stp->execute([$u['id'], $from, $to]);
+    $periodMarkers = $stp->fetchAll();
     $sexAll = $sexOn ? $q('SELECT entry_date, version, libido, activities, frequency, online_minutes, different_from_usual, note FROM sexuality_log WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date') : [];
     $subAll = $subOn ? $q('SELECT id, entry_date, period, substance, form, other_name, amount, reason, mood_effect, above_usual FROM substance_log WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date, id') : [];
     $ind = mania_indicators($entries, $markers, $sexAll, count($prefs['signs']), $subAll);
@@ -39,6 +43,7 @@ if ($m === 'GET') {
     $subUnlocked = $subOn && $unlocked;
     json_out([
         'markers' => $inRange($markers),
+        'period_markers' => $periodMarkers,
         'sexuality' => $sexOn && $unlocked ? $inRange($sexAll) : [],
         'substances' => $subUnlocked ? $inRange($subAll) : [],
         'subst_summary' => $subUnlocked && !empty($_GET['resumo']) ? substance_mood_summary($inRange($subAll), $inRange($entries)) : [],
@@ -141,13 +146,18 @@ if ($m === 'POST' && $action === 'sex_delete') {
 
 if ($m === 'POST') {
     if (!rate_limit('day_' . $u['id'], 240, 3600)) json_out(['erro' => 'Muitos envios em pouco tempo. Tente mais tarde.'], 429);
-    [$err, $v] = validate_day(json_input());
+    $din = json_input();
+    [$err, $v] = validate_day($din);
     if ($err !== null) json_out(['erro' => $err], 422);
+    [$perr, $pv] = validate_period_markers($din, (string)$u['timezone']); // V4.7: estresse e alimentação por período
+    if ($perr !== null) json_out(['erro' => $perr], 422);
     $cols = array_keys($v);
     $set = array_map(function (string $c): string { return "$c=VALUES($c)"; }, array_diff($cols, ['entry_date']));
     $sql = 'INSERT INTO daily_markers (user_id, ' . implode(', ', $cols) . ') VALUES (?' . str_repeat(',?', count($cols)) . ')'
         . ($set ? ' ON DUPLICATE KEY UPDATE ' . implode(', ', $set) : ' ON DUPLICATE KEY UPDATE entry_date=entry_date');
     $pdo->prepare($sql)->execute(array_merge([$u['id']], array_values($v)));
-    json_out(['ok' => true, 'alertas_personalizados' => custom_after_save($pdo, $u, (string)$v['entry_date'])]);
+    if ($pv) period_markers_save($pdo, (int)$u['id'], (string)$v['entry_date'], $pv);
+    daily_markers_prune($pdo, (int)$u['id'], (string)$v['entry_date']);
+    json_out(['ok' => true, 'period' => $pv['period'] ?? null, 'alertas_personalizados' => custom_after_save($pdo, $u, (string)$v['entry_date'])]);
 }
 json_out(['erro' => 'Método não permitido.'], 405);

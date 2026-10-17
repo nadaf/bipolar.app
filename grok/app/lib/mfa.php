@@ -103,6 +103,19 @@ function mfa_new_secret(): string { return base32_encode(random_bytes(20)); }
 /* ------------------------------------------------------------------ estado da conta */
 /** @param array<string,mixed> $u */
 function mfa_eligible(array $u): bool { return !empty($u['password_hash']); }
+/**
+ * V4.7: mfa_enabled_at é gravado em UTC (UTC_TIMESTAMP()); mostra no fuso da pessoa.
+ * @param array<string,mixed> $u
+ * @return ?array{iso:string,br:string,date:string}
+ */
+function mfa_enabled_at_local(array $u): ?array
+{
+    if (empty($u['mfa_enabled_at'])) return null;
+    try { $tz = new DateTimeZone((string)($u['timezone'] ?? 'America/Sao_Paulo')); } catch (Exception $e) { $tz = new DateTimeZone('America/Sao_Paulo'); }
+    try { $d = new DateTime((string)$u['mfa_enabled_at'], new DateTimeZone('UTC')); } catch (Exception $e) { return null; }
+    $d->setTimezone($tz);
+    return ['iso' => $d->format('c'), 'br' => $d->format('d/m/Y H:i'), 'date' => $d->format('d/m/Y')];
+}
 /** @param array<string,mixed> $u */
 function mfa_enabled(array $u): bool { return !empty($u['mfa_enabled_at']) && !empty($u['mfa_totp_secret_enc']); }
 

@@ -12,7 +12,7 @@ $aiNames = implode(', ', array_map(function (array $p): string { return $p['labe
 page_head('Política de Privacidade'); ?>
 <article class="card narrow prose">
 <h1>Política de Privacidade</h1>
-<p><em>Versão V4.3, outubro de 2026.</em> Esta política segue a Lei Geral de Proteção de Dados (Lei nº 13.709/2018, LGPD). Leia também os <a href="/termos.php">Termos de Uso</a>.</p>
+<p><em>Versão V4.7, outubro de 2026.</em> Esta política segue a Lei Geral de Proteção de Dados (Lei nº 13.709/2018, LGPD). Leia também os <a href="/termos.php">Termos de Uso</a>.</p>
 
 <section class="plain" aria-labelledby="simples">
 <h2 id="simples">Em linguagem simples</h2>
@@ -22,7 +22,7 @@ page_head('Política de Privacidade'); ?>
 <li><strong>Sexualidade e Substâncias vêm desligadas.</strong> Só aparecem se você ligar, e podem ficar trancadas com <strong>biometria ou PIN</strong> (quando você cadastra um dos dois).</li>
 <li><strong>Notificações e e-mails de aviso nunca contam o que você registrou.</strong> Eles dizem só algo como “há um novo aviso”; os detalhes ficam dentro do app.</li>
 <li><strong>Quem você escolher como apoio só recebe o que você autorizar.</strong> Dos alertas, a pessoa recebe apenas a <strong>quantidade</strong>, e só depois de você marcar essa opção e ela confirmar o convite.</li>
-<li><strong>IA é opcional e só com o seu “sim”.</strong> Você escolhe o provedor (<?= e($aiNames) ?> ou outro), usa a <strong>sua própria chave</strong> e escolhe o que pode ser enviado. Vai só o resumo das categorias marcadas, sem seu nome completo nem e-mail. Anotações, sexualidade e substâncias ficam de fora, a menos que você marque.</li>
+<li><strong>IA é opcional e só com o seu “sim”.</strong> Você escolhe o provedor (<?= e($aiNames) ?> ou outro), usa a <strong>sua própria chave</strong> e escolhe o que pode ser enviado. Vai só o resumo das categorias marcadas, sem seu nome completo nem e-mail. Anotações, alimentação, sexualidade e substâncias ficam de fora, a menos que você marque.</li>
 <li><strong>É tudo seu.</strong> Em Conta você baixa tudo (ZIP com dados e mídias) ou apaga a conta inteira, na hora.</li>
 <li><strong>Sendo honestos sobre os limites:</strong> o site roda em hospedagem <strong>compartilhada</strong> (cPanel). Quem opera o servidor tem, tecnicamente, acesso ao banco de dados e aos arquivos, e os registros não são cifrados de ponta a ponta. Prometemos não olhar, e não existe ferramenta para isso, mas é uma promessa, não uma impossibilidade técnica. Se isso não serve para você, tudo bem: o código é aberto e você pode rodar a sua própria cópia.</li>
 </ul>
@@ -34,7 +34,8 @@ page_head('Política de Privacidade'); ?>
 <h2>2. Quais dados tratamos</h2>
 <ul>
 <li><strong>Cadastro:</strong> nome, e-mail, fuso horário e preferências. Você entra com <?= e($loginOpts) ?>. Da senha guardamos apenas um <em>hash</em> irreversível (Argon2id ou bcrypt); ninguém consegue ver sua senha.<?php if ($provNames): ?> Ao entrar com <?= e(implode(' ou ', $provNames)) ?>, recebemos nome, e-mail (quando o provedor fornece) e um identificador da conta, nunca a senha desse provedor.<?php endif; ?></li>
-<li><strong>Dados de saúde (dados pessoais sensíveis, art. 5º, II e art. 11):</strong> humor por período, sono, medicação, energia, irritabilidade, ansiedade, anotações, etiquetas, marcadores diários que você ativar (horários de sono, sol, cafeína, álcool, exercício, gastos, ciclo menstrual, estresse, doses, sinais de alerta pessoais) e, se você quiser, áudios, vídeos e imagens.</li>
+<li><strong>Dados de saúde (dados pessoais sensíveis, art. 5º, II e art. 11):</strong> humor por período, sono, medicação, energia, irritabilidade, ansiedade, anotações, etiquetas, marcadores diários que você ativar (horários de sono, sol, cafeína, álcool, exercício, gastos, ciclo menstrual, doses, sinais de alerta pessoais), acontecimentos e estresse <strong>por período do dia</strong> e, se você ativar, alimentação por período (doces, industrializados/ultraprocessados e se comeu fora de hora) e, se você quiser, áudios, vídeos e imagens.</li>
+<li id="alimentacao"><strong>Alimentação (opcional):</strong> doces, industrializados/ultraprocessados (de “nenhum” a “muito”) e se você comeu fora de hora ou teve compulsão, por período do dia. Pode ser desligada em Conta → Módulos. Não aparece em lembretes. Em relatórios, só para quem você autorizar e apenas como contagem de dias. Só vai para a IA se você marcar a categoria “Alimentação”, que vem desmarcada.</li>
 <li id="substancias"><strong>Uso de substâncias (opcional):</strong> só com o módulo <em>Substâncias</em> ligado em Conta, com foco em redução de danos e sem julgamento. Nunca aparece em lembretes. Em relatórios, só para quem você autorizar individualmente e apenas como resumo (dias com uso por tipo e dias acima do habitual), sem quantidades, motivos ou horários.</li>
 <li id="sexualidade"><strong>Vida sexual (opcional):</strong> só com o módulo <em>Sexualidade</em> ligado. Ele existe porque mudanças no desejo e no comportamento sexual estão entre os sinais precoces mais frequentes de hipomania e mania (DSM-5; Kopeykina et al., <em>J Affect Disord</em> 2016; Dolman et al., <em>Lancet Psychiatry</em> 2024). Nunca aparece em lembretes e, em relatórios, só para quem você autorizar e apenas como resumo (média do desejo e número de dias com sinais de risco), sem atividades nem anotações. Você pode apagar esses registros a qualquer momento, sem excluir a conta.</li>
 <li><strong>Alertas:</strong> os avisos que o app calcula a partir dos seus dados e as regras de alerta que você cria.</li>
@@ -57,6 +58,9 @@ page_head('Política de Privacidade'); ?>
 <h2>4. Onde ficam e como protegemos</h2>
 <ul>
 <li>O site fica em <?= e($hosting) ?>, com conexão sempre cifrada (HTTPS). Áudios, vídeos e imagens ficam fora da área pública do site e só são entregues a você, depois do login.</li>
+<?php $xfer = (array)cfg('legal.international_transfer', []); if (!empty($xfer['enabled'])): ?>
+<li id="transferencia-internacional"><strong>Transferência internacional de dados (LGPD, art. 33).</strong> Os dados das instalações para profissionais e clínicas (<em>nome</em>.bipolar.app.br), inclusive dados de saúde, ficam em servidor localizado em <?= e((string)($xfer['country'] ?? 'outro país')) ?><?= !empty($xfer['provider']) ? ' (' . e((string)$xfer['provider']) . ')' : '' ?>, e as cópias de segurança cifradas<?= !empty($xfer['backup_provider']) ? ' em ' . e((string)$xfer['backup_provider']) : '' ?>. Essa transferência é feita com base em <?= e((string)($xfer['mechanism'] ?? 'cláusulas-padrão contratuais')) ?>, com criptografia em trânsito e nas cópias de segurança, isolamento por instalação e acesso restrito. Você pode pedir uma cópia das cláusulas e mais informações pelo contato de privacidade abaixo.</li>
+<?php endif; ?>
 <li><strong>O que é cifrado:</strong> a conexão (HTTPS), as notificações push (de ponta a ponta, e sempre com texto genérico) a sua chave de IA e a chave da verificação em duas etapas (libsodium, com chaves do servidor). Senha, PIN e códigos de recuperação são guardados só como <em>hash</em>.</li>
 <li><strong>O que não é cifrado no servidor:</strong> os registros, anotações e mídias ficam no banco de dados e no disco do servidor sem cifra própria. Por isso, quem opera o servidor ou a hospedagem tem acesso técnico a eles.</li>
 <li><strong>Registros técnicos (logs):</strong> o app não registra o conteúdo do que você escreve. Os logs guardam só erros técnicos (por exemplo, falha de envio de e-mail com o endereço mascarado, ou o código de erro do provedor de IA sem a sua chave e sem o que foi enviado) e a data e os contadores das tarefas automáticas. A hospedagem também mantém os registros de acesso do servidor web (endereço IP, data e página), conforme a política dela.</li>
@@ -97,6 +101,8 @@ page_head('Política de Privacidade'); ?>
 <li>Cópias de segurança feitas pela hospedagem podem manter os dados por um período limitado, até serem sobrescritas, conforme a política da hospedagem.</li>
 <li>Contadores de tentativas: até 1 dia. Links de confirmação e redefinição de senha: expiram em poucas horas ou dias.</li>
 </ul>
+
+<?= ext_partial('privacidade-contatos', ['contact' => $contact]) // V4.7: só existe quando o módulo privado (pedidos de contato) está instalado ?>
 
 <h2>10. Seus direitos (art. 18)</h2>
 <p>A qualquer momento, em <strong>Conta</strong>, você pode: confirmar e acessar seus dados; <strong>baixar tudo</strong> (ZIP com os dados em JSON e CSV e todas as mídias, ou só o JSON ou o CSV); corrigir informações; desligar módulos e apagar seus registros de sexualidade e substâncias; remover pessoas de apoio; revogar a IA e remover a chave; e <strong>excluir a conta</strong>. Para qualquer outro pedido (informação sobre compartilhamento, revisão, portabilidade, oposição), escreva para <a href="mailto:<?= e($contact) ?>"><?= e($contact) ?></a>. Você também pode reclamar à ANPD (Autoridade Nacional de Proteção de Dados).</p>

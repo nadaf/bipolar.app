@@ -33,6 +33,10 @@ if (!$user) {
     <p id="passkey-msg" class="field-err" role="alert"></p>
     <p class="small">Ao entrar, você concorda com a <a href="/privacidade.php">Política de Privacidade</a> e os <a href="/termos.php">Termos de Uso</a>. Seus dados são seus: exporte ou exclua a qualquer momento.</p>
   </section>
+  <nav class="card narrow landing-links" aria-label="Conheça o Bipolar">
+    <p><a href="/comecar.php">Primeira vez aqui? Veja como o app ajuda, de graça</a></p>
+    <p><a href="/profissionais.php">É psiquiatra, psicólogo(a) ou trabalha em clínica ou CAPS? Conheça os planos</a></p>
+  </nav>
   <script src="/assets/js/auth.js?v=1"></script>
   <script src="/assets/js/passkey.js?v=4"></script>
 <?php page_foot(); exit; }
@@ -268,6 +272,7 @@ page_head('Diário', 'app'); ?>
       <label class="check"><input type="checkbox" name="notas" value="1"> <span>Incluir anotações</span></label>
       <?php if (user_prefs($user)['modules']['sexualidade']): ?><label class="check"><input type="checkbox" name="sexualidade" value="1"> <span>Incluir resumo de sexualidade</span></label><?php endif; ?>
       <?php if (user_prefs($user)['modules']['substancias']): ?><label class="check"><input type="checkbox" name="substancias" value="1"> <span>Incluir resumo de substâncias</span></label><?php endif; ?>
+      <?php if (user_prefs($user)['modules']['alimentacao']): ?><label class="check"><input type="checkbox" name="alimentacao" value="1"> <span>Incluir resumo de alimentação</span></label><?php endif; ?>
       <button class="btn btn-primary" type="submit">Abrir relatório</button>
     </form>
   </div>
@@ -288,10 +293,12 @@ page_head('Diário', 'app'); ?>
         <label class="check"><input type="checkbox" name="include_markers" value="1" checked> <span>Incluir marcadores do dia e indicador de (hipo)mania</span></label>
         <label class="check"><input type="checkbox" name="include_sexuality" value="1" aria-describedby="rc-sex-warn"> <span>Incluir resumo de sexualidade (privado)</span></label>
         <label class="check"><input type="checkbox" name="include_substances" value="1" aria-describedby="rc-sub-warn"> <span>Incluir resumo de substâncias (privado)</span></label>
+        <label class="check"><input type="checkbox" name="include_food" value="1" aria-describedby="rc-food-warn"> <span>Incluir resumo de alimentação</span></label>
         <label class="check"><input type="checkbox" name="include_alerts" value="1" aria-describedby="rc-alert-warn"> <span>Receber alertas de apoio</span></label>
         <label class="check"><input type="checkbox" name="include_custom_alerts" value="1" aria-describedby="rc-custom-warn"> <span>Incluir no relatório quantos alertas personalizados foram atendidos</span></label>
         <p class="small" id="rc-custom-warn">Vai só o número (ex.: “2 alertas personalizados foram atendidos”), nunca quais são nem os motivos. Alertas que usam Sexualidade ou Substâncias só entram na conta se você também marcar esses resumos.</p>
         <p class="small" id="rc-alert-warn">Quando um alerta forte aparecer, essa pessoa recebe só “<?= e(explode(' ', trim((string)$user['name']))[0] ?: 'Você') ?> pode precisar de apoio” e os contatos de crise (CVV 188, SAMU 192) — nunca o motivo ou seus dados. No máximo um aviso por semana.</p>
+        <p class="small" id="rc-food-warn">Vai só a contagem de dias com doces ou ultraprocessados em nível moderado ou mais e de dias em que você comeu fora de hora — nunca o detalhe por período.</p>
         <p class="small" id="rc-sub-warn">Vai só a contagem de dias com uso por tipo e de dias acima do habitual — nunca quantidades, motivos ou horários.</p>
         <p class="small" id="rc-sex-warn">Só marque se confiar nessa pessoa para esse tema. Vai apenas um resumo (média do desejo e dias com sinais de risco), nunca atividades ou anotações.</p>
       </div>
@@ -381,6 +388,6 @@ page_head('Diário', 'app'); ?>
 </section>
 <script src="/assets/js/auth.js?v=1"></script>
 <script src="/assets/js/passkey.js?v=4"></script>
-<script src="/assets/js/app.js?v=10"></script>
-<script src="/assets/js/mfa.js?v=1"></script>
+<script src="/assets/js/app.js?v=12"></script>
+<script src="/assets/js/mfa.js?v=2"></script>
 <?php page_foot();

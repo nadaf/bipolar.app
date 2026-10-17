@@ -5,6 +5,7 @@ cd "$(dirname "$0")/../.."
 SRC="app public_html cron tools"
 fail=0
 # scan-allowlist.txt: linhas revisadas manualmente (nomes de tabela/coluna vindos de constantes do código, nunca do usuário).
+# extensions.php:59/75: $__f é variável local (caminho montado de ext_dir() + nome validado por ext_name_ok()), não superglobal. extract() só recebe o array passado pelo próprio código.
 # Se uma dessas linhas mudar de número, a varredura volta a acusar e a linha precisa ser revisada de novo.
 check() { # descrição, regex, [exclusões]
   local desc="$1" re="$2"

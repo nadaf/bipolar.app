@@ -13,10 +13,14 @@ final class MarkersUnitTest extends TestCase
 
     public function testValidateDayKeepsOnlySentFieldsAndClamps(): void
     {
-        [$err, $v] = validate_day(['entry_date' => '2026-10-10', 'bed_time' => '23:15', 'racing_thoughts' => 9, 'sun_period' => 'meio_dia', 'doses' => ['m1ab' => 1, 'x y' => 1, 'm2' => '0'], 'signs' => [0, 3, 3, 99]]);
+        [$err, $v] = validate_day(['entry_date' => '2026-10-10', 'bed_time' => '23:15', 'racing_thoughts' => '', 'sun_period' => 'meio_dia', 'doses' => ['m1ab' => 1, 'x y' => 1, 'm2' => '0'], 'signs' => [0, 3, 3, 99]]);
         $this->assertNull($err);
         $this->assertSame('23:15', $v['bed_time']);
-        $this->assertNull($v['racing_thoughts'], 'fora da escala vira nulo');
+        $this->assertNull($v['racing_thoughts'], 'vazio = não informado');
+        // V4.7.1: fora da escala é recusado com mensagem, em vez de virar nulo em silêncio
+        $this->assertStringContainsString('Pensamentos acelerados', (string)validate_day(['entry_date' => '2026-10-10', 'racing_thoughts' => 9])[0]);
+        $this->assertStringContainsString('Doces', (string)validate_period_markers(['period' => 'manha', 'food_sweets' => 4])[0]);
+        $this->assertNull(validate_period_markers(['period' => 'manha', 'food_sweets' => 3, 'food_binge' => false])[0]);
         $this->assertSame('{"m1ab":1,"m2":0}', $v['doses_json']);
         $this->assertSame('[0,3]', $v['signs_json']);
         $this->assertArrayNotHasKey('wake_time', $v, 'campo não enviado não é tocado');

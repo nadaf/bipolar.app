@@ -14,7 +14,7 @@ $on = mfa_enabled($user);
   <p class="notice gentle"><?= e(MFA_NO_KEY_MSG) ?></p>
   <?php else: ?>
   <p class="small">Opcional. Além da senha, o login pede um código de 6 números do seu app autenticador (Google Authenticator, Microsoft Authenticator, Authy, Aegis ou outro compatível). Se alguém descobrir sua senha, ainda assim não consegue entrar.</p>
-  <p id="mfa-status" role="status"><?php if ($on): ?><strong>Ativa</strong> desde <?= e(date('d/m/Y', (int)strtotime((string)$user['mfa_enabled_at']))) ?>. Códigos de recuperação restantes: <span id="mfa-left"><?= mfa_recovery_left(db(), (int)$user['id']) ?></span>.<?php else: ?><strong>Desativada.</strong><?php endif; ?></p>
+  <p id="mfa-status" role="status"><?php if ($on): ?><strong>Ativa</strong> desde <?= e(mfa_enabled_at_local($user)['date'] ?? '') ?>. Códigos de recuperação restantes: <span id="mfa-left"><?= mfa_recovery_left(db(), (int)$user['id']) ?></span>.<?php else: ?><strong>Desativada.</strong><?php endif; ?></p>
 
   <?php if (!$on): ?>
   <form id="form-mfa-start" class="grid2" novalidate>

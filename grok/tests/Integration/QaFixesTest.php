@@ -116,7 +116,7 @@ final class QaFixesTest extends IntegrationCase
         $this->assertStringContainsString(';6,5;', $lines[1]);
         $this->assertStringContainsString(';7,0;', $lines[2]);
         $this->assertStringContainsString('"a; b"', $lines[1], 'texto com ; fica entre aspas');
-        $this->assertSame(12, count(str_getcsv($lines[1], ';', '"', '\\')));
+        $this->assertSame(17, count(str_getcsv($lines[1], ';', '"', '\\'))); // V4.7: + estresse, acontecimento, doces, ultraprocessados, comeu_fora_de_hora
         $rep = $c->get('/relatorio.php?de=2026-10-01&ate=2026-10-03')['body'];
         $this->assertStringContainsString('7,0 h', $rep, 'V4.1: sono médio por noite (maior valor do dia = 7,0), igual ao Histórico');
         $this->assertStringContainsString('−0,50', $rep, 'humor médio com vírgula');

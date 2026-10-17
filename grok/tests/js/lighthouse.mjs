@@ -41,7 +41,7 @@ await p0.setOfflineMode(false);
 console.log(`${offlineOk ? '✓' : '✗'} funciona offline (shell em cache)`);
 if (!offlineOk) fail++;
 
-for (const url of ['/', '/?aba=historico', '/privacidade.php', '/escala.php']) {
+for (const url of ['/', '/?aba=historico', '/privacidade.php', '/escala.php', '/profissionais.php', '/comecar.php']) {
   for (const formFactor of ['mobile', 'desktop']) {
     const r = await lighthouse(base + url, {
       port: dbg, output: 'json', logLevel: 'error', onlyCategories: Object.keys(MIN), disableStorageReset: true, formFactor,

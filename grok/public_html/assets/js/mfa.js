@@ -9,9 +9,10 @@
   const $ = (s) => document.getElementById(s);
   const say = (msg, type) => {
     let t = $('toast');
-    if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); document.body.appendChild(t); }
+    if (!t) { t = document.createElement('div'); t.id = 'toast'; t.className = 'toast'; t.setAttribute('role', 'status'); t.setAttribute('aria-live', 'polite'); document.body.appendChild(t); }
     t.textContent = msg; t.dataset.type = type || 'ok'; t.classList.add('show');
-    clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), type === 'err' ? 7000 : 4000);
+    const ms = type === 'err' ? 7000 : 4000; // V4.7: mesmo prazo do app.js
+    clearTimeout(t._h); t._until = Date.now() + ms; t._h = setTimeout(() => { t._until = 0; t.classList.remove('show'); }, ms);
   };
   async function call(action, body) {
     const r = await fetch('/api/mfa.php?action=' + action, { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRF-Token': csrf, 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(body || {}) });

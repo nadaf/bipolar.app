@@ -12,6 +12,7 @@ $data = report_data((int)$u['id'], $from, $to);
 $pf = user_prefs($u);
 $withSex = !empty($_GET['sexualidade']) && $pf['modules']['sexualidade'];
 $withSub = !empty($_GET['substancias']) && $pf['modules']['substancias'];
+$withFood = !empty($_GET['alimentacao']) && $pf['modules']['alimentacao']; // V4.7
 // V4.2: alertas calculados na hora (iguais ao Histórico), sem esperar o cron; nada é enviado daqui.
 require_once APP_ROOT . '/lib/alerts.php';
 require_once APP_ROOT . '/lib/custom_alerts.php';
@@ -21,7 +22,7 @@ page_head('Relatório', 'print-page'); ?>
   <div class="row between no-print"><a class="btn" href="/">← Voltar</a><button class="btn btn-primary" type="button" id="btn-print">Imprimir / salvar PDF</button></div>
   <h1>Relatório de humor</h1>
   <?= report_html($u, $data, !empty($_GET['notas'])) ?>
-  <?= markers_report_html(markers_report_data((int)$u['id'], $from, $to, $withSex, $withSub)) ?>
+  <?= markers_report_html(markers_report_data((int)$u['id'], $from, $to, $withSex, $withSub, $withFood)) ?>
   <?= report_alerts_html(report_alerts_data((int)$u['id'], $from, $to, ($withSex ? CUSTOM_PRIV_SEX : 0) | ($withSub ? CUSTOM_PRIV_SUBST : 0))) ?>
   <p class="small">Escala inspirada no NIMH Life Chart Method: −3 depressão grave … 0 eutimia … +3 mania. Gerado em <?= e((new DateTime('now', new DateTimeZone($u['timezone'])))->format('d/m/Y H:i')) ?> (<?= e(tz_label_br((string)$u['timezone'])) ?>).</p>
 </section>

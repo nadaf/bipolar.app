@@ -22,7 +22,24 @@ return [
         'contact_email' => 'privacidade@bipolar.app.br',
         'hosting' => 'hospedagem compartilhada HostGator (cPanel)',
         'source_url' => 'https://github.com/SEU_USUARIO/bipolar-app',
+        // V4.6: transferência internacional (LGPD art. 33). Ligue SÓ quando dados de saúde forem guardados fora do Brasil
+        // (ex.: VPS no Texas). Mostra a seção correspondente na Política de Privacidade.
+        'international_transfer' => [
+            'enabled' => false,
+            'country' => 'Estados Unidos (Texas)',
+            'provider' => '',            // ex.: 'Nome do provedor da VPS'
+            'backup_provider' => '',     // ex.: 'Backblaze B2 (EUA)'
+            'mechanism' => 'cláusulas-padrão contratuais aprovadas pela ANPD (Resolução CD/ANPD nº 19/2024)',
+        ],
     ],
+
+    // V4.6: marca e módulos DESTA instalação. Personalização é só configuração, nunca cópia do código.
+    'brand' => ['name' => '', 'logo_url' => '', 'color' => ''],   // vazio = padrão Bipolar; color = '#RRGGBB'
+    'modules' => [],   // ex.: ['sexualidade' => false, 'substancias' => false] desliga o módulo para todos
+
+    // V4.7: ponto de extensão. O app público não traz módulo nenhum (pasta app/ext/ ausente = desligado).
+    // Com um módulo instalado em app/ext/, 'enabled' => false o desliga sem apagar arquivos.
+    'extensions' => ['enabled' => true],
 
     'db' => [
         'host' => 'localhost',

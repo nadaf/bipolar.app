@@ -14,6 +14,7 @@ const CUSTOM_MAX_CONDITIONS = 6;
 const CUSTOM_OPS = ['>=' => '≥', '<=' => '≤', '>' => '>', '<' => '<', '=' => '='];
 const CUSTOM_MODES = ['day' => 'no dia', 'count' => 'em pelo menos K dos últimos N dias', 'streak' => 'por N dias seguidos'];
 const CUSTOM_SCALE03 = [0 => 'não', 1 => 'leve', 2 => 'moderado', 3 => 'intenso'];
+const CUSTOM_FOOD03 = [0 => 'nenhum', 1 => 'pouco', 2 => 'moderado', 3 => 'muito'];
 
 /**
  * Métricas: chave => [rótulo, grupo, mín, máx, passo, tipo, privado (0, 1 = sexualidade, 2 = substâncias), unidade].
@@ -42,6 +43,10 @@ function custom_metrics(): array
         'spending' => ['Gastos por impulso', 'Corpo e mente', 0, 3, 1, 'scale', 0, ''],
         'spend_amount' => ['Valor gasto por impulso', 'Corpo e mente', 0, 99999, 10, 'num', 0, 'R$'],
         'stress' => ['Estresse', 'Corpo e mente', 0, 3, 1, 'scale', 0, ''],
+        // V4.7: alimentação (maior nível entre os períodos do dia)
+        'sweets' => ['Doces', 'Alimentação', 0, 3, 1, 'food', 0, ''],
+        'processed' => ['Industrializados / ultraprocessados', 'Alimentação', 0, 3, 1, 'food', 0, ''],
+        'binge' => ['Comeu fora de hora / compulsão', 'Alimentação', 0, 1, 1, 'bool', 0, ''],
         'signs' => ['Sinais de alerta pessoais marcados', 'Corpo e mente', 0, 10, 1, 'num', 0, 'sinais'],
         'caffeine' => ['Café / cafeína', 'Hábitos', 0, 30, 1, 'num', 0, 'xícaras'],
         'alcohol' => ['Álcool', 'Hábitos', 0, 50, 1, 'num', 0, 'doses'],
@@ -92,6 +97,8 @@ function custom_templates(): array
             'conditions' => [$c('irrit', '>=', 3), $c('anxiety', '>=', 3)]],
         'cafe' => ['name' => 'Muito café', 'logic' => 'and', 'severity' => 1, 'description' => '5 xícaras de café ou mais no dia.',
             'conditions' => [$c('caffeine', '>=', 5)]],
+        'doces_ansiedade' => ['name' => 'Doces e ansiedade altos por 3 dias', 'logic' => 'and', 'severity' => 1, 'description' => 'Doces moderado ou mais e ansiedade moderada ou mais por 3 dias seguidos.',
+            'conditions' => [$c('sweets', '>=', 2, 'streak', 3), $c('anxiety', '>=', 2, 'streak', 3)]],
         'substancia_acima' => ['name' => 'Substâncias acima do habitual', 'logic' => 'and', 'severity' => 1, 'description' => 'Uso acima do habitual em pelo menos 2 dos últimos 7 dias.',
             'conditions' => [$c('subst_above', '>=', 1, 'count', 7, 2)]],
     ];
@@ -170,6 +177,7 @@ function custom_fmt_value(string $metric, float $v): string
     $num = fmt_num($v, fmod($v, 1.0) === 0.0 ? 0 : 1, true);
     if ($type === 'mood' || $type === 'libido') return ($v > 0 ? '+' : '') . $num;
     if ($type === 'scale' && fmod($v, 1.0) === 0.0 && isset(CUSTOM_SCALE03[(int)$v])) return CUSTOM_SCALE03[(int)$v] . ' (' . $num . ')';
+    if ($type === 'food' && fmod($v, 1.0) === 0.0 && isset(CUSTOM_FOOD03[(int)$v])) return CUSTOM_FOOD03[(int)$v] . ' (' . $num . ')';
     if ($type === 'bool') return $v >= 1 ? 'sim' : 'não';
     $unit = $mt[7] ?? '';
     if ($unit === 'R$') return 'R$ ' . fmt_num($v, 2);
@@ -207,7 +215,7 @@ function custom_describe_rule(array $r): string
 function custom_daily(array $entries, array $markers, array $sex = [], array $subst = [], array $media = []): array
 {
     $D = signals_daily($entries, $markers, $sex, $subst, $media);
-    foreach ($D as &$x) { $x['anxiety'] = null; $x['sleep_quality'] = null; $x['exercise'] = null; $x['sex_freq'] = null; $x['sex_online'] = null; $x['sex_diff'] = null; $x['subst_uses'] = 0; $x['subs'] = []; }
+    foreach ($D as &$x) { $x['anxiety'] = null; $x['sleep_quality'] = null; $x['exercise'] = null; $x['sweets'] = null; $x['processed'] = null; $x['binge'] = null; $x['sex_freq'] = null; $x['sex_online'] = null; $x['sex_diff'] = null; $x['subst_uses'] = 0; $x['subs'] = []; }
     unset($x);
     foreach ($entries as $e) {
         if (isset($e['anxiety'])) { $d = (string)$e['entry_date']; $D[$d]['anxiety'] = max($D[$d]['anxiety'] ?? 0, (int)$e['anxiety']); }
@@ -216,6 +224,7 @@ function custom_daily(array $entries, array $markers, array $sex = [], array $su
         $d = (string)$m['entry_date'];
         if (isset($m['sleep_quality'])) $D[$d]['sleep_quality'] = (int)$m['sleep_quality'];
         if (isset($m['exercise_minutes'])) $D[$d]['exercise'] = (int)$m['exercise_minutes'];
+        foreach (['food_sweets' => 'sweets', 'food_processed' => 'processed', 'food_binge' => 'binge'] as $c => $k) if (isset($m[$c])) $D[$d][$k] = (int)$m[$c];
     }
     foreach ($sex as $s) {
         $d = (string)$s['entry_date'];

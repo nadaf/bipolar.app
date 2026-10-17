@@ -102,9 +102,9 @@ final class V431Test extends IntegrationCase
         $this->assertMatchesRegularExpression('/delete qp\.version/', $js, 'fila offline sem versão');
         foreach (['passkey.js', 'quick.js'] as $f) $this->assertStringContainsString('d.mensagem', (string)file_get_contents(TestEnv::ROOT . '/public_html/assets/js/' . $f));
         $sw = (string)file_get_contents(TestEnv::ROOT . '/public_html/sw.js');
-        $this->assertStringContainsString("'bp-v10'", $sw);
-        $this->assertStringContainsString('app.js?v=10', $sw);
-        $this->assertStringContainsString('app.js?v=10', $this->user('v431ui')->get('/')['body']);
+        $this->assertStringContainsString("'bp-v14'", $sw);
+        $this->assertStringContainsString('app.js?v=12', $sw);
+        $this->assertStringContainsString('app.js?v=12', $this->user('v431ui')->get('/')['body']);
     }
 
     public function testKeyTestReturnsErroAndMensagem(): void

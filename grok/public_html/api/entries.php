@@ -9,8 +9,17 @@ if ($m === 'GET') {
     $from = (string)($_GET['from'] ?? date('Y-m-d', strtotime('-30 days')));
     $to = (string)($_GET['to'] ?? date('Y-m-d', strtotime('+1 day')));
     if (!valid_iso_date($from) || !valid_iso_date($to)) json_out(['erro' => 'Datas inválidas.'], 422);
-    $st = $pdo->prepare('SELECT id, version, entry_date, period, mood, sleep_hours, irritability, anxiety, energy, medication_taken, note, tags FROM entries WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date, period');
-    $st->execute([$u['id'], $from, $to]);
+    // V4.7: o Histórico mostra junto o estresse e a alimentação daquele período (period_markers)
+    try {
+        $st = $pdo->prepare('SELECT e.id, e.version, e.entry_date, e.period, e.mood, e.sleep_hours, e.irritability, e.anxiety, e.energy, e.medication_taken, e.note, e.tags,
+            pm.stress_level AS pm_stress, pm.stress_note AS pm_stress_note, pm.food_sweets AS pm_sweets, pm.food_processed AS pm_processed, pm.food_binge AS pm_binge
+            FROM entries e LEFT JOIN period_markers pm ON pm.user_id = e.user_id AND pm.entry_date = e.entry_date AND pm.period = e.period
+            WHERE e.user_id = ? AND e.entry_date BETWEEN ? AND ? ORDER BY e.entry_date, e.period');
+        $st->execute([$u['id'], $from, $to]);
+    } catch (PDOException $e) { // migração V4.7 ainda não aplicada
+        $st = $pdo->prepare('SELECT id, version, entry_date, period, mood, sleep_hours, irritability, anxiety, energy, medication_taken, note, tags FROM entries WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date, period');
+        $st->execute([$u['id'], $from, $to]);
+    }
     json_out(['entries' => $st->fetchAll()]);
 }
 

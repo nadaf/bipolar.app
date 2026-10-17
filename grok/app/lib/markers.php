@@ -10,7 +10,8 @@ const DAY_MODULES = [
     'sol' => ['Sol e luz do dia', true],
     'habitos' => ['Cafeína, álcool/substâncias e exercício', true],
     'mente' => ['Pensamentos e fala acelerados, gastos impulsivos, irritabilidade', true],
-    'estresse' => ['Acontecimentos e estresse do dia', true],
+    'estresse' => ['Acontecimentos e estresse (por período)', true],
+    'alimentacao' => ['Alimentação: doces, ultraprocessados e comer fora de hora (por período)', true],
     'medicacao' => ['Medicação por dose', false],
     'sinais' => ['Meus sinais de alerta pessoais', false],
     'ciclo' => ['Ciclo menstrual', false],
@@ -57,6 +58,12 @@ const SEX_ACTIVITIES = [
 const CYCLE_PHASES = ['menstruacao' => 'Menstruação', 'folicular' => 'Pós-menstruação', 'ovulacao' => 'Ovulação', 'pre_menstrual' => 'Pré-menstrual (TPM)', 'nao_sei' => 'Não sei'];
 const SUN_PERIODS = ['manha' => 'Manhã', 'meio_dia' => 'Meio do dia', 'tarde' => 'Tarde', 'varios' => 'Vários momentos'];
 
+/** V4.6: o operador da instalação pode desligar um módulo para todos ('modules' => ['sexualidade' => false]). */
+function tenant_module_available(string $k): bool
+{
+    return cfg('modules.' . $k, true) !== false;
+}
+
 /**
  * @param array<string,mixed> $u
  * @return array<string,mixed>
@@ -66,7 +73,7 @@ function user_prefs(array $u): array
     $p = json_decode((string)($u['prefs'] ?? ''), true);
     $p = is_array($p) ? $p : [];
     $mods = [];
-    foreach (DAY_MODULES as $k => [, $def]) $mods[$k] = isset($p['modules'][$k]) ? (bool)$p['modules'][$k] : $def;
+    foreach (DAY_MODULES as $k => [, $def]) $mods[$k] = tenant_module_available($k) && (isset($p['modules'][$k]) ? (bool)$p['modules'][$k] : $def);
     return [
         'modules' => $mods,
         'sex_blur' => isset($p['sex_blur']) ? (bool)$p['sex_blur'] : true,
@@ -86,7 +93,7 @@ function user_prefs(array $u): array
 function normalize_prefs(array $in): array
 {
     $mods = [];
-    foreach (array_keys(DAY_MODULES) as $k) $mods[$k] = !empty($in['modules'][$k]);
+    foreach (array_keys(DAY_MODULES) as $k) $mods[$k] = tenant_module_available($k) && !empty($in['modules'][$k]);
     $signs = [];
     foreach ((array)($in['signs'] ?? []) as $s) {
         $s = trim(mb_substr(is_scalar($s) ? (string)$s : '', 0, 120));
@@ -120,6 +127,32 @@ function hhmm_or_null($v): ?string
 }
 
 /**
+ * V4.7.1: valor ENVIADO (não vazio) que o validador transformou em null = fora da faixa ou inválido → erro 422.
+ * @param array<string,mixed> $in
+ * @param array<string,mixed> $v
+ * @param array<string,string> $labels
+ */
+function markers_invalid_field(array $in, array $v, array $labels): ?string
+{
+    foreach ($labels as $k => $label) {
+        if (!array_key_exists($k, $in) || !array_key_exists($k, $v)) continue;
+        $raw = $in[$k];
+        if ($raw === null || $raw === '' || $v[$k] !== null) continue;
+        return 'Valor inválido em “' . $label . '”. Escolha uma das opções da escala ou deixe em branco.';
+    }
+    return null;
+}
+/** Campos numéricos/escalas de Meu dia que são conferidos estritamente (V4.7.1). */
+const DAY_STRICT_LABELS = ['sleep_quality' => 'Qualidade do sono', 'sun_minutes' => 'Minutos de sol', 'sun_period' => 'Período do sol',
+    'caffeine_cups' => 'Cafeína', 'alcohol_units' => 'Álcool', 'exercise_minutes' => 'Exercício', 'racing_thoughts' => 'Pensamentos acelerados',
+    'fast_speech' => 'Fala acelerada', 'impulsive_spending' => 'Gastos por impulso', 'spending_amount' => 'Quanto gastei por impulso',
+    'irritability_day' => 'Irritabilidade no dia', 'cycle_phase' => 'Ciclo menstrual'];
+/** Colunas de dados de daily_markers (sem id/usuário/data/updated_at): todas nulas = linha vazia, apagada (V4.7.1). */
+const DAY_DATA_COLS = ['bed_time', 'wake_time', 'sleep_quality', 'sun_minutes', 'sun_period', 'caffeine_cups', 'alcohol_units', 'substances',
+    'exercise_minutes', 'racing_thoughts', 'fast_speech', 'impulsive_spending', 'spending_amount', 'irritability_day', 'cycle_phase',
+    'stress_level', 'stress_note', 'food_sweets', 'food_processed', 'food_binge', 'doses_json', 'signs_json'];
+
+/**
  * Valida marcadores do dia. Só os campos ENVIADOS entram no resultado (edição sem perda).
  * @param array<string,mixed> $in
  * @return array{0:?string,1:array<string,mixed>}
@@ -140,10 +173,10 @@ function validate_day(array $in): array
         'spending_amount' => fn ($x) => is_numeric($x) && (float)$x >= 0 ? round(min((float)$x, 99999999), 2) : null,
         'irritability_day' => fn ($x) => int_or_null($x, 0, 3),
         'cycle_phase' => fn ($x) => is_string($x) && isset(CYCLE_PHASES[$x]) ? $x : null,
-        'stress_level' => fn ($x) => int_or_null($x, 0, 3),
-        'stress_note' => fn ($x) => is_scalar($x) && trim((string)$x) !== '' ? mb_substr(trim((string)$x), 0, 500) : null,
     ];
     foreach ($map as $k => $fn) if (array_key_exists($k, $in)) $v[$k] = $fn($in[$k]);
+    $bad = markers_invalid_field($in, $v, DAY_STRICT_LABELS);
+    if ($bad !== null) return [$bad, []];
     if (array_key_exists('doses', $in)) {
         $d = [];
         foreach ((array)$in['doses'] as $id => $taken) {
@@ -157,6 +190,91 @@ function validate_day(array $in): array
         $v['signs_json'] = $s ? json_encode(array_values($s)) : null;
     }
     return [null, ['entry_date' => $in['entry_date']] + $v];
+}
+
+/** V4.7: campos registrados POR PERÍODO (manhã, tarde, noite) — os demais marcadores valem para o dia. */
+const PERIOD_MARKER_FIELDS = ['stress_level', 'stress_note', 'food_sweets', 'food_processed', 'food_binge'];
+/** Escala da Alimentação (mesmos 4 níveis dos outros itens; null = não informado). */
+const FOOD_LEVELS = [0 => 'Nenhum', 1 => 'Pouco', 2 => 'Moderado', 3 => 'Muito'];
+const PERIODS_ALL = ['manha', 'tarde', 'noite'];
+
+/** Período do relógio da pessoa (mesma regra do app: antes de 12 h manhã, antes de 18 h tarde). */
+function period_now(string $tz): string
+{
+    try { $h = (int)(new DateTime('now', new DateTimeZone($tz)))->format('G'); } catch (Exception $e) { $h = (int)date('G'); }
+    return $h < 12 ? 'manha' : ($h < 18 ? 'tarde' : 'noite');
+}
+
+/**
+ * Valida os campos por período. Só os ENVIADOS entram. Sem 'period' (app antigo em cache) usa o período do relógio.
+ * @param array<string,mixed> $in
+ * @return array{0:?string,1:array<string,mixed>} [erro, campos] — campos vazio = nada por período neste envio
+ */
+function validate_period_markers(array $in, string $tz = 'America/Sao_Paulo'): array
+{
+    $sent = array_intersect(PERIOD_MARKER_FIELDS, array_keys($in));
+    if (!$sent) return [null, []];
+    $p = $in['period'] ?? null;
+    if ($p === null || $p === '') $p = period_now($tz);
+    if (!is_string($p) || !in_array($p, PERIODS_ALL, true)) return ['Escolha o período (Manhã, Tarde ou Noite).', []];
+    $map = [
+        'stress_level' => fn ($x) => int_or_null($x, 0, 3),
+        'stress_note' => fn ($x) => is_scalar($x) && trim((string)$x) !== '' ? mb_substr(trim((string)$x), 0, 500) : null,
+        'food_sweets' => fn ($x) => int_or_null($x, 0, 3),
+        'food_processed' => fn ($x) => int_or_null($x, 0, 3),
+        'food_binge' => fn ($x) => in_array($x, [true, 1, '1'], true) ? 1 : (in_array($x, [false, 0, '0'], true) ? 0 : null),
+    ];
+    $v = ['period' => $p];
+    foreach ($sent as $k) $v[$k] = $map[$k]($in[$k]);
+    $bad = markers_invalid_field($in, $v, ['stress_level' => 'Nível de estresse', 'food_sweets' => 'Doces',
+        'food_processed' => 'Industrializados / ultraprocessados', 'food_binge' => 'Comi fora de hora / compulsão']);
+    if ($bad !== null) return [$bad, []];
+    return [null, $v];
+}
+
+/**
+ * Totais do dia a partir dos períodos (maior nível; anotações juntas com o nome do período). Puro.
+ * @param list<array<string,mixed>> $rows linhas de period_markers de UM dia
+ * @return array{stress_level:?int,stress_note:?string,food_sweets:?int,food_processed:?int,food_binge:?int}
+ */
+function period_markers_day_totals(array $rows): array
+{
+    $names = ['manha' => 'Manhã', 'tarde' => 'Tarde', 'noite' => 'Noite'];
+    usort($rows, function (array $a, array $b): int { return array_search($a['period'], PERIODS_ALL, true) <=> array_search($b['period'], PERIODS_ALL, true); });
+    $max = function (string $k) use ($rows): ?int { $v = array_filter(array_column($rows, $k), function ($x) { return $x !== null; }); return $v ? (int)max($v) : null; };
+    $withNote = array_values(array_filter($rows, function (array $r): bool { return $r['stress_note'] !== null && trim((string)$r['stress_note']) !== ''; }));
+    $notes = [];
+    foreach ($withNote as $r) $notes[] = (count($withNote) > 1 ? ($names[$r['period']] ?? $r['period']) . ': ' : '') . trim((string)$r['stress_note']);
+    return ['stress_level' => $max('stress_level'), 'stress_note' => $notes ? mb_substr(implode(' · ', $notes), 0, 500) : null,
+        'food_sweets' => $max('food_sweets'), 'food_processed' => $max('food_processed'), 'food_binge' => $max('food_binge')];
+}
+
+/**
+ * Grava um período e recalcula os totais do dia em daily_markers (usados por alertas, relatórios e IA).
+ * @param array<string,mixed> $v resultado de validate_period_markers()
+ */
+function period_markers_save(PDO $pdo, int $uid, string $date, array $v): void
+{
+    $cols = array_values(array_intersect(PERIOD_MARKER_FIELDS, array_keys($v)));
+    $set = array_map(function (string $c): string { return "$c=VALUES($c)"; }, $cols);
+    $pdo->prepare('INSERT INTO period_markers (user_id, entry_date, period' . ($cols ? ', ' . implode(', ', $cols) : '') . ') VALUES (?,?,?' . str_repeat(',?', count($cols)) . ')'
+        . ' ON DUPLICATE KEY UPDATE ' . ($set ? implode(', ', $set) . ', migrated = 0' : 'period = period'))
+        ->execute(array_merge([$uid, $date, $v['period']], array_map(function (string $c) use ($v) { return $v[$c]; }, $cols)));
+    // V4.7.1: período sem nada preenchido não fica como linha vazia
+    $pdo->prepare('DELETE FROM period_markers WHERE user_id = ? AND entry_date = ? AND period = ? AND stress_level IS NULL AND stress_note IS NULL
+        AND food_sweets IS NULL AND food_processed IS NULL AND food_binge IS NULL')->execute([$uid, $date, $v['period']]);
+    $st = $pdo->prepare('SELECT period, stress_level, stress_note, food_sweets, food_processed, food_binge FROM period_markers WHERE user_id = ? AND entry_date = ?');
+    $st->execute([$uid, $date]);
+    $t = period_markers_day_totals($st->fetchAll());
+    $pdo->prepare('INSERT INTO daily_markers (user_id, entry_date, stress_level, stress_note, food_sweets, food_processed, food_binge) VALUES (?,?,?,?,?,?,?)
+        ON DUPLICATE KEY UPDATE stress_level=VALUES(stress_level), stress_note=VALUES(stress_note), food_sweets=VALUES(food_sweets), food_processed=VALUES(food_processed), food_binge=VALUES(food_binge)')
+        ->execute([$uid, $date, $t['stress_level'], $t['stress_note'], $t['food_sweets'], $t['food_processed'], $t['food_binge']]);
+}
+
+/** V4.7.1: apaga a linha de daily_markers do dia se todas as colunas de dados ficaram vazias. */
+function daily_markers_prune(PDO $pdo, int $uid, string $date): void
+{
+    $pdo->prepare('DELETE FROM daily_markers WHERE user_id = ? AND entry_date = ? AND ' . implode(' IS NULL AND ', DAY_DATA_COLS) . ' IS NULL')->execute([$uid, $date]);
 }
 
 /**

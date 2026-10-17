@@ -4,3 +4,6 @@ Disallow: /api/
 Disallow: /auth/
 Disallow: /relatorio.php
 Disallow: /confirmar.php
+Disallow: /registro-rapido.php
+
+Sitemap: https://bipolar.app.br/sitemap.xml

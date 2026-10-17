@@ -8,7 +8,7 @@ Quem conduziu o experimento foi Ronaldo Nadaf, que tem transtorno bipolar tipo 1
 
 | Pasta | Ferramenta | Status | Resultado |
 |---|---|---|---|
-| [`grok/`](grok/) | Grok | **beta 0.2** | É a versão que está no ar em bipolar.app.br. Foi a primeira a dar um resultado satisfatório. |
+| [`grok/`](grok/) | Grok | **beta 0.4.2** | É a versão que está no ar em bipolar.app.br. Foi a primeira a dar um resultado satisfatório. |
 | [`vscode_copilot/`](vscode_copilot/) | VS Code + GitHub Copilot | alfa | Ficou insatisfatória. Está guardada só para comparação. |
 | [`manus/`](manus/) | Manus | alfa | Ficou insatisfatória. Está guardada só para comparação. |
 

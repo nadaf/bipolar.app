@@ -1,25 +1,44 @@
 <?php
-function page_head(string $title, string $bodyClass = ''): void { ?>
+/** @param array{description?:string,canonical?:string,og?:bool} $meta */
+function page_head(string $title, string $bodyClass = '', array $meta = []): void {
+    $desc = $meta['description'] ?? 'Diário de humor para pessoas com transtorno bipolar, inspirado no NIMH Life Chart Method.';
+    $base = rtrim((string)cfg('app_url', 'https://bipolar.app.br'), '/'); ?>
 <!doctype html>
 <html lang="pt-BR">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title><?= e($title) ?> · Bipolar</title>
-<meta name="description" content="Diário de humor para pessoas com transtorno bipolar, inspirado no NIMH Life Chart Method.">
-<meta name="theme-color" content="#2f6f73" media="(prefers-color-scheme: light)">
+<?php $brandName = trim((string)cfg('brand.name', '')) ?: 'Bipolar'; $brandLogo = trim((string)cfg('brand.logo_url', '')) ?: '/assets/icons/logo.svg'; $brandColor = brand_color(); ?>
+<title><?= e($title) ?> · <?= e($brandName) ?></title>
+<meta name="description" content="<?= e($desc) ?>">
+<?php if (!empty($meta['og'])): $url = $base . ($meta['canonical'] ?? '/'); ?>
+<link rel="canonical" href="<?= e($url) ?>">
+<meta property="og:type" content="website">
+<meta property="og:locale" content="pt_BR">
+<meta property="og:site_name" content="Bipolar">
+<meta property="og:title" content="<?= e($title) ?> · Bipolar">
+<meta property="og:description" content="<?= e($desc) ?>">
+<meta property="og:url" content="<?= e($url) ?>">
+<meta property="og:image" content="<?= e($base) ?>/assets/og/og-bipolar.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Bipolar: diário de humor gratuito e de código aberto, com planos para profissionais e clínicas">
+<meta name="twitter:card" content="summary_large_image">
+<?php endif; ?>
+<meta name="theme-color" content="<?= e($brandColor ?? '#2f6f73') ?>" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#14232b" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest">
 <link rel="icon" href="/assets/icons/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=10">
+<link rel="stylesheet" href="/assets/css/app.css?v=12">
+<?php if ($brandColor !== null): ?><link rel="stylesheet" href="/brand.css.php?c=<?= e(substr($brandColor, 1)) ?>"><?php endif; ?>
 <script src="/assets/js/theme.js?v=1"></script>
 </head>
 <body class="<?= e($bodyClass) ?>">
 <a class="skip-link" href="#conteudo">Pular para o conteúdo</a>
 <header class="topbar">
-  <a class="brand" href="/" aria-label="Bipolar — início"><img src="/assets/icons/logo.svg" alt="" width="32" height="32"><span>Bipolar</span></a>
+  <a class="brand" href="/" aria-label="<?= e($brandName) ?> — início"><img src="<?= e($brandLogo) ?>" alt="" width="32" height="32"><span><?= e($brandName) ?></span></a>
   <div class="topbar-actions">
     <button type="button" class="btn btn-ghost hidden" id="btn-install">Instalar app</button>
     <button type="button" class="btn btn-ghost icon-btn" id="btn-theme" aria-label="Alternar tema claro/escuro" aria-pressed="false"><span aria-hidden="true">◐</span></button>
@@ -38,6 +57,7 @@ function page_foot(): void { ?>
 <footer class="footer">
   <p>Este aplicativo é um diário pessoal e <strong>não substitui</strong> diagnóstico, tratamento ou acompanhamento com psiquiatra e psicólogo.</p>
   <p><a href="/privacidade.php">Política de privacidade (LGPD)</a> · <a href="/termos.php">Termos de uso</a> · <a href="/escala.php">Sobre a escala</a></p>
+  <p><a href="/comecar.php">Comece grátis</a> · <a href="/profissionais.php">Para profissionais e clínicas</a></p>
 </footer>
 <div id="sr-live" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 <script src="/assets/js/pwa.js?v=1"></script>

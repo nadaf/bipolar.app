@@ -18,6 +18,7 @@ const AI_CATEGORIES = [
     'anotacoes' => ['Minhas anotações e etiquetas (texto livre)', false],
     'sexualidade' => ['Sexualidade (resumo)', false],
     'substancias' => ['Substâncias (resumo)', false],
+    'alimentacao' => ['Alimentação por período (doces, ultraprocessados, comer fora de hora)', false],
 ];
 const AI_CRISIS_MESSAGE = 'Percebi que você pode estar passando por um momento muito difícil. Você não precisa enfrentar isso sozinho(a). '
     . 'Ligue agora para o CVV — 188 (24 horas, gratuito, também por chat em cvv.org.br) ou, se houver risco imediato, SAMU — 192. '
@@ -145,6 +146,18 @@ function ai_context(PDO $pdo, array $u, array $cats, int $days = 14): string
         }
     }
     $prefs = user_prefs($u);
+    if ($in('alimentacao') && $prefs['modules']['alimentacao']) { // V4.7: categoria própria, fora por padrão
+        $lvl = ['nenhum', 'pouco', 'moderado', 'muito'];
+        try {
+            foreach ($q('SELECT entry_date, period, food_sweets, food_processed, food_binge FROM period_markers WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date, period') as $f) {
+                $p = [];
+                if ($f['food_sweets'] !== null) $p[] = 'doces ' . ($lvl[(int)$f['food_sweets']] ?? $f['food_sweets']);
+                if ($f['food_processed'] !== null) $p[] = 'ultraprocessados ' . ($lvl[(int)$f['food_processed']] ?? $f['food_processed']);
+                if ((int)$f['food_binge'] === 1) $p[] = 'comeu fora de hora/compulsão';
+                if ($p) $byDay[(string)$f['entry_date']][] = $f['period'] . ' alimentação: ' . implode(', ', $p);
+            }
+        } catch (PDOException $e) { /* migração V4.7 pendente */ }
+    }
     if ($in('sexualidade') && $prefs['modules']['sexualidade']) {
         foreach ($q('SELECT entry_date, libido, different_from_usual FROM sexuality_log WHERE user_id = ? AND entry_date BETWEEN ? AND ?') as $s) {
             $byDay[(string)$s['entry_date']][] = 'desejo sexual ' . ($s['libido'] ?? '?') . ' (−2..+2 vs habitual)' . ((int)$s['different_from_usual'] ? ', diferente do habitual' : '');

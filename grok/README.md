@@ -12,6 +12,7 @@ Site oficial: https://bipolar.app.br · Licença: **AGPL-3.0** · Idioma da inte
 - **Privacidade por padrão.** Sexualidade e Substâncias são módulos opcionais, protegidos por biometria (passkey) ou PIN. Push e e-mails de aviso nunca contêm conteúdo sensível. Pessoas de apoio recebem só o que a pessoa autorizar e, dos alertas, apenas a quantidade.
 - **Seus dados são seus.** Exportação completa (ZIP com JSON, CSV e mídias) e exclusão imediata da conta inteira em Conta.
 - **IA opcional e BYOK.** Cada pessoa escolhe o provedor (xAI, OpenAI, Anthropic, Google Gemini, DeepSeek, Mistral, OpenRouter ou URL compatível com OpenAI), o modelo, e cola a própria chave, que fica cifrada com libsodium. Nada vai para a IA sem consentimento.
+- **Gratuito e completo.** Este repositório é o diário inteiro e funciona sozinho. Desde a V4.7 há um ponto de extensão genérico (`app/lib/extensions.php`), **desligado** enquanto não existir a pasta `app/ext/`; ver [docs/EXTENSOES.md](docs/EXTENSOES.md).
 - **Honestidade sobre os limites.** Os registros não são cifrados de ponta a ponta: quem opera o servidor tem acesso técnico ao banco. Veja a [Política de Privacidade](public_html/privacidade.php).
 
 ## Requisitos
@@ -25,9 +26,20 @@ Site oficial: https://bipolar.app.br · Licença: **AGPL-3.0** · Idioma da inte
 1. Copie `app/config.example.php` para `app/config.php` e preencha banco, SMTP, VAPID (`php tools/generate_vapid.php`) e `ai.secret_key` (32 bytes aleatórios em base64; sem SSH, veja a seção 8.1 do README-INSTALACAO).
 2. Importe `schema.sql` no banco.
 3. Aponte o domínio para `public_html/` e mantenha `app/`, `cron/`, `storage/` e `tools/` **fora** da pasta pública.
-4. Agende os 3 crons (`cron/analyze_signals.php`, `cron/send_reminders.php`, `cron/send_reports.php`).
+4. Agende os crons (`cron/analyze_signals.php`, `cron/send_reminders.php`, `cron/send_reports.php`).
 
 Guia completo para cPanel: [README-INSTALACAO.md](README-INSTALACAO.md). Atualizações: `ATUALIZACAO-*.md` (SQL sempre primeiro).
+
+## Novidades
+
+Versão atual: **0.4.2-beta** (V4.7.2). Resumo de V4.5 a V4.7.2:
+
+- **V4.7.2 (0.4.2):** "Meu dia" sempre mostra a data escolhida — corrigido o caso em que, depois de registrar hoje e escolher ontem, o bloco mostrava (e podia salvar) os dados de hoje.
+- **V4.7.1 (0.4.1):** valores fora da escala recusados com mensagem clara; limpar um período não deixa linhas vazias.
+- **V4.7 (0.4.0):** estresse e alimentação por período, aviso "salvo" que some sozinho, Ocultar/Revelar acessível, ponto de extensão desligado por padrão.
+- **V4.5–V4.6 (0.3.x):** páginas informativas para profissionais e "Comece grátis", Open Graph e sitemap.
+
+Detalhes em [CHANGELOG.md](CHANGELOG.md).
 
 ## Testes
 
