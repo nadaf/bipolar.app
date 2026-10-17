@@ -24,6 +24,9 @@ CREATE TABLE IF NOT EXISTS users (
   mfa_totp_secret_enc TEXT NULL,
   mfa_enabled_at DATETIME NULL,
   mfa_totp_last_step BIGINT UNSIGNED NULL,
+  is_professional TINYINT(1) NOT NULL DEFAULT 0,
+  professional_kind VARCHAR(20) NULL,
+  professional_reg VARCHAR(40) NULL,
   PRIMARY KEY (id),
   KEY idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -96,6 +99,7 @@ CREATE TABLE IF NOT EXISTS recipients (
   include_sexuality TINYINT(1) NOT NULL DEFAULT 0,
   include_substances TINYINT(1) NOT NULL DEFAULT 0,
   include_food TINYINT(1) NOT NULL DEFAULT 0,
+  include_death TINYINT(1) NOT NULL DEFAULT 0,
   include_alerts TINYINT(1) NOT NULL DEFAULT 0,
   last_alert_at DATETIME NULL,
   include_custom_alerts TINYINT(1) NOT NULL DEFAULT 0,
@@ -183,6 +187,13 @@ CREATE TABLE IF NOT EXISTS daily_markers (
   food_sweets TINYINT NULL,
   food_processed TINYINT NULL,
   food_binge TINYINT NULL,
+  th_positive TINYINT NULL,
+  th_negative TINYINT NULL,
+  th_grandiose TINYINT NULL,
+  th_rumination TINYINT NULL,
+  th_death TINYINT NULL,
+  cigarettes SMALLINT UNSIGNED NULL,
+  nicotine_other VARCHAR(20) NULL,
   doses_json TEXT NULL,
   signs_json TEXT NULL,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -339,9 +350,68 @@ CREATE TABLE IF NOT EXISTS period_markers (
   food_sweets TINYINT NULL,
   food_processed TINYINT NULL,
   food_binge TINYINT NULL,
+  th_positive TINYINT NULL,
+  th_negative TINYINT NULL,
+  th_racing TINYINT NULL,
+  th_grandiose TINYINT NULL,
+  th_rumination TINYINT NULL,
+  th_death TINYINT NULL,
   migrated TINYINT(1) NOT NULL DEFAULT 0,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uq_pm_user_day_period (user_id, entry_date, period),
   CONSTRAINT fk_pm_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- V4.8: compartilhamento com profissionais (consentimento do paciente, revogável) e registro de acessos
+CREATE TABLE IF NOT EXISTS care_shares (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  patient_id INT UNSIGNED NOT NULL,
+  professional_id INT UNSIGNED NULL,
+  invite_email VARCHAR(190) NULL,
+  invite_token_hash CHAR(64) NULL,
+  invite_expires_at DATETIME NULL,
+  status VARCHAR(10) NOT NULL DEFAULT 'pendente',
+  scope_mask INT UNSIGNED NOT NULL DEFAULT 0,
+  data_from DATE NULL,
+  expires_on DATE NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  accepted_at DATETIME NULL,
+  ended_at DATETIME NULL,
+  ended_by VARCHAR(12) NULL,
+  PRIMARY KEY (id),
+  KEY idx_cs_patient (patient_id),
+  KEY idx_cs_professional (professional_id),
+  KEY idx_cs_email (invite_email),
+  UNIQUE KEY uq_cs_token (invite_token_hash),
+  CONSTRAINT fk_cs_patient FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_cs_professional FOREIGN KEY (professional_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS care_codes (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  professional_id INT UNSIGNED NOT NULL,
+  code_hash CHAR(64) NOT NULL,
+  expires_at DATETIME NOT NULL,
+  used_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_cc_hash (code_hash),
+  CONSTRAINT fk_cc_professional FOREIGN KEY (professional_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS care_access_log (
+  id INT UNSIGNED NOT NULL AUTO_INCREMENT,
+  share_id INT UNSIGNED NULL,
+  patient_id INT UNSIGNED NOT NULL,
+  actor_id INT UNSIGNED NULL,
+  actor_name VARCHAR(150) NOT NULL DEFAULT '',
+  action VARCHAR(20) NOT NULL,
+  scope_mask INT UNSIGNED NOT NULL DEFAULT 0,
+  range_from DATE NULL,
+  range_to DATE NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  KEY idx_cal_patient (patient_id, created_at),
+  CONSTRAINT fk_cal_patient FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

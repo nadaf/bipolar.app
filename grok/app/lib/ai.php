@@ -19,6 +19,9 @@ const AI_CATEGORIES = [
     'sexualidade' => ['Sexualidade (resumo)', false],
     'substancias' => ['Substâncias (resumo)', false],
     'alimentacao' => ['Alimentação por período (doces, ultraprocessados, comer fora de hora)', false],
+    // V4.8: categorias próprias, desligadas por padrão; pensamentos de morte nunca vão sem esta marcação
+    'pensamentos' => ['Pensamentos por período (positivos, negativos, acelerados, grandiosidade, ruminação)', false],
+    'pensamentos_morte' => ['Pensamentos de morte ou suicídio (privado)', false],
 ];
 const AI_CRISIS_MESSAGE = 'Percebi que você pode estar passando por um momento muito difícil. Você não precisa enfrentar isso sozinho(a). '
     . 'Ligue agora para o CVV — 188 (24 horas, gratuito, também por chat em cvv.org.br) ou, se houver risco imediato, SAMU — 192. '
@@ -139,7 +142,7 @@ function ai_context(PDO $pdo, array $u, array $cats, int $days = 14): string
             $p = [];
             if ($in('sono') && $m['bed_time'] && $m['wake_time']) $p[] = "deitou {$m['bed_time']} acordou {$m['wake_time']}";
             if ($in('marcadores')) {
-                foreach (['sun_minutes' => 'sol min', 'caffeine_cups' => 'cafeína', 'alcohol_units' => 'álcool doses', 'racing_thoughts' => 'pensamentos acelerados', 'fast_speech' => 'fala acelerada', 'impulsive_spending' => 'gastos impulsivos', 'irritability_day' => 'irritabilidade', 'stress_level' => 'estresse'] as $k => $l) if ($m[$k] !== null) $p[] = "$l {$m[$k]}";
+                foreach (['sun_minutes' => 'sol min', 'caffeine_cups' => 'cafeína', 'cigarettes' => 'cigarros', 'nicotine_other' => 'outra nicotina', 'alcohol_units' => 'álcool doses', 'racing_thoughts' => 'pensamentos acelerados', 'fast_speech' => 'fala acelerada', 'impulsive_spending' => 'gastos impulsivos', 'irritability_day' => 'irritabilidade', 'stress_level' => 'estresse'] as $k => $l) if (($m[$k] ?? null) !== null) $p[] = "$l {$m[$k]}";
             }
             if ($in('medicacao')) { $d = json_decode((string)$m['doses_json'], true); if (is_array($d) && $d) $p[] = 'doses tomadas ' . array_sum($d) . '/' . count($d); }
             if ($p) $byDay[(string)$m['entry_date']][] = implode(', ', $p);
@@ -158,6 +161,20 @@ function ai_context(PDO $pdo, array $u, array $cats, int $days = 14): string
             }
         } catch (PDOException $e) { /* migração V4.7 pendente */ }
     }
+    $thOn = $in('pensamentos') && $prefs['modules']['pensamentos'];
+    $deathOn = $in('pensamentos_morte') && $prefs['modules']['pensamentos_morte'];
+    if ($thOn || $deathOn) { // V4.8
+        $tl = ['nenhum', 'leve', 'moderado', 'intenso'];
+        $cols = ($thOn ? ['th_positive' => 'positivos', 'th_negative' => 'negativos', 'th_racing' => 'acelerados', 'th_grandiose' => 'grandiosidade', 'th_rumination' => 'ruminação/culpa'] : [])
+            + ($deathOn ? ['th_death' => 'de morte'] : []);
+        try {
+            foreach ($q('SELECT entry_date, period, ' . implode(', ', array_keys($cols)) . ' FROM period_markers WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date, period') as $f) {
+                $p = [];
+                foreach ($cols as $c => $l) if ($f[$c] !== null) $p[] = $l . ' ' . ($tl[(int)$f[$c]] ?? $f[$c]);
+                if ($p) $byDay[(string)$f['entry_date']][] = $f['period'] . ' pensamentos: ' . implode(', ', $p);
+            }
+        } catch (PDOException $e) { /* migração V4.8 pendente */ }
+    }
     if ($in('sexualidade') && $prefs['modules']['sexualidade']) {
         foreach ($q('SELECT entry_date, libido, different_from_usual FROM sexuality_log WHERE user_id = ? AND entry_date BETWEEN ? AND ?') as $s) {
             $byDay[(string)$s['entry_date']][] = 'desejo sexual ' . ($s['libido'] ?? '?') . ' (−2..+2 vs habitual)' . ((int)$s['different_from_usual'] ? ', diferente do habitual' : '');
@@ -173,7 +190,7 @@ function ai_context(PDO $pdo, array $u, array $cats, int $days = 14): string
     if ($in('alertas')) {
         $st = $pdo->prepare('SELECT created_at, title, severity, feedback, is_private FROM alerts WHERE user_id = ? AND created_at >= ? ORDER BY created_at');
         $st->execute([$u['id'], $from]);
-        $okMask = ($in('sexualidade') ? 1 : 0) | ($in('substancias') ? 2 : 0);
+        $okMask = ($in('sexualidade') ? 1 : 0) | ($in('substancias') ? 2 : 0) | ($deathOn ? 4 : 0);
         foreach ($st->fetchAll() as $a) if (((int)($a['is_private'] ?? 0) & ~$okMask) === 0) $lines[] = 'Alerta do app em ' . substr((string)$a['created_at'], 0, 10) . ': ' . $a['title'] . ' (nível ' . $a['severity'] . ')' . ($a['feedback'] ? ', a pessoa disse que ' . ($a['feedback'] === 'sim' ? 'faz sentido' : 'não faz sentido') : '');
     }
     if (count($lines) === 1) $lines[] = 'Sem registros nas categorias autorizadas.';

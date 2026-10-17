@@ -1,6 +1,6 @@
 /* Service worker — Bipolar */
-const VERSION = 'bp-v14';
-const SHELL = ['/', '/offline.html', '/assets/css/app.css?v=12', '/assets/js/app.js?v=12', '/assets/js/passkey.js?v=4', '/assets/js/mfa.js?v=2', '/assets/js/quick.js?v=2', '/assets/js/pwa.js?v=1', '/assets/js/theme.js?v=1',
+const VERSION = 'bp-v15';
+const SHELL = ['/', '/offline.html', '/assets/css/app.css?v=13', '/assets/js/app.js?v=13', '/assets/js/passkey.js?v=4', '/assets/js/mfa.js?v=2', '/assets/js/care.js?v=1', '/assets/js/quick.js?v=2', '/assets/js/pwa.js?v=1', '/assets/js/theme.js?v=1',
   '/assets/icons/logo.svg', '/assets/icons/icon-192.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {

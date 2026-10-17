@@ -72,8 +72,8 @@ final class V471Test extends IntegrationCase
     }
     public function testVersionAndCache(): void
     {
-        $this->assertSame('0.4.2-beta', trim((string)file_get_contents(TestEnv::ROOT . '/VERSION')));
-        $this->assertStringContainsString("const VERSION = 'bp-v14';", (string)file_get_contents(TestEnv::ROOT . '/public_html/sw.js'));
+        $this->assertSame('0.5.0-beta', trim((string)file_get_contents(TestEnv::ROOT . '/VERSION')));
+        $this->assertStringContainsString("const VERSION = 'bp-v15';", (string)file_get_contents(TestEnv::ROOT . '/public_html/sw.js'));
         $m = (string)file_get_contents(TestEnv::ROOT . '/migrations/2026-11-04-v4-7-1-limpeza-vazios.sql');
         $this->assertStringNotContainsStringIgnoringCase('information_schema', $m);
         foreach (preg_split('/\R/', $m) as $l) if (str_starts_with(ltrim($l), '--')) $this->assertStringNotContainsString(';', $l, 'sem ";" em comentário');

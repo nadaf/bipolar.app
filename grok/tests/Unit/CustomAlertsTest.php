@@ -53,7 +53,7 @@ final class CustomAlertsTest extends TestCase
         $this->assertSame(CUSTOM_PRIV_SEX | CUSTOM_PRIV_SUBST, custom_private_mask([['metric' => 'libido'], ['metric' => 'sub_alcool']]));
         $this->assertArrayHasKey('sub_cafe', custom_metrics());
         foreach (custom_templates() as $k => $t) {
-            [$err, $r] = custom_rule_validate($t + ['template' => $k], ['sexualidade' => true, 'substancias' => true]);
+            [$err, $r] = custom_rule_validate($t + ['template' => $k], ['sexualidade' => true, 'substancias' => true, 'pensamentos_morte' => true]);
             $this->assertNull($err, "modelo $k: $err");
             $this->assertSame($k, $r['template']);
         }

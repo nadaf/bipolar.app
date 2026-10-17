@@ -27,6 +27,9 @@ try {
   page.on('console', (m) => { if (/Content Security Policy|Refused to apply/i.test(m.text())) { console.log('CSP:', m.text()); fail++; } });
   await page.emulateTimezone('America/Cuiaba');
   await page.goto(`${base}/auth/dev.php?u=v472${Date.now().toString(36)}`, { waitUntil: 'networkidle0' });
+  // V4.8: com o módulo Pensamentos ligado, "acelerados" vira por período. Esta regressão cobre o campo do dia (módulo desligado).
+  await page.goto(`${base}/?aba=registrar`, { waitUntil: 'networkidle0' });
+  await page.evaluate(async () => { const b = JSON.parse(document.getElementById('boot').textContent); const mods = { ...(b.prefs && b.prefs.modules), pensamentos: false }; await fetch('/api/account.php?action=prefs', { method: 'POST', headers: { 'X-CSRF-Token': b.csrf, 'Content-Type': 'application/json' }, body: JSON.stringify({ modules: mods }) }); });
   await page.goto(`${base}/?aba=registrar`, { waitUntil: 'networkidle0' });
   const T = await page.evaluate(() => document.getElementById('entry-date').value);
   const Y = new Date(new Date(T + 'T12:00:00Z').getTime() - 864e5).toISOString().slice(0, 10);

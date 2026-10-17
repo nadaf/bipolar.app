@@ -40,11 +40,11 @@ final class V47Test extends IntegrationCase
         $this->assertStringContainsString("setTimeout(() => { t._until = 0; t.classList.remove('show'); }, ms)", $mfa);
         // os arquivos novos chegam a quem já tem o app instalado (cache do service worker renovado)
         $sw = (string)file_get_contents(TestEnv::ROOT . '/public_html/sw.js');
-        $this->assertStringContainsString("const VERSION = 'bp-v14';", $sw);
+        $this->assertStringContainsString("const VERSION = 'bp-v15';", $sw);
         $layout = (string)file_get_contents(TestEnv::ROOT . '/app/views/layout.php');
-        $this->assertStringContainsString('/assets/css/app.css?v=12', $layout);
-        $this->assertStringContainsString('/assets/css/app.css?v=12', $sw);
-        $this->assertStringContainsString('/assets/js/app.js?v=12', $sw);
+        $this->assertStringContainsString('/assets/css/app.css?v=13', $layout);
+        $this->assertStringContainsString('/assets/css/app.css?v=13', $sw);
+        $this->assertStringContainsString('/assets/js/app.js?v=13', $sw);
     }
 
     /* ---------------- Bug 2: estresse/acontecimentos por período ---------------- */
@@ -223,7 +223,7 @@ final class V47Test extends IntegrationCase
     {
         $b = $this->prod()->get('/privacidade.php')['body'];
         $this->assertStringContainsString('id="alimentacao"', $b);
-        $this->assertStringContainsString('Versão V4.7', $b);
+        $this->assertStringContainsString('Versão V4.8', $b);
         $this->assertStringContainsString('Anotações, alimentação, sexualidade e substâncias ficam de fora', $b);
     }
 

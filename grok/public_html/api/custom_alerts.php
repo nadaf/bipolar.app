@@ -34,20 +34,20 @@ function custom_find(PDO $pdo, array $u, int $id): ?array
     return $r ? custom_rule_from_row($r) : null;
 }
 $needUnlock = function (int $mask) use ($unlocked): void {
-    if ($mask && !$unlocked) json_out(['erro' => 'Este alerta usa dados privados (Sexualidade/Substâncias). Desbloqueie com seu PIN ou biometria.', 'bloqueado' => true], 423);
+    if ($mask && !$unlocked) json_out(['erro' => 'Este alerta usa dados privados (Sexualidade, Substâncias ou Pensamentos de morte). Desbloqueie com seu PIN ou biometria.', 'bloqueado' => true], 423);
 };
 
 if ($m === 'GET') {
     $metrics = [];
     foreach (custom_metrics() as $k => $x) {
-        $avail = $x[6] === 0 || ($x[6] === CUSTOM_PRIV_SEX && $mods['sexualidade']) || ($x[6] === CUSTOM_PRIV_SUBST && $mods['substancias']);
+        $avail = $x[6] === 0 || !empty($mods[CUSTOM_PRIV_MODULES[$x[6]] ?? '']);
         if (!$avail) continue;
         $metrics[] = ['key' => $k, 'label' => $x[0], 'group' => $x[1], 'min' => $x[2], 'max' => $x[3], 'step' => $x[4], 'type' => $x[5], 'private' => $x[6] > 0, 'unit' => $x[7]];
     }
     $tpls = [];
     foreach (custom_templates() as $k => $t) {
         $mask = custom_private_mask($t['conditions']);
-        if (($mask & CUSTOM_PRIV_SEX && !$mods['sexualidade']) || ($mask & CUSTOM_PRIV_SUBST && !$mods['substancias'])) continue;
+        foreach (CUSTOM_PRIV_MODULES as $bit => $mod) if (($mask & $bit) && !$mods[$mod]) continue 2;
         $tpls[] = ['key' => $k, 'private' => $mask > 0] + $t;
     }
     json_out([

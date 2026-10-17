@@ -273,6 +273,7 @@ page_head('Diário', 'app'); ?>
       <?php if (user_prefs($user)['modules']['sexualidade']): ?><label class="check"><input type="checkbox" name="sexualidade" value="1"> <span>Incluir resumo de sexualidade</span></label><?php endif; ?>
       <?php if (user_prefs($user)['modules']['substancias']): ?><label class="check"><input type="checkbox" name="substancias" value="1"> <span>Incluir resumo de substâncias</span></label><?php endif; ?>
       <?php if (user_prefs($user)['modules']['alimentacao']): ?><label class="check"><input type="checkbox" name="alimentacao" value="1"> <span>Incluir resumo de alimentação</span></label><?php endif; ?>
+      <?php if (user_prefs($user)['modules']['pensamentos_morte']): ?><label class="check"><input type="checkbox" name="pensamentos_morte" value="1"> <span>Incluir pensamentos de morte (privado; só com as seções desbloqueadas)</span></label><?php endif; ?>
       <button class="btn btn-primary" type="submit">Abrir relatório</button>
     </form>
   </div>
@@ -294,6 +295,8 @@ page_head('Diário', 'app'); ?>
         <label class="check"><input type="checkbox" name="include_sexuality" value="1" aria-describedby="rc-sex-warn"> <span>Incluir resumo de sexualidade (privado)</span></label>
         <label class="check"><input type="checkbox" name="include_substances" value="1" aria-describedby="rc-sub-warn"> <span>Incluir resumo de substâncias (privado)</span></label>
         <label class="check"><input type="checkbox" name="include_food" value="1" aria-describedby="rc-food-warn"> <span>Incluir resumo de alimentação</span></label>
+        <?php if (user_prefs($user)['modules']['pensamentos_morte']): ?><label class="check"><input type="checkbox" name="include_death" value="1" aria-describedby="rc-death-warn"> <span>Incluir resumo de pensamentos de morte (privado)</span></label>
+        <p class="small" id="rc-death-warn">Só a contagem de dias com algum nível. Nunca liga sozinho e nunca dispara aviso para essa pessoa.</p><?php endif; ?>
         <label class="check"><input type="checkbox" name="include_alerts" value="1" aria-describedby="rc-alert-warn"> <span>Receber alertas de apoio</span></label>
         <label class="check"><input type="checkbox" name="include_custom_alerts" value="1" aria-describedby="rc-custom-warn"> <span>Incluir no relatório quantos alertas personalizados foram atendidos</span></label>
         <p class="small" id="rc-custom-warn">Vai só o número (ex.: “2 alertas personalizados foram atendidos”), nunca quais são nem os motivos. Alertas que usam Sexualidade ou Substâncias só entram na conta se você também marcar esses resumos.</p>
@@ -359,6 +362,7 @@ page_head('Diário', 'app'); ?>
   </div>
   <?php require_once APP_ROOT . '/views/account_modules.php'; view_account_modules($user); ?>
   <?php require_once APP_ROOT . '/views/account_v4.php'; view_account_v4($user, $aiOn, $aiSet, $lockSet); ?>
+  <?php require_once APP_ROOT . '/views/account_care.php'; view_account_care($user); // V4.8 ?>
   <div class="card">
     <h2>Senha</h2>
     <?php if (!empty($user['password_hash'])): ?>
@@ -388,6 +392,7 @@ page_head('Diário', 'app'); ?>
 </section>
 <script src="/assets/js/auth.js?v=1"></script>
 <script src="/assets/js/passkey.js?v=4"></script>
-<script src="/assets/js/app.js?v=12"></script>
+<script src="/assets/js/app.js?v=13"></script>
 <script src="/assets/js/mfa.js?v=2"></script>
+<script src="/assets/js/care.js?v=1"></script>
 <?php page_foot();

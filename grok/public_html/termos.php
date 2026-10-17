@@ -6,7 +6,7 @@ $repo = trim((string)cfg('legal.source_url', '')) ?: 'https://github.com/';
 page_head('Termos de Uso'); ?>
 <article class="card narrow prose">
 <h1>Termos de Uso</h1>
-<p><em>Versão V4.3, outubro de 2026.</em> Ao criar uma conta, você concorda com estes termos e com a <a href="/privacidade.php">Política de Privacidade</a>.</p>
+<p><em>Versão V4.8, novembro de 2026.</em> Ao criar uma conta, você concorda com estes termos e com a <a href="/privacidade.php">Política de Privacidade</a>.</p>
 
 <section class="plain" aria-labelledby="simples">
 <h2 id="simples">Em linguagem simples</h2>
@@ -14,6 +14,7 @@ page_head('Termos de Uso'); ?>
 <li>É um diário gratuito para você acompanhar o seu humor. <strong>Não é médico</strong> e não substitui a sua equipe de saúde.</li>
 <li>Os alertas e a IA são sinais para conversar com quem cuida de você, não diagnósticos. Nunca mude remédio ou dose por causa do app.</li>
 <li>Em crise, ligue <a href="tel:188">CVV 188</a> ou <a href="tel:192">SAMU 192</a>. O app não monitora você em tempo real e ninguém é avisado automaticamente, a não ser as pessoas que você cadastrar, do jeito que você escolher.</li>
+<li>Você pode compartilhar seus registros, só para leitura, com um profissional de saúde que aceitar. Você escolhe o quê e até quando, e encerra quando quiser.</li>
 <li>O código é aberto (AGPL-3.0). Você pode conferir, copiar e rodar a sua própria cópia.</li>
 <li>Seus dados são seus: baixe ou apague quando quiser.</li>
 </ul>
@@ -31,6 +32,13 @@ page_head('Termos de Uso'); ?>
 <li>Use dados verdadeiros, guarde bem sua senha e cadastre biometria ou PIN se quiser proteger as seções privadas.</li>
 <li>Recomendamos ativar a <strong>verificação em duas etapas</strong> (código do aplicativo autenticador, em Conta). Guarde os <strong>códigos de recuperação</strong> em lugar seguro: são eles que permitem entrar se você perder o celular. Cada código vale uma vez. Quem entra com Google, Microsoft ou X ativa a verificação em duas etapas na conta do próprio provedor.</li>
 <li>Só cadastre como pessoa de apoio quem concordar em receber seus relatórios; ela precisa confirmar o convite.</li>
+</ul>
+
+<h2>3A. Compartilhamento com profissionais de saúde</h2>
+<ul>
+<li><strong>Paciente:</strong> você convida pelo e-mail do profissional ou pelo código que ele gerar. Nada é visto antes de ele aceitar. Você escolhe as categorias (as sensíveis começam desligadas), a data inicial e a data final, muda tudo quando quiser e encerra a qualquer momento: o acesso para na hora (revogação do consentimento). Em Conta você vê quem viu o quê e quando.</li>
+<li><strong>Profissional:</strong> a marcação “Profissional de saúde” e o CRP/CRM são <strong>autodeclarados</strong> e aparecem para o paciente como declarados, sem verificação pelo app. O acesso é só leitura, apenas ao que o paciente liberou e pelo prazo dele. É proibido tentar acessar dados de quem não compartilhou, copiar dados para fins alheios ao cuidado ou compartilhá-los com terceiros. O profissional responde pelo sigilo profissional e pela LGPD quanto ao que vê.</li>
+<li>O app não verifica identidade nem registro profissional e não é prontuário eletrônico. O link de convite é pessoal, de uso único e só funciona com a conta do e-mail convidado.</li>
 </ul>
 
 <h2>4. IA com a sua chave</h2>

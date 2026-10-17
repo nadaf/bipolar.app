@@ -32,8 +32,9 @@ Guia completo para cPanel: [README-INSTALACAO.md](README-INSTALACAO.md). Atualiz
 
 ## Novidades
 
-Versão atual: **0.4.2-beta** (V4.7.2). Resumo de V4.5 a V4.7.2:
+Versão atual: **0.5.0-beta** (V4.8). Resumo de V4.5 a V4.8:
 
+- **V4.8 (0.5.0):** pensamentos por período, pensamentos de morte (privado, com painel de apoio CVV 188/SAMU 192), nicotina em Hábitos e compartilhamento só leitura com profissional de saúde, controlado pelo paciente.
 - **V4.7.2 (0.4.2):** "Meu dia" sempre mostra a data escolhida — corrigido o caso em que, depois de registrar hoje e escolher ontem, o bloco mostrava (e podia salvar) os dados de hoje.
 - **V4.7.1 (0.4.1):** valores fora da escala recusados com mensagem clara; limpar um período não deixa linhas vazias.
 - **V4.7 (0.4.0):** estresse e alimentação por período, aviso "salvo" que some sozinho, Ocultar/Revelar acessível, ponto de extensão desligado por padrão.

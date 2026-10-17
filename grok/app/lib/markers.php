@@ -9,7 +9,8 @@ const DAY_MODULES = [
     'sono' => ['Sono (horário de deitar e acordar)', true],
     'sol' => ['Sol e luz do dia', true],
     'habitos' => ['Cafeína, álcool/substâncias e exercício', true],
-    'mente' => ['Pensamentos e fala acelerados, gastos impulsivos, irritabilidade', true],
+    'mente' => ['Fala acelerada, gastos impulsivos, irritabilidade', true],
+    'pensamentos' => ['Pensamentos por período (positivos, negativos, acelerados, grandiosidade, ruminação)', true],
     'estresse' => ['Acontecimentos e estresse (por período)', true],
     'alimentacao' => ['Alimentação: doces, ultraprocessados e comer fora de hora (por período)', true],
     'medicacao' => ['Medicação por dose', false],
@@ -17,7 +18,27 @@ const DAY_MODULES = [
     'ciclo' => ['Ciclo menstrual', false],
     'sexualidade' => ['Sexualidade (privado)', false],
     'substancias' => ['Substâncias (privado, redução de danos)', false],
+    'pensamentos_morte' => ['Pensamentos de morte ou suicídio (privado)', false],
 ];
+/** V4.8: módulos atrás do PIN/biometria (seções privadas). */
+const PRIVATE_MODULES = ['sexualidade', 'substancias', 'pensamentos_morte'];
+
+/**
+ * V4.8: pensamentos por período — coluna => [rótulo, ajuda]. Mesma escala de 4 níveis (null = não informado).
+ * th_racing alimenta daily_markers.racing_thoughts (maior valor do dia), que continua sendo usado por alertas e relatórios.
+ * th_death é privado (módulo pensamentos_morte, atrás do PIN) e nunca vai para a IA sem a categoria própria.
+ */
+const THOUGHT_FIELDS = [
+    'th_positive' => ['Positivos / esperançosos', ''],
+    'th_negative' => ['Negativos / pessimistas', ''],
+    'th_racing' => ['Acelerados / muitas ideias', ''],
+    'th_grandiose' => ['Grandiosidade / missão especial', 'pensar que tem um papel único ou uma mensagem para espalhar'],
+    'th_rumination' => ['Ruminação / culpa', ''],
+    'th_death' => ['Pensamentos de morte ou suicídio', ''],
+];
+const THOUGHT_LEVELS = [0 => 'Nenhum', 1 => 'Leve', 2 => 'Moderado', 3 => 'Intenso'];
+/** V4.8: outra forma de nicotina (além de cigarros), no dia, junto da cafeína. */
+const NICOTINE_OTHER = ['nenhuma' => 'Nenhuma', 'vape_pod' => 'Vape / pod', 'palha' => 'Cigarro de palha', 'charuto_cachimbo' => 'Charuto / cachimbo', 'narguile' => 'Narguilé', 'adesivo_chiclete' => 'Adesivo / chiclete'];
 
 /**
  * Substâncias: código => [rótulo, unidade da quantidade, formas, classe].
@@ -78,6 +99,8 @@ function user_prefs(array $u): array
         'modules' => $mods,
         'sex_blur' => isset($p['sex_blur']) ? (bool)$p['sex_blur'] : true,
         'subst_blur' => isset($p['subst_blur']) ? (bool)$p['subst_blur'] : true,
+        'death_blur' => isset($p['death_blur']) ? (bool)$p['death_blur'] : true,
+        'trusted_contact' => normalize_trusted_contact((array)($p['trusted_contact'] ?? [])),
         'subst_favorites' => normalize_subst_favorites((array)($p['subst_favorites'] ?? [])),
         'signs' => array_values(array_filter(array_map('strval', (array)($p['signs'] ?? [])), function (string $s): bool { return $s !== ''; })),
         'action_plan' => (string)($p['action_plan'] ?? ''),
@@ -113,11 +136,27 @@ function normalize_prefs(array $in): array
         'modules' => $mods,
         'sex_blur' => !isset($in['sex_blur']) || !empty($in['sex_blur']),
         'subst_blur' => !isset($in['subst_blur']) || !empty($in['subst_blur']),
+        'death_blur' => !isset($in['death_blur']) || !empty($in['death_blur']),
+        'trusted_contact' => normalize_trusted_contact((array)($in['trusted_contact'] ?? [])),
         'subst_favorites' => normalize_subst_favorites((array)($in['subst_favorites'] ?? [])),
         'signs' => $signs,
         'action_plan' => trim(mb_substr((string)($in['action_plan'] ?? ''), 0, 1000)),
         'meds' => $meds,
     ];
+}
+
+/**
+ * V4.8: contato de confiança (aparece no painel de apoio como link de telefone). Nunca é avisado automaticamente.
+ * @param array<mixed> $in
+ * @return array{name:string, phone:string}
+ */
+function normalize_trusted_contact(array $in): array
+{
+    $name = is_scalar($in['name'] ?? null) ? trim(mb_substr((string)$in['name'], 0, 80)) : '';
+    $raw = is_scalar($in['phone'] ?? null) ? trim((string)$in['phone']) : '';
+    $digits = preg_replace('/\D/', '', $raw);
+    $phone = $digits !== '' && strlen((string)$digits) >= 8 && strlen((string)$digits) <= 15 ? (strpos($raw, '+') === 0 ? '+' : '') . $digits : '';
+    return ['name' => $phone === '' ? '' : $name, 'phone' => $phone];
 }
 
 /** @param mixed $v */
@@ -146,11 +185,12 @@ function markers_invalid_field(array $in, array $v, array $labels): ?string
 const DAY_STRICT_LABELS = ['sleep_quality' => 'Qualidade do sono', 'sun_minutes' => 'Minutos de sol', 'sun_period' => 'Período do sol',
     'caffeine_cups' => 'Cafeína', 'alcohol_units' => 'Álcool', 'exercise_minutes' => 'Exercício', 'racing_thoughts' => 'Pensamentos acelerados',
     'fast_speech' => 'Fala acelerada', 'impulsive_spending' => 'Gastos por impulso', 'spending_amount' => 'Quanto gastei por impulso',
-    'irritability_day' => 'Irritabilidade no dia', 'cycle_phase' => 'Ciclo menstrual'];
+    'irritability_day' => 'Irritabilidade no dia', 'cycle_phase' => 'Ciclo menstrual', 'cigarettes' => 'Cigarros', 'nicotine_other' => 'Outra forma de nicotina'];
 /** Colunas de dados de daily_markers (sem id/usuário/data/updated_at): todas nulas = linha vazia, apagada (V4.7.1). */
 const DAY_DATA_COLS = ['bed_time', 'wake_time', 'sleep_quality', 'sun_minutes', 'sun_period', 'caffeine_cups', 'alcohol_units', 'substances',
     'exercise_minutes', 'racing_thoughts', 'fast_speech', 'impulsive_spending', 'spending_amount', 'irritability_day', 'cycle_phase',
-    'stress_level', 'stress_note', 'food_sweets', 'food_processed', 'food_binge', 'doses_json', 'signs_json'];
+    'stress_level', 'stress_note', 'food_sweets', 'food_processed', 'food_binge', 'doses_json', 'signs_json',
+    'th_positive', 'th_negative', 'th_grandiose', 'th_rumination', 'th_death', 'cigarettes', 'nicotine_other'];
 
 /**
  * Valida marcadores do dia. Só os campos ENVIADOS entram no resultado (edição sem perda).
@@ -173,6 +213,8 @@ function validate_day(array $in): array
         'spending_amount' => fn ($x) => is_numeric($x) && (float)$x >= 0 ? round(min((float)$x, 99999999), 2) : null,
         'irritability_day' => fn ($x) => int_or_null($x, 0, 3),
         'cycle_phase' => fn ($x) => is_string($x) && isset(CYCLE_PHASES[$x]) ? $x : null,
+        'cigarettes' => fn ($x) => (is_int($x) || (is_string($x) && ctype_digit($x)) || (is_float($x) && floor($x) === $x)) ? int_or_null($x, 0, 100) : null, // inteiro 0–100
+        'nicotine_other' => fn ($x) => is_string($x) && isset(NICOTINE_OTHER[$x]) ? $x : null,
     ];
     foreach ($map as $k => $fn) if (array_key_exists($k, $in)) $v[$k] = $fn($in[$k]);
     $bad = markers_invalid_field($in, $v, DAY_STRICT_LABELS);
@@ -193,7 +235,8 @@ function validate_day(array $in): array
 }
 
 /** V4.7: campos registrados POR PERÍODO (manhã, tarde, noite) — os demais marcadores valem para o dia. */
-const PERIOD_MARKER_FIELDS = ['stress_level', 'stress_note', 'food_sweets', 'food_processed', 'food_binge'];
+const PERIOD_MARKER_FIELDS = ['stress_level', 'stress_note', 'food_sweets', 'food_processed', 'food_binge',
+    'th_positive', 'th_negative', 'th_racing', 'th_grandiose', 'th_rumination', 'th_death'];
 /** Escala da Alimentação (mesmos 4 níveis dos outros itens; null = não informado). */
 const FOOD_LEVELS = [0 => 'Nenhum', 1 => 'Pouco', 2 => 'Moderado', 3 => 'Muito'];
 const PERIODS_ALL = ['manha', 'tarde', 'noite'];
@@ -224,10 +267,12 @@ function validate_period_markers(array $in, string $tz = 'America/Sao_Paulo'): a
         'food_processed' => fn ($x) => int_or_null($x, 0, 3),
         'food_binge' => fn ($x) => in_array($x, [true, 1, '1'], true) ? 1 : (in_array($x, [false, 0, '0'], true) ? 0 : null),
     ];
+    foreach (array_keys(THOUGHT_FIELDS) as $k) $map[$k] = fn ($x) => int_or_null($x, 0, 3);
     $v = ['period' => $p];
     foreach ($sent as $k) $v[$k] = $map[$k]($in[$k]);
     $bad = markers_invalid_field($in, $v, ['stress_level' => 'Nível de estresse', 'food_sweets' => 'Doces',
-        'food_processed' => 'Industrializados / ultraprocessados', 'food_binge' => 'Comi fora de hora / compulsão']);
+        'food_processed' => 'Industrializados / ultraprocessados', 'food_binge' => 'Comi fora de hora / compulsão']
+        + array_map(function (array $t): string { return strpos($t[0], 'Pensamentos') === 0 ? $t[0] : 'Pensamentos ' . mb_strtolower($t[0]); }, THOUGHT_FIELDS));
     if ($bad !== null) return [$bad, []];
     return [null, $v];
 }
@@ -235,7 +280,7 @@ function validate_period_markers(array $in, string $tz = 'America/Sao_Paulo'): a
 /**
  * Totais do dia a partir dos períodos (maior nível; anotações juntas com o nome do período). Puro.
  * @param list<array<string,mixed>> $rows linhas de period_markers de UM dia
- * @return array{stress_level:?int,stress_note:?string,food_sweets:?int,food_processed:?int,food_binge:?int}
+ * @return array<string,int|string|null> stress_level, stress_note, food_*, th_* (maior nível do dia)
  */
 function period_markers_day_totals(array $rows): array
 {
@@ -245,8 +290,10 @@ function period_markers_day_totals(array $rows): array
     $withNote = array_values(array_filter($rows, function (array $r): bool { return $r['stress_note'] !== null && trim((string)$r['stress_note']) !== ''; }));
     $notes = [];
     foreach ($withNote as $r) $notes[] = (count($withNote) > 1 ? ($names[$r['period']] ?? $r['period']) . ': ' : '') . trim((string)$r['stress_note']);
-    return ['stress_level' => $max('stress_level'), 'stress_note' => $notes ? mb_substr(implode(' · ', $notes), 0, 500) : null,
+    $out = ['stress_level' => $max('stress_level'), 'stress_note' => $notes ? mb_substr(implode(' · ', $notes), 0, 500) : null,
         'food_sweets' => $max('food_sweets'), 'food_processed' => $max('food_processed'), 'food_binge' => $max('food_binge')];
+    foreach (array_keys(THOUGHT_FIELDS) as $k) $out[$k] = $rows && array_key_exists($k, $rows[0]) ? $max($k) : null;
+    return $out;
 }
 
 /**
@@ -261,14 +308,20 @@ function period_markers_save(PDO $pdo, int $uid, string $date, array $v): void
         . ' ON DUPLICATE KEY UPDATE ' . ($set ? implode(', ', $set) . ', migrated = 0' : 'period = period'))
         ->execute(array_merge([$uid, $date, $v['period']], array_map(function (string $c) use ($v) { return $v[$c]; }, $cols)));
     // V4.7.1: período sem nada preenchido não fica como linha vazia
-    $pdo->prepare('DELETE FROM period_markers WHERE user_id = ? AND entry_date = ? AND period = ? AND stress_level IS NULL AND stress_note IS NULL
-        AND food_sweets IS NULL AND food_processed IS NULL AND food_binge IS NULL')->execute([$uid, $date, $v['period']]);
-    $st = $pdo->prepare('SELECT period, stress_level, stress_note, food_sweets, food_processed, food_binge FROM period_markers WHERE user_id = ? AND entry_date = ?');
+    $pdo->prepare('DELETE FROM period_markers WHERE user_id = ? AND entry_date = ? AND period = ? AND ' . implode(' IS NULL AND ', PERIOD_MARKER_FIELDS) . ' IS NULL')
+        ->execute([$uid, $date, $v['period']]);
+    $st = $pdo->prepare('SELECT period, ' . implode(', ', PERIOD_MARKER_FIELDS) . ' FROM period_markers WHERE user_id = ? AND entry_date = ?');
     $st->execute([$uid, $date]);
-    $t = period_markers_day_totals($st->fetchAll());
-    $pdo->prepare('INSERT INTO daily_markers (user_id, entry_date, stress_level, stress_note, food_sweets, food_processed, food_binge) VALUES (?,?,?,?,?,?,?)
-        ON DUPLICATE KEY UPDATE stress_level=VALUES(stress_level), stress_note=VALUES(stress_note), food_sweets=VALUES(food_sweets), food_processed=VALUES(food_processed), food_binge=VALUES(food_binge)')
-        ->execute([$uid, $date, $t['stress_level'], $t['stress_note'], $t['food_sweets'], $t['food_processed'], $t['food_binge']]);
+    $rows = $st->fetchAll();
+    $t = period_markers_day_totals($rows);
+    $dayCols = ['stress_level', 'stress_note', 'food_sweets', 'food_processed', 'food_binge', 'th_positive', 'th_negative', 'th_grandiose', 'th_rumination', 'th_death'];
+    $vals = array_map(function (string $c) use ($t) { return $t[$c] ?? null; }, $dayCols);
+    // V4.8: pensamentos acelerados do dia = maior valor dos períodos (só quando este envio mexeu nesse item;
+    // quem desligou "Pensamentos por período" continua usando o campo do dia)
+    if (array_key_exists('th_racing', $v)) { $dayCols[] = 'racing_thoughts'; $vals[] = $t['th_racing'] ?? null; }
+    $pdo->prepare('INSERT INTO daily_markers (user_id, entry_date, ' . implode(', ', $dayCols) . ') VALUES (?,?' . str_repeat(',?', count($dayCols)) . ')
+        ON DUPLICATE KEY UPDATE ' . implode(', ', array_map(function (string $c): string { return "$c=VALUES($c)"; }, $dayCols)))
+        ->execute(array_merge([$uid, $date], $vals));
 }
 
 /** V4.7.1: apaga a linha de daily_markers do dia se todas as colunas de dados ficaram vazias. */
@@ -440,6 +493,7 @@ function mania_indicators(array $entries, array $markers, array $sex, int $signs
         $m = $x['m'] ?? [];
         if (max($irrit ?? 0, (int)($m['irritability_day'] ?? 0)) >= 2) { $score += 1; $why[] = 'irritabilidade'; }
         if ((int)($m['racing_thoughts'] ?? 0) >= 2) { $score += 1; $why[] = 'pensamentos acelerados'; }
+        if ((int)($m['th_grandiose'] ?? 0) >= 2) { $score += 1; $why[] = 'grandiosidade'; }
         if ((int)($m['fast_speech'] ?? 0) >= 2) { $score += 1; $why[] = 'fala acelerada'; }
         if ((int)($m['impulsive_spending'] ?? 0) >= 2) { $score += 1; $why[] = 'gastos impulsivos'; }
         $signs = json_decode((string)($m['signs_json'] ?? ''), true);

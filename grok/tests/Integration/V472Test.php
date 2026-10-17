@@ -38,7 +38,7 @@ final class V472Test extends IntegrationCase
     public function testSavingIsBlockedUntilTheChosenDayIsLoaded(): void
     {
         $js = $this->js();
-        $this->assertSame(2, substr_count($js, 'if (!dayReady(d)) return;'), 'Meu dia e Sexualidade');
+        $this->assertSame(3, substr_count($js, 'if (!dayReady(d)) return;'), 'Meu dia, Sexualidade e Pensamentos de morte (V4.8)');
         $this->assertStringContainsString('id="day-load-note"', (string)file_get_contents(dirname(__DIR__, 2) . '/app/views/day_panels.php'));
     }
 }

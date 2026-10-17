@@ -1,6 +1,7 @@
 <?php
 /** Gera dados e HTML de relatório (e-mail e página imprimível). */
 require_once APP_ROOT . '/lib/signals.php';
+require_once APP_ROOT . '/lib/care.php'; // V4.8: escopo do compartilhamento com profissional
 /** @return array<string,mixed> */
 function report_data(int $uid, string $fromDate, string $toDate): array {
     $st = db()->prepare('SELECT * FROM entries WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date, period');
@@ -57,6 +58,7 @@ function report_html(array $user, array $d, bool $withNotes, bool $withMediaList
         'Sono médio por noite' => $d['sleep_avg'] !== null ? fmt_num($d['sleep_avg'], 1) . ' h (' . plural_br((int)$d['sleep_nights'], 'noite', 'noites') . ')' : 'não informado',
         'Adesão à medicação' => $d['med_rate'] !== null ? $d['med_rate'] . '%' . ($d['med_source'] === 'doses' ? ' das doses marcadas' : ' dos registros') : 'não informada',
     ];
+    if (!empty($d['sleep_hidden'])) unset($sum['Sono médio por noite']); // V4.8: sono não compartilhado
     foreach ($sum as $k => $v) $h .= '<tr><td style="padding:6px;border-bottom:1px solid #e3e8ec;color:#50606c">' . e($k) . '</td><td style="padding:6px;border-bottom:1px solid #e3e8ec"><strong>' . e($v) . '</strong></td></tr>';
     $h .= '</table><h2 style="font-size:16px;margin:24px 0 8px">Distribuição</h2><table role="presentation" style="width:100%;font-size:13px;border-collapse:collapse;margin-bottom:8px">';
     $max = max($d['dist']) ?: 1;
@@ -67,7 +69,8 @@ function report_html(array $user, array $d, bool $withNotes, bool $withMediaList
     $h .= '</table><h2 style="font-size:16px;margin:28px 0 8px">Linha do tempo (Life Chart)</h2>'
         . '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th style="text-align:left;padding:4px">Data</th>';
     foreach (PERIODS as $pl) $h .= '<th style="padding:4px">' . e($pl) . '</th>';
-    $h .= '<th style="padding:4px">Sono</th></tr></thead><tbody>';
+    $noSleep = !empty($d['sleep_hidden']);
+    $h .= ($noSleep ? '' : '<th style="padding:4px">Sono</th>') . '</tr></thead><tbody>';
     foreach ($d['days'] as $date => $per) {
         $h .= '<tr><td style="padding:4px;border-top:1px solid #e3e8ec">' . fmt_date($date) . '</td>';
         // V4.2: mesmo sono por noite do resumo e do Histórico (deitar→acordar; senão o maior "horas de sono" do dia)
@@ -79,7 +82,7 @@ function report_html(array $user, array $d, bool $withNotes, bool $withMediaList
                 $h .= '<td style="padding:4px;border-top:1px solid #e3e8ec;text-align:center"><span style="display:inline-block;padding:2px 6px;border-radius:6px;background:' . MOOD_COLORS[$m] . ';color:' . $fg . '" title="' . e(mood_label($m)) . '">' . MOOD_LEVELS[$m][2] . ' ' . ($m > 0 ? '+' : ($m < 0 ? '−' : '')) . abs($m) . '</span></td>';
             } else $h .= '<td style="padding:4px;border-top:1px solid #e3e8ec;text-align:center;color:#9aa">·</td>';
         }
-        $h .= '<td style="padding:4px;border-top:1px solid #e3e8ec;text-align:center">' . e($sleep) . '</td></tr>';
+        $h .= ($noSleep ? '' : '<td style="padding:4px;border-top:1px solid #e3e8ec;text-align:center">' . e($sleep) . '</td>') . '</tr>';
     }
     $h .= '</tbody></table>';
     if ($withNotes) {
@@ -105,10 +108,15 @@ function report_html(array $user, array $d, bool $withNotes, bool $withMediaList
  * Sexualidade: apenas agregados (média do desejo, dias com sinais de risco) e só quando $withSex.
  * Substâncias: apenas dias com uso por substância e dias acima do habitual, só quando $withSubst (e módulo ligado).
  * @return array<string,mixed>
+ * V4.8 $opt: 'death' (pensamentos de morte, só com opt-in explícito), 'scope' (máscara do compartilhamento com
+ * profissional: só os dados liberados entram, inclusive no indicador) e 'floor' (nada antes desta data, nem como base).
+ * @param array{death?:bool, scope?:int|null, floor?:string|null} $opt
  */
-function markers_report_data(int $uid, string $fromDate, string $toDate, bool $withSex, bool $withSubst = false, bool $withFood = false): array {
+function markers_report_data(int $uid, string $fromDate, string $toDate, bool $withSex, bool $withSubst = false, bool $withFood = false, array $opt = []): array {
     $pdo = db();
     $base = date('Y-m-d', (int)strtotime("$fromDate -28 days"));
+    $scope = $opt['scope'] ?? null;
+    if (!empty($opt['floor']) && $base < (string)$opt['floor']) $base = (string)$opt['floor'];
     $q = function (string $sql) use ($pdo, $uid, $base, $toDate): array { $st = $pdo->prepare($sql); $st->execute([$uid, $base, $toDate]); return $st->fetchAll(); };
     $entries = $q('SELECT entry_date, mood, sleep_hours, energy, irritability FROM entries WHERE user_id = ? AND entry_date BETWEEN ? AND ?');
     $markers = $q('SELECT * FROM daily_markers WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date');
@@ -118,13 +126,24 @@ function markers_report_data(int $uid, string $fromDate, string $toDate, bool $w
     // O indicador usa sexualidade só se o módulo estiver ligado; o detalhe só aparece com opt-in do destinatário.
     $sexAll = $prefs['modules']['sexualidade'] ? $q('SELECT entry_date, libido, activities, frequency, online_minutes, different_from_usual FROM sexuality_log WHERE user_id = ? AND entry_date BETWEEN ? AND ?') : [];
     $subAll = $prefs['modules']['substancias'] ? $q('SELECT entry_date, substance, amount, mood_effect, above_usual FROM substance_log WHERE user_id = ? AND entry_date BETWEEN ? AND ?') : [];
+    $withDeath = !empty($opt['death']) && $prefs['modules']['pensamentos_morte'];
+    if ($scope !== null) { // V4.8: profissional vê só o que foi liberado
+        [$entries, $markers] = care_scope_rows((int)$scope, $entries, $markers);
+        if (!($scope & CARE_SCOPE['sexualidade'][0])) { $sexAll = []; $withSex = false; }
+        if (!($scope & CARE_SCOPE['substancias'][0])) { $subAll = []; $withSubst = false; }
+        if (!($scope & CARE_SCOPE['estresse_alimentacao'][0])) $withFood = false;
+        $withDeath = $withDeath && ($scope & CARE_SCOPE['pensamentos_morte'][0]);
+    }
+    if (!$withDeath) foreach ($markers as &$mk0) unset($mk0['th_death']);
+    unset($mk0);
     $in = function (array $r) use ($fromDate, $toDate): bool { return $r['entry_date'] >= $fromDate && $r['entry_date'] <= $toDate; };
     // V4.2: o indicador usa os MESMOS dados do Histórico (módulos ligados); o detalhe privado só aparece com opt-in.
-    $ind = array_filter(mania_indicators($entries, $markers, $sexAll, count($prefs['signs']), $subAll), function (string $d) use ($fromDate, $toDate): bool { return $d >= $fromDate && $d <= $toDate; }, ARRAY_FILTER_USE_KEY);
+    $ind = ($scope !== null && !($scope & 3)) ? [] : array_filter(mania_indicators($entries, $markers, $sexAll, count($prefs['signs']), $subAll), function (string $d) use ($fromDate, $toDate): bool { return $d >= $fromDate && $d <= $toDate; }, ARRAY_FILTER_USE_KEY);
     $mk = array_values(array_filter($markers, $in));
     $avg = function (string $col) use ($mk): ?float { $v = array_filter(array_column($mk, $col), function ($x) { return $x !== null; }); return $v ? round(array_sum($v) / count($v), 1) : null; };
     // V4.2: conta todo dia com o sinal marcado (leve, moderado ou intenso), como aparece em Meu dia.
-    $count = function (string $col) use ($mk): int { return count(array_filter($mk, function ($r) use ($col) { return (int)$r[$col] >= 1; })); };
+    $count = function (string $col) use ($mk): int { return count(array_filter($mk, function ($r) use ($col) { return (int)($r[$col] ?? 0) >= 1; })); };
+    $count2 = function (string $col) use ($mk): int { return count(array_filter($mk, function ($r) use ($col) { return (int)($r[$col] ?? 0) >= 2; })); };
     $sleeps = array_filter(array_map(function ($r) { return sleep_hours_from_times($r['bed_time'], $r['wake_time']); }, $mk), function ($x) { return $x !== null; });
     $doses = 0; $taken = 0;
     foreach ($mk as $r) foreach ((array)json_decode((string)$r['doses_json'], true) as $t) { $doses++; $taken += (int)$t; }
@@ -140,6 +159,14 @@ function markers_report_data(int $uid, string $fromDate, string $toDate, bool $w
         'sex' => null,
         'subst' => null,
         'food' => null,
+        // V4.8: pensamentos (dias com nível moderado ou mais), nicotina e, só com opt-in, pensamentos de morte
+        'thoughts' => ($scope === null || ($scope & 8)) && $prefs['modules']['pensamentos'] ? [
+            'positive' => $count2('th_positive'), 'negative' => $count2('th_negative'), 'grandiose' => $count2('th_grandiose'), 'rumination' => $count2('th_rumination'),
+            'days' => count(array_filter($mk, function ($r) { foreach (['th_positive', 'th_negative', 'th_grandiose', 'th_rumination'] as $c) if (($r[$c] ?? null) !== null) return true; return false; }))] : null,
+        'cigarettes_avg' => $avg('cigarettes'),
+        'nicotine_other_days' => count(array_filter($mk, function ($r) { return ($r['nicotine_other'] ?? null) !== null && $r['nicotine_other'] !== 'nenhuma'; })),
+        'show_habits' => $scope === null || ($scope & 16),
+        'death' => $withDeath ? ['days' => $count('th_death'), 'strong' => $count2('th_death'), 'informed' => count(array_filter($mk, function ($r) { return ($r['th_death'] ?? null) !== null; }))] : null,
     ];
     // V4.7: alimentação só com opt-in (por destinatário ou na impressão) e com o módulo ligado; só contagens de dias
     if ($withFood && $prefs['modules']['alimentacao']) {
@@ -165,24 +192,40 @@ function markers_report_data(int $uid, string $fromDate, string $toDate, bool $w
         $d['sex'] = ['days' => count($sx), 'libido_avg' => $lib ? round(array_sum($lib) / count($lib), 1) : null, 'risk_days' => $risk,
             'diff_days' => count(array_filter($sx, function ($r) { return (int)$r['different_from_usual'] === 1; }))];
     }
+    $d['scope'] = $scope;
     return $d;
 }
 
 /** @param array<string,mixed> $m */
 function markers_report_html(array $m): string {
     if (!$m['days'] && !$m['attention'] && !$m['alert'] && !($m['sex']['days'] ?? 0) && !($m['subst']['days'] ?? 0) && !($m['food']['days'] ?? 0)) return '';
+    $sc = $m['scope'] ?? null; // V4.8: no compartilhamento com profissional, só as linhas liberadas
+    $can = function (int $bit) use ($sc): bool { return $sc === null || ($sc & $bit) !== 0; };
     $row = function (string $k, string $v): string { return '<tr><td style="padding:6px;border-bottom:1px solid #e3e8ec;color:#50606c">' . e($k) . '</td><td style="padding:6px;border-bottom:1px solid #e3e8ec"><strong>' . e($v) . '</strong></td></tr>'; };
     $n = function ($v, string $suf = '') { return $v === null ? '—' : fmt_num($v, 1) . $suf; };
     $h = '<h2 style="font-size:16px;margin:28px 0 8px">Marcadores diários e sinais de alerta</h2><table role="presentation" style="width:100%;border-collapse:collapse;font-size:14px">';
     $h .= $row('Dias com marcadores', (string)$m['days']);
     $h .= $row('Indicador de (hipo)mania', plural_br((int)$m['alert'], 'dia', 'dias') . ' em alerta · ' . (int)$m['attention'] . ' em atenção');
     if ($m['alert_days']) $h .= $row('Dias sinalizados', implode(', ', array_map('fmt_date', array_slice($m['alert_days'], -10))));
-    $h .= $row('Luz do sol (média)', $n($m['sun_avg'], ' min'));
-    $h .= $row('Cafeína · Álcool (média/dia)', $n($m['caffeine_avg'], ' xíc.') . ' · ' . $n($m['alcohol_avg'], ' doses'));
-    $h .= $row('Exercício (média)', $n($m['exercise_avg'], ' min'));
-    $h .= $row('Dias com pensamentos / fala acelerados', $m['racing'] . ' / ' . $m['speech']);
-    $h .= $row('Dias com gastos impulsivos · irritabilidade', $m['spending'] . ' · ' . $m['irrit']);
-    $h .= $row('Dias com estresse', (string)$m['stress']);
+    if ($can(2) && ($m['sleep_times_avg'] ?? null) !== null && $sc !== null) $h .= $row('Sono pelos horários (média)', $n($m['sleep_times_avg'], ' h'));
+    if ($can(1)) $h .= $row('Luz do sol (média)', $n($m['sun_avg'], ' min'));
+    if ($m['show_habits'] ?? true) {
+        $h .= $row('Cafeína · Álcool (média/dia)', $n($m['caffeine_avg'], ' xíc.') . ' · ' . $n($m['alcohol_avg'], ' doses'));
+        $h .= $row('Nicotina — cigarros (média/dia) · dias com outra forma', $n($m['cigarettes_avg'] ?? null, ' cig.') . ' · ' . (int)($m['nicotine_other_days'] ?? 0));
+    }
+    if ($can(1)) $h .= $row('Exercício (média)', $n($m['exercise_avg'], ' min'));
+    if ($can(1) || $can(8)) $h .= $row($can(1) ? 'Dias com pensamentos / fala acelerados' : 'Dias com pensamentos acelerados', $can(1) ? $m['racing'] . ' / ' . $m['speech'] : (string)$m['racing']);
+    if ($can(1)) $h .= $row('Dias com gastos impulsivos · irritabilidade', $m['spending'] . ' · ' . $m['irrit']);
+    if ($can(4)) $h .= $row('Dias com estresse', (string)$m['stress']);
+    if (($m['thoughts'] ?? null) !== null && $m['thoughts']['days']) {
+        $t = $m['thoughts'];
+        $h .= $row('Pensamentos — dias com positivos / negativos (moderado ou mais)', $t['positive'] . ' / ' . $t['negative']);
+        $h .= $row('Pensamentos — dias com grandiosidade / ruminação ou culpa (moderado ou mais)', $t['grandiose'] . ' / ' . $t['rumination']);
+    }
+    if (($m['death'] ?? null) !== null) {
+        $x = $m['death'];
+        $h .= $row('Pensamentos de morte — dias com algum nível / moderado ou mais', $x['days'] . ' / ' . $x['strong'] . ' (de ' . plural_br((int)$x['informed'], 'dia informado', 'dias informados') . ')');
+    }
     if (($m['food'] ?? null) !== null) {
         $f = $m['food'];
         $h .= $row('Alimentação — dias com doces / ultraprocessados (moderado ou mais)', $f['sweets'] . ' / ' . $f['processed']);

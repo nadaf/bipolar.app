@@ -11,15 +11,20 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
     $stamp = (new DateTime('now', $utz))->format('Y-m-d-His'); // nome do arquivo no fuso do usuário
     $fmt = (string)($_GET['format'] ?? 'json');
     // V4.7: estresse e alimentação por período entram nas mesmas linhas do CSV (data + período)
-    $pmRows = $q('SELECT entry_date, period, stress_level, stress_note, food_sweets, food_processed, food_binge, updated_at FROM period_markers WHERE user_id = ? ORDER BY entry_date, period');
+    $pmRows = $q('SELECT entry_date, period, ' . implode(', ', PERIOD_MARKER_FIELDS) . ', updated_at FROM period_markers WHERE user_id = ? ORDER BY entry_date, period');
+    // V4.8: cigarros e outra forma de nicotina (do dia) entram em cada linha do dia, junto da cafeína
+    $dayRows = [];
+    foreach ($q('SELECT entry_date, caffeine_cups, cigarettes, nicotine_other FROM daily_markers WHERE user_id = ?') as $r) $dayRows[(string)$r['entry_date']] = $r;
     $pm = [];
     foreach ($pmRows as $r) $pm[$r['entry_date'] . '|' . $r['period']] = $r;
     /** Formato Excel-BR: separador ";", vírgula decimal, datas dd/mm/aaaa, UTF-8 com BOM */
-    $csv = function (array $entries) use ($u, $pm): string {
+    $csv = function (array $entries) use ($u, $pm, $dayRows): string {
         $out = fopen('php://temp', 'w+');
         if ($out === false) return '';
         fwrite($out, "\xEF\xBB\xBF");
-        fputcsv($out, ['data', 'período', 'humor', 'descrição', 'sono_h', 'irritabilidade', 'ansiedade', 'energia', 'medicação', 'anotação', 'etiquetas', 'criado_em (' . tz_label_br((string)$u['timezone']) . ')', 'estresse', 'acontecimento', 'doces', 'ultraprocessados', 'comeu_fora_de_hora'], ';', '"', '\\');
+        fputcsv($out, ['data', 'período', 'humor', 'descrição', 'sono_h', 'irritabilidade', 'ansiedade', 'energia', 'medicação', 'anotação', 'etiquetas', 'criado_em (' . tz_label_br((string)$u['timezone']) . ')', 'estresse', 'acontecimento', 'doces', 'ultraprocessados', 'comeu_fora_de_hora',
+            'pens_positivos', 'pens_negativos', 'pens_acelerados', 'pens_grandiosidade', 'pens_ruminacao', 'pens_morte', 'cafe_xicaras_dia', 'cigarros_dia', 'outra_nicotina_dia'], ';', '"', '\\');
+        $th = function ($v): string { return $v === null ? '' : (THOUGHT_LEVELS[(int)$v] ?? (string)$v); };
         $lv = function ($v): string { return $v === null ? '' : (FOOD_LEVELS[(int)$v] ?? (string)$v); };
         $tzUser = new DateTimeZone((string)$u['timezone']);
         foreach ($entries as $r) {
@@ -27,7 +32,12 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
             fputcsv($out, [date('d/m/Y', (int)strtotime((string)$r['entry_date'])), PERIODS[$r['period']], $r['mood'], mood_label((int)$r['mood']), fmt_num($r['sleep_hours'], 1), $r['irritability'], $r['anxiety'], $r['energy'], $r['medication_taken'] === null ? '' : ($r['medication_taken'] ? 'sim' : 'não'), $r['note'], $r['tags'], $created,
                 $pm[$r['entry_date'] . '|' . $r['period']]['stress_level'] ?? '', $pm[$r['entry_date'] . '|' . $r['period']]['stress_note'] ?? '',
                 $lv($pm[$r['entry_date'] . '|' . $r['period']]['food_sweets'] ?? null), $lv($pm[$r['entry_date'] . '|' . $r['period']]['food_processed'] ?? null),
-                isset($pm[$r['entry_date'] . '|' . $r['period']]['food_binge']) ? ((int)$pm[$r['entry_date'] . '|' . $r['period']]['food_binge'] ? 'sim' : 'não') : ''], ';', '"', '\\');
+                isset($pm[$r['entry_date'] . '|' . $r['period']]['food_binge']) ? ((int)$pm[$r['entry_date'] . '|' . $r['period']]['food_binge'] ? 'sim' : 'não') : '',
+                $th($pm[$r['entry_date'] . '|' . $r['period']]['th_positive'] ?? null), $th($pm[$r['entry_date'] . '|' . $r['period']]['th_negative'] ?? null),
+                $th($pm[$r['entry_date'] . '|' . $r['period']]['th_racing'] ?? null), $th($pm[$r['entry_date'] . '|' . $r['period']]['th_grandiose'] ?? null),
+                $th($pm[$r['entry_date'] . '|' . $r['period']]['th_rumination'] ?? null), $th($pm[$r['entry_date'] . '|' . $r['period']]['th_death'] ?? null),
+                $dayRows[$r['entry_date']]['caffeine_cups'] ?? '', $dayRows[$r['entry_date']]['cigarettes'] ?? '',
+                isset($dayRows[$r['entry_date']]['nicotine_other']) ? (NICOTINE_OTHER[$dayRows[$r['entry_date']]['nicotine_other']] ?? '') : ''], ';', '"', '\\');
         }
         rewind($out);
         $s = (string)stream_get_contents($out);
@@ -53,8 +63,8 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         'identidades' => $q('SELECT provider, created_at FROM oauth_identities WHERE user_id = ?'),
         'registros' => $entries,
         'midias' => $q('SELECT id, kind, mime, size_bytes, original_name, created_at FROM media WHERE user_id = ?'),
-        'destinatarios' => $q('SELECT name, email, role, frequency, interval_days, weekday, include_notes, include_markers, include_sexuality, include_substances, include_food, include_alerts, include_custom_alerts, invite_status, confirmed_at, last_sent_at FROM recipients WHERE user_id = ?'),
-        'marcadores_diarios' => $q('SELECT entry_date, bed_time, wake_time, sleep_quality, sun_minutes, sun_period, caffeine_cups, alcohol_units, substances, exercise_minutes, racing_thoughts, fast_speech, impulsive_spending, spending_amount, irritability_day, cycle_phase, stress_level, stress_note, food_sweets, food_processed, food_binge, doses_json, signs_json, updated_at FROM daily_markers WHERE user_id = ? ORDER BY entry_date'),
+        'destinatarios' => $q('SELECT name, email, role, frequency, interval_days, weekday, include_notes, include_markers, include_sexuality, include_substances, include_food, include_death, include_alerts, include_custom_alerts, invite_status, confirmed_at, last_sent_at FROM recipients WHERE user_id = ?'),
+        'marcadores_diarios' => $q('SELECT entry_date, bed_time, wake_time, sleep_quality, sun_minutes, sun_period, caffeine_cups, alcohol_units, substances, exercise_minutes, racing_thoughts, fast_speech, impulsive_spending, spending_amount, irritability_day, cycle_phase, stress_level, stress_note, food_sweets, food_processed, food_binge, th_positive, th_negative, th_grandiose, th_rumination, th_death, cigarettes, nicotine_other, doses_json, signs_json, updated_at FROM daily_markers WHERE user_id = ? ORDER BY entry_date'),
         'marcadores_por_periodo' => $pmRows,
         'sexualidade' => $q('SELECT entry_date, libido, activities, frequency, online_minutes, different_from_usual, note, updated_at FROM sexuality_log WHERE user_id = ? ORDER BY entry_date'),
         'substancias' => $q('SELECT entry_date, period, substance, form, other_name, amount, reason, mood_effect, above_usual, created_at FROM substance_log WHERE user_id = ? ORDER BY entry_date, id'),
@@ -64,6 +74,9 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         'lembretes' => $q('SELECT time_local, days, channel, active FROM reminders WHERE user_id = ?'),
         'notificacoes_push' => $q('SELECT created_at FROM push_subscriptions WHERE user_id = ?'),
         'alertas_personalizados' => $q('SELECT name, logic, conditions_json, severity, notify_push, notify_email, cooldown_days, active, last_fired_on, created_at FROM alert_rules WHERE user_id = ? ORDER BY id'),
+        // V4.8: com quem você compartilhou e quem viu o quê e quando
+        'compartilhamentos_profissionais' => $q('SELECT s.status, s.scope_mask, s.data_from, s.expires_on, s.created_at, s.accepted_at, s.ended_at, s.ended_by, COALESCE(p.name, s.invite_email) AS profissional FROM care_shares s LEFT JOIN users p ON p.id = s.professional_id WHERE s.patient_id = ? ORDER BY s.id'),
+        'acessos_profissionais' => $q('SELECT actor_name, action, scope_mask, range_from, range_to, created_at FROM care_access_log WHERE patient_id = ? ORDER BY id'),
         'observacao' => 'O pacote ZIP (Conta > Seus dados) traz este arquivo, o CSV e todos os áudios, vídeos e imagens.',
     ];
     if ($fmt === 'zip') {
@@ -111,12 +124,13 @@ if ($action === 'settings' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($action === 'prefs' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $in = json_input();
     if (!array_key_exists('subst_favorites', $in)) $in['subst_favorites'] = user_prefs($u)['subst_favorites']; // favoritos são editados no próprio módulo
+    foreach (['trusted_contact', 'death_blur'] as $keep) if (!array_key_exists($keep, $in)) $in[$keep] = user_prefs($u)[$keep]; // V4.8
     $p = normalize_prefs($in);
     // mantém as chaves editadas em outras telas (alertas, bloqueio, IA, ajuste de sensibilidade)
     $raw = json_decode((string)($u['prefs'] ?? ''), true);
     $all = array_merge(is_array($raw) ? $raw : [], $p);
     $pdo->prepare('UPDATE users SET prefs = ? WHERE id = ?')->execute([json_encode($all, JSON_UNESCAPED_UNICODE), $u['id']]);
-    if (!$p['modules']['sexualidade'] && !$p['modules']['substancias']) unset($_SESSION['sex_unlocked']);
+    if (!$p['modules']['sexualidade'] && !$p['modules']['substancias'] && !$p['modules']['pensamentos_morte']) unset($_SESSION['sex_unlocked']);
     json_out(['ok' => true, 'prefs' => $p]);
 }
 if ($action === 'sexpin' && $_SERVER['REQUEST_METHOD'] === 'POST') {

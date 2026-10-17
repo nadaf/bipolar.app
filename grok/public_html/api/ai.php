@@ -83,7 +83,7 @@ if ($action === 'explicar') {
     if (!$a) json_out(['erro' => 'Alerta não encontrado.'], 404);
     // V4.2: alerta com dados privados só vai para a IA desbloqueado E com a categoria autorizada
     $pm = (int)$a['is_private'];
-    if ($pm && (!private_unlocked($u) || (($pm & 1) && !in_array('sexualidade', $s['categories'], true)) || (($pm & 2) && !in_array('substancias', $s['categories'], true))))
+    if ($pm && (!private_unlocked($u) || (($pm & 1) && !in_array('sexualidade', $s['categories'], true)) || (($pm & 2) && !in_array('substancias', $s['categories'], true)) || (($pm & 4) && !in_array('pensamentos_morte', $s['categories'], true))))
         json_out(['erro' => 'Este alerta usa dados privados que você não autorizou enviar à IA (ou as seções estão bloqueadas).'], 403);
     $data .= "\n\nALERTA: " . $a['title'] . ' (nível ' . $a['severity'] . '). ' . $a['explanation'];
 }

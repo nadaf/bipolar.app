@@ -8,6 +8,7 @@ $pdo = db();
 $prefs = user_prefs($u);
 $sexOn = $prefs['modules']['sexualidade'];
 $subOn = $prefs['modules']['substancias'];
+$deathOn = $prefs['modules']['pensamentos_morte']; // V4.8: privado, atrás do PIN
 $m = $_SERVER['REQUEST_METHOD'];
 $action = (string)($_GET['action'] ?? '');
 
@@ -28,7 +29,7 @@ if ($m === 'GET') {
     $entries = $q('SELECT entry_date, period, mood, sleep_hours, energy, irritability FROM entries WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date');
     $markers = $q('SELECT * FROM daily_markers WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date');
     // V4.7: estresse/acontecimentos e alimentação por período (só o intervalo pedido)
-    $stp = $pdo->prepare('SELECT entry_date, period, stress_level, stress_note, food_sweets, food_processed, food_binge FROM period_markers WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date, period');
+    $stp = $pdo->prepare('SELECT entry_date, period, ' . implode(', ', PERIOD_MARKER_FIELDS) . ' FROM period_markers WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date, period');
     $stp->execute([$u['id'], $from, $to]);
     $periodMarkers = $stp->fetchAll();
     $sexAll = $sexOn ? $q('SELECT entry_date, version, libido, activities, frequency, online_minutes, different_from_usual, note FROM sexuality_log WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date') : [];
@@ -41,6 +42,13 @@ if ($m === 'GET') {
     unset($mk);
     $unlocked = sex_unlocked($u);
     $subUnlocked = $subOn && $unlocked;
+    // V4.8: pensamentos de morte só saem com o módulo ligado E as seções privadas desbloqueadas
+    if (!($deathOn && $unlocked)) {
+        foreach ($markers as &$mk) unset($mk['th_death']);
+        unset($mk);
+        foreach ($periodMarkers as &$pmk) unset($pmk['th_death']);
+        unset($pmk);
+    }
     json_out([
         'markers' => $inRange($markers),
         'period_markers' => $periodMarkers,
@@ -48,6 +56,7 @@ if ($m === 'GET') {
         'substances' => $subUnlocked ? $inRange($subAll) : [],
         'subst_summary' => $subUnlocked && !empty($_GET['resumo']) ? substance_mood_summary($inRange($subAll), $inRange($entries)) : [],
         'subst' => ['enabled' => $subOn, 'locked' => $subOn && !$unlocked, 'blur' => $prefs['subst_blur'], 'favorites' => $prefs['subst_favorites']],
+        'death' => ['enabled' => $deathOn, 'locked' => $deathOn && !$unlocked, 'blur' => $prefs['death_blur']],
         'sex' => ['enabled' => $sexOn, 'locked' => $sexOn && !$unlocked, 'has_pin' => !empty($u['sex_pin_hash']), 'has_passkey' => webauthn_count($u) > 0, 'blur' => $prefs['sex_blur']],
         'indicators' => array_filter($ind, function (string $d) use ($from, $to): bool { return $d >= $from && $d <= $to; }, ARRAY_FILTER_USE_KEY) ?: new stdClass(),
         'warning' => $warning,
@@ -77,13 +86,19 @@ if ($m === 'POST' && $action === 'lock') {
  */
 function sync_alcohol(PDO $pdo, int $uid, string $date, string $sub = 'alcool'): void
 {
-    $col = $sub === 'cafe' ? 'caffeine_cups' : 'alcohol_units';
-    $max = $sub === 'cafe' ? 30 : 50;
-    $st = $pdo->prepare('SELECT COUNT(*), COALESCE(SUM(COALESCE(amount, 1)), 0) FROM substance_log WHERE user_id = ? AND entry_date = ? AND substance = ?');
+    $col = ['cafe' => 'caffeine_cups', 'tabaco' => 'cigarettes'][$sub] ?? 'alcohol_units';
+    $max = ['cafe' => 30, 'tabaco' => 100][$sub] ?? 50;
+    // V4.8: tabaco → cigarros do dia (vape/pod não conta como cigarro)
+    $st = $pdo->prepare('SELECT COUNT(*), COALESCE(SUM(COALESCE(amount, 1)), 0) FROM substance_log WHERE user_id = ? AND entry_date = ? AND substance = ?' . ($sub === 'tabaco' ? " AND (form IS NULL OR form <> 'vape_pod')" : ''));
     $st->execute([$uid, $date, $sub]);
     [$n, $sum] = $st->fetch(PDO::FETCH_NUM);
     if ((int)$n === 0) return;
-    $pdo->prepare("INSERT INTO daily_markers (user_id, entry_date, $col) VALUES (?,?,?) ON DUPLICATE KEY UPDATE $col = VALUES($col)")
+    $sql = [
+        'caffeine_cups' => 'INSERT INTO daily_markers (user_id, entry_date, caffeine_cups) VALUES (?,?,?) ON DUPLICATE KEY UPDATE caffeine_cups = VALUES(caffeine_cups)',
+        'cigarettes' => 'INSERT INTO daily_markers (user_id, entry_date, cigarettes) VALUES (?,?,?) ON DUPLICATE KEY UPDATE cigarettes = VALUES(cigarettes)',
+        'alcohol_units' => 'INSERT INTO daily_markers (user_id, entry_date, alcohol_units) VALUES (?,?,?) ON DUPLICATE KEY UPDATE alcohol_units = VALUES(alcohol_units)',
+    ][$col];
+    $pdo->prepare($sql)
         ->execute([$uid, $date, min($max, (int)round((float)$sum))]);
 }
 if ($m === 'POST' && in_array($action, ['subst_add', 'subst_delete', 'subst_fav', 'subst_wipe'], true)) {
@@ -108,7 +123,7 @@ if ($m === 'POST' && in_array($action, ['subst_add', 'subst_delete', 'subst_fav'
         $row = $st->fetch();
         if (!$row) json_out(['erro' => 'Registro não encontrado.'], 404);
         $pdo->prepare('DELETE FROM substance_log WHERE id = ? AND user_id = ?')->execute([(int)$in['id'], $u['id']]);
-        if (in_array($row['substance'], ['alcool', 'cafe'], true)) sync_alcohol($pdo, (int)$u['id'], (string)$row['entry_date'], (string)$row['substance']);
+        if (in_array($row['substance'], ['alcool', 'cafe', 'tabaco'], true)) sync_alcohol($pdo, (int)$u['id'], (string)$row['entry_date'], (string)$row['substance']);
         json_out(['ok' => true]);
     }
     if (!rate_limit('subst_' . $u['id'], 300, 3600)) json_out(['erro' => 'Muitos envios em pouco tempo. Tente mais tarde.'], 429);
@@ -117,7 +132,7 @@ if ($m === 'POST' && in_array($action, ['subst_add', 'subst_delete', 'subst_fav'
     $pdo->prepare('INSERT INTO substance_log (user_id, entry_date, period, substance, form, other_name, amount, reason, mood_effect, above_usual) VALUES (?,?,?,?,?,?,?,?,?,?)')
         ->execute([$u['id'], $v['entry_date'], $v['period'], $v['substance'], $v['form'], $v['other_name'], $v['amount'], $v['reason'], $v['mood_effect'], $v['above_usual']]);
     $id = (int)$pdo->lastInsertId();
-    if (in_array($v['substance'], ['alcool', 'cafe'], true)) sync_alcohol($pdo, (int)$u['id'], $v['entry_date'], $v['substance']);
+    if (in_array($v['substance'], ['alcool', 'cafe', 'tabaco'], true)) sync_alcohol($pdo, (int)$u['id'], $v['entry_date'], $v['substance']);
     json_out(['ok' => true, 'id' => $id, 'alertas_personalizados' => custom_after_save($pdo, $u, (string)$v['entry_date'])]);
 }
 
@@ -147,6 +162,13 @@ if ($m === 'POST' && $action === 'sex_delete') {
 if ($m === 'POST') {
     if (!rate_limit('day_' . $u['id'], 240, 3600)) json_out(['erro' => 'Muitos envios em pouco tempo. Tente mais tarde.'], 429);
     $din = json_input();
+    if (array_key_exists('th_death', $din)) { // V4.8: item privado
+        if (!$deathOn) json_out(['erro' => 'O módulo “Pensamentos de morte ou suicídio” está desligado. Ative em Conta.'], 403);
+        if (!sex_unlocked($u)) json_out(['erro' => 'Desbloqueie com seu PIN.', 'bloqueado' => true], 423);
+    }
+    // V4.8: com "Pensamentos por período" desligado, o app usa o campo do dia (racing_thoughts) e
+    // os itens por período não são gravados (nem zeram o campo do dia)
+    if (!user_prefs($u)['modules']['pensamentos']) foreach (['th_positive', 'th_negative', 'th_racing', 'th_grandiose', 'th_rumination'] as $k) unset($din[$k]);
     [$err, $v] = validate_day($din);
     if ($err !== null) json_out(['erro' => $err], 422);
     [$perr, $pv] = validate_period_markers($din, (string)$u['timezone']); // V4.7: estresse e alimentação por período

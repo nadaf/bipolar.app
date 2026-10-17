@@ -15,7 +15,9 @@ $scale = function (string $id, string $name, string $label, ?array $levels = nul
     return $h . '</div></fieldset>';
 };
 $foodLv = ['' => '—', '0' => 'Nenhum', '1' => 'Pouco', '2' => 'Moderado', '3' => 'Muito'];
-$anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] || $mods['estresse'] || $mods['alimentacao'] || $mods['medicacao'] || $mods['sinais'] || $mods['ciclo'];
+$anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] || $mods['pensamentos'] || $mods['estresse'] || $mods['alimentacao'] || $mods['medicacao'] || $mods['sinais'] || $mods['ciclo'];
+$thLv = ['' => '—'] + array_map('strval', THOUGHT_LEVELS);
+$tc = $pf['trusted_contact'];
 ?>
 <div id="early-warning" class="notice warn-early hidden" role="status" aria-live="polite"></div>
 
@@ -25,7 +27,7 @@ $anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] ||
     <a href="#conta-modulos" class="small" id="link-modulos">Escolher o que aparece</a>
   </div>
   <p id="day-load-note" class="notice small hidden" role="status" aria-live="polite"></p>
-  <p class="small">Tudo opcional. Preencha só o que fizer sentido. Sono, sol, hábitos, pensamentos e medicação valem para o dia inteiro. <strong>Acontecimentos/estresse e Alimentação são do período</strong> escolhido em “Como você está?” (<span class="day-period-name">—</span>).</p>
+  <p class="small">Tudo opcional. Preencha só o que fizer sentido. Sono, sol, hábitos, fala/gastos e medicação valem para o dia inteiro. <strong>Pensamentos, acontecimentos/estresse e alimentação são do período</strong> escolhido em “Como você está?” (<span class="day-period-name">—</span>).</p>
 
   <details class="extras" data-mod="sono"<?= $hide('sono') ?>>
     <summary>😴 Sono</summary>
@@ -46,9 +48,11 @@ $anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] ||
   </details>
 
   <details class="extras" data-mod="habitos"<?= $hide('habitos') ?>>
-    <summary>☕ Cafeína, álcool e exercício</summary>
+    <summary>☕ Cafeína, nicotina, álcool e exercício</summary>
     <div class="grid3">
       <div class="field"><label for="d-caf">Cafés / energéticos (xícaras)</label><input type="number" id="d-caf" name="caffeine_cups" min="0" max="30" inputmode="numeric"></div>
+      <div class="field"><label for="d-cig">Cigarros (unidades)</label><input type="number" id="d-cig" name="cigarettes" min="0" max="100" step="1" inputmode="numeric"></div>
+      <div class="field"><label for="d-nic">Outra forma de nicotina</label><select id="d-nic" name="nicotine_other"><option value="">—</option><?php foreach (NICOTINE_OTHER as $k => $l): ?><option value="<?= $k ?>"><?= e($l) ?></option><?php endforeach; ?></select></div>
       <div class="field"><label for="d-alc">Álcool (doses)</label><input type="number" id="d-alc" name="alcohol_units" min="0" max="50" inputmode="numeric"<?= $mods['substancias'] ? ' readonly aria-describedby="d-alc-hint"' : '' ?>></div>
       <div class="field"><label for="d-ex">Exercício (minutos)</label><input type="number" id="d-ex" name="exercise_minutes" min="0" max="960" step="5" inputmode="numeric"></div>
     </div>
@@ -56,12 +60,18 @@ $anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] ||
   </details>
 
   <details class="extras" data-mod="mente"<?= $hide('mente') ?>>
-    <summary>⚡ Pensamentos, fala, gastos e irritação</summary>
-    <?= $scale('d-rt', 'racing_thoughts', 'Pensamentos acelerados') ?>
+    <summary>⚡ <?= $mods['pensamentos'] ? 'Fala, gastos e irritação' : 'Pensamentos, fala, gastos e irritação' ?></summary>
+    <?php if (!$mods['pensamentos']): // V4.8: com "Pensamentos por período" ligado, os acelerados são marcados por período ?><?= $scale('d-rt', 'racing_thoughts', 'Pensamentos acelerados') ?><?php endif; ?>
     <?= $scale('d-fs', 'fast_speech', 'Fala acelerada / falando mais que o normal') ?>
     <?= $scale('d-sp', 'impulsive_spending', 'Gastos por impulso') ?>
     <div class="field"><label for="d-spv">Quanto gastei por impulso (R$, opcional)</label><input type="number" id="d-spv" name="spending_amount" min="0" step="0.01" inputmode="decimal"></div>
     <?= $scale('d-ir', 'irritability_day', 'Irritabilidade no dia') ?>
+  </details>
+
+  <details class="extras" data-mod="pensamentos" data-per-period<?= $hide('pensamentos') ?>>
+    <summary>💭 Pensamentos <span class="hint">· <span class="day-period-name">—</span></span></summary>
+    <p class="small">Como estiveram seus pensamentos neste período? Marque só o que fizer sentido.</p>
+    <?php foreach (THOUGHT_FIELDS as $k => [$l, $help]): if ($k === 'th_death') continue; ?><?= $scale('d-' . str_replace('_', '', $k), $k, $l . ($help ? ' (' . $help . ')' : ''), $thLv) ?><?php endforeach; ?>
   </details>
 
   <details class="extras" data-mod="estresse" data-per-period<?= $hide('estresse') ?>>
@@ -173,4 +183,36 @@ $anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] ||
     <ul id="subst-list" class="list"></ul>
   </div>
 </form>
+
+<form id="form-death" class="card sex-card death-card<?= $mods['pensamentos_morte'] ? '' : ' hidden' ?><?= $pf['death_blur'] ? ' blurred' : '' ?>" novalidate aria-labelledby="death-title">
+  <div class="row between">
+    <h2 id="death-title">🔒 Pensamentos de morte <span class="hint">(privado · <span class="day-period-name">—</span>)</span></h2>
+    <button type="button" class="btn btn-ghost btn-sm" id="death-hide" aria-controls="death-body" aria-label="<?= $pf['death_blur'] ? 'Revelar' : 'Ocultar' ?> dados de Pensamentos de morte"><?= $pf['death_blur'] ? 'Revelar' : 'Ocultar' ?></button>
+  </div>
+  <div id="death-locked" class="sex-locked hidden">
+    <p>Esta seção está protegida pelo seu PIN.</p>
+    <div class="row pin-row"><div class="field"><label for="death-pin">PIN</label><input id="death-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8"></div><button type="button" class="btn btn-primary" id="death-unlock">Desbloquear</button></div>
+  </div>
+  <button type="button" class="btn sex-reveal" id="death-reveal">Toque para mostrar</button>
+  <div id="death-body" class="sex-body">
+    <p class="small">Sem julgamento. Registrar ajuda a perceber quando pedir ajuda. Ninguém é avisado automaticamente.</p>
+    <?= $scale('d-thd', 'th_death', 'Pensamentos de morte ou suicídio neste período', $thLv) ?>
+    <div class="form-actions"><button type="submit" class="btn btn-primary">Salvar (privado)</button></div>
+  </div>
+</form>
+
+<dialog id="support-panel" class="dlg support-panel" role="alertdialog" aria-modal="true" aria-labelledby="support-title" aria-describedby="support-desc">
+  <h2 id="support-title" tabindex="-1">Você não está sozinho(a) 💛</h2>
+  <div id="support-desc">
+    <p>Obrigado por registrar. Pensamentos assim são difíceis, e conversar com alguém agora pode ajudar.</p>
+    <p class="support-urgent"><strong>Se estiver em perigo agora, ligue 192 ou vá ao pronto-socorro.</strong></p>
+  </div>
+  <ul class="support-list">
+    <li><a class="btn btn-primary" href="tel:188">Ligar para o CVV 188</a> <span class="small">24 horas, gratuito. Também por chat em <a href="https://cvv.org.br" target="_blank" rel="noopener">cvv.org.br</a>.</span></li>
+    <li><a class="btn" href="tel:192">Ligar para o SAMU 192</a></li>
+    <?php if ($tc['phone'] !== ''): ?><li><a class="btn" href="tel:<?= e($tc['phone']) ?>">Ligar para <?= e($tc['name'] !== '' ? $tc['name'] : 'meu contato de confiança') ?></a></li><?php endif; ?>
+  </ul>
+  <p class="small">Ninguém foi avisado. Este painel aparece só para você.</p>
+  <div class="form-actions"><button type="button" class="btn btn-ghost" id="support-close">Fechar</button></div>
+</dialog>
 <?php }

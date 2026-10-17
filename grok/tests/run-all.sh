@@ -18,6 +18,7 @@ step "Regressão V4.4 (verificação em duas etapas, CSP + axe)" bash -c 'cd js 
 step "Regressão V4.5 (páginas públicas, CSP + axe + capturas)" bash -c 'cd js && node regress-v45.mjs'
 step "Regressão V4.7 (toast + estresse/alimentação por período, 412x915)" bash -c 'cd js && node regress-v47.mjs'
 step "Regressão V4.7.2 (Meu dia segue a data escolhida, 412x915)" bash -c 'cd js && node regress-v472.mjs'
+step "Regressão V4.8 (pensamentos, nicotina, painel de apoio offline, compartilhamento com profissional, 412x915 + axe)" bash -c 'cd js && node regress-v48.mjs'
 step "Acessibilidade (axe-core)" bash -c 'cd js && node a11y.mjs | tail -5'
 step "Lighthouse + PWA" bash -c 'cd js && node lighthouse.mjs'
 echo; [ $status -eq 0 ] && echo "TUDO VERDE ✅" || echo "HÁ FALHAS ❌"

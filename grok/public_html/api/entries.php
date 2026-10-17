@@ -10,13 +10,28 @@ if ($m === 'GET') {
     $to = (string)($_GET['to'] ?? date('Y-m-d', strtotime('+1 day')));
     if (!valid_iso_date($from) || !valid_iso_date($to)) json_out(['erro' => 'Datas inválidas.'], 422);
     // V4.7: o Histórico mostra junto o estresse e a alimentação daquele período (period_markers)
+    // V4.8: + pensamentos do período e nicotina do dia; pensamentos de morte só com o módulo ligado e as seções privadas desbloqueadas
+    $hp = user_prefs($u);
+    $death = $hp['modules']['pensamentos_morte'] && private_unlocked($u);
     try {
         $st = $pdo->prepare('SELECT e.id, e.version, e.entry_date, e.period, e.mood, e.sleep_hours, e.irritability, e.anxiety, e.energy, e.medication_taken, e.note, e.tags,
-            pm.stress_level AS pm_stress, pm.stress_note AS pm_stress_note, pm.food_sweets AS pm_sweets, pm.food_processed AS pm_processed, pm.food_binge AS pm_binge
+            pm.stress_level AS pm_stress, pm.stress_note AS pm_stress_note, pm.food_sweets AS pm_sweets, pm.food_processed AS pm_processed, pm.food_binge AS pm_binge,
+            pm.th_positive AS pm_th_positive, pm.th_negative AS pm_th_negative, pm.th_racing AS pm_th_racing, pm.th_grandiose AS pm_th_grandiose, pm.th_rumination AS pm_th_rumination'
+            . ($death ? ', pm.th_death AS pm_th_death' : '') . ', dm.cigarettes AS dm_cigarettes, dm.nicotine_other AS dm_nicotine_other
             FROM entries e LEFT JOIN period_markers pm ON pm.user_id = e.user_id AND pm.entry_date = e.entry_date AND pm.period = e.period
+            LEFT JOIN daily_markers dm ON dm.user_id = e.user_id AND dm.entry_date = e.entry_date
             WHERE e.user_id = ? AND e.entry_date BETWEEN ? AND ? ORDER BY e.entry_date, e.period');
         $st->execute([$u['id'], $from, $to]);
-    } catch (PDOException $e) { // migração V4.7 ainda não aplicada
+    } catch (PDOException $e) { // migração V4.8 ainda não aplicada
+        try {
+            $st = $pdo->prepare('SELECT e.id, e.version, e.entry_date, e.period, e.mood, e.sleep_hours, e.irritability, e.anxiety, e.energy, e.medication_taken, e.note, e.tags,
+                pm.stress_level AS pm_stress, pm.stress_note AS pm_stress_note, pm.food_sweets AS pm_sweets, pm.food_processed AS pm_processed, pm.food_binge AS pm_binge
+                FROM entries e LEFT JOIN period_markers pm ON pm.user_id = e.user_id AND pm.entry_date = e.entry_date AND pm.period = e.period
+                WHERE e.user_id = ? AND e.entry_date BETWEEN ? AND ? ORDER BY e.entry_date, e.period');
+            $st->execute([$u['id'], $from, $to]);
+        } catch (PDOException $e2) { $st = null; }
+    }
+    if ($st === null) { // migração V4.7 ainda não aplicada
         $st = $pdo->prepare('SELECT id, version, entry_date, period, mood, sleep_hours, irritability, anxiety, energy, medication_taken, note, tags FROM entries WHERE user_id = ? AND entry_date BETWEEN ? AND ? ORDER BY entry_date, period');
         $st->execute([$u['id'], $from, $to]);
     }

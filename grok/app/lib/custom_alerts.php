@@ -9,6 +9,9 @@ require_once APP_ROOT . '/lib/signals.php';
 
 const CUSTOM_PRIV_SEX = 1;
 const CUSTOM_PRIV_SUBST = 2;
+const CUSTOM_PRIV_DEATH = 4; // V4.8: pensamentos de morte (módulo privado próprio)
+/** V4.8: bit privado => módulo que precisa estar ligado. */
+const CUSTOM_PRIV_MODULES = [CUSTOM_PRIV_SEX => 'sexualidade', CUSTOM_PRIV_SUBST => 'substancias', CUSTOM_PRIV_DEATH => 'pensamentos_morte'];
 const CUSTOM_MAX_RULES = 30;
 const CUSTOM_MAX_CONDITIONS = 6;
 const CUSTOM_OPS = ['>=' => '≥', '<=' => '≤', '>' => '>', '<' => '<', '=' => '='];
@@ -43,12 +46,19 @@ function custom_metrics(): array
         'spending' => ['Gastos por impulso', 'Corpo e mente', 0, 3, 1, 'scale', 0, ''],
         'spend_amount' => ['Valor gasto por impulso', 'Corpo e mente', 0, 99999, 10, 'num', 0, 'R$'],
         'stress' => ['Estresse', 'Corpo e mente', 0, 3, 1, 'scale', 0, ''],
+        // V4.8: pensamentos (maior nível entre os períodos do dia; "acelerados" é o mesmo item de antes)
+        'th_positive' => ['Pensamentos positivos / esperançosos', 'Pensamentos', 0, 3, 1, 'scale', 0, ''],
+        'th_negative' => ['Pensamentos negativos / pessimistas', 'Pensamentos', 0, 3, 1, 'scale', 0, ''],
+        'th_grandiose' => ['Grandiosidade / missão especial', 'Pensamentos', 0, 3, 1, 'scale', 0, ''],
+        'th_rumination' => ['Ruminação / culpa', 'Pensamentos', 0, 3, 1, 'scale', 0, ''],
         // V4.7: alimentação (maior nível entre os períodos do dia)
         'sweets' => ['Doces', 'Alimentação', 0, 3, 1, 'food', 0, ''],
         'processed' => ['Industrializados / ultraprocessados', 'Alimentação', 0, 3, 1, 'food', 0, ''],
         'binge' => ['Comeu fora de hora / compulsão', 'Alimentação', 0, 1, 1, 'bool', 0, ''],
         'signs' => ['Sinais de alerta pessoais marcados', 'Corpo e mente', 0, 10, 1, 'num', 0, 'sinais'],
         'caffeine' => ['Café / cafeína', 'Hábitos', 0, 30, 1, 'num', 0, 'xícaras'],
+        'cigarettes' => ['Cigarros', 'Hábitos', 0, 100, 1, 'num', 0, 'cigarros'],
+        'nicotine_alt' => ['Usou outra forma de nicotina (vape, palha, narguilé…)', 'Hábitos', 0, 1, 1, 'bool', 0, ''],
         'alcohol' => ['Álcool', 'Hábitos', 0, 50, 1, 'num', 0, 'doses'],
         'sun' => ['Sol / luz natural', 'Hábitos', 0, 960, 5, 'num', 0, 'min'],
         'exercise' => ['Exercício', 'Hábitos', 0, 960, 5, 'num', 0, 'min'],
@@ -65,6 +75,7 @@ function custom_metrics(): array
         'subst_above' => ['Usos acima do habitual', 'Substâncias (privado)', 0, 50, 1, 'num', CUSTOM_PRIV_SUBST, 'registros'],
         'stim' => ['Usos de estimulantes', 'Substâncias (privado)', 0, 50, 1, 'num', CUSTOM_PRIV_SUBST, 'registros'],
     ];
+    $m['th_death'] = ['Pensamentos de morte ou suicídio', 'Pensamentos de morte (privado)', 0, 3, 1, 'scale', CUSTOM_PRIV_DEATH, ''];
     foreach (SUBSTANCES as $k => $s) $m['sub_' . $k] = [$s[0] . ' (quantidade)', 'Substâncias (privado)', 0, 9999, 1, 'num', CUSTOM_PRIV_SUBST, $s[1]];
     return $m;
 }
@@ -101,11 +112,18 @@ function custom_templates(): array
             'conditions' => [$c('sweets', '>=', 2, 'streak', 3), $c('anxiety', '>=', 2, 'streak', 3)]],
         'substancia_acima' => ['name' => 'Substâncias acima do habitual', 'logic' => 'and', 'severity' => 1, 'description' => 'Uso acima do habitual em pelo menos 2 dos últimos 7 dias.',
             'conditions' => [$c('subst_above', '>=', 1, 'count', 7, 2)]],
+        // V4.8 (todos desligados até a pessoa escolher e salvar)
+        'hipomania' => ['name' => 'Sinais de hipomania', 'logic' => 'and', 'severity' => 2, 'description' => 'Pensamentos acelerados moderados ou mais, grandiosidade moderada ou mais e 6 h de sono ou menos no mesmo dia.',
+            'conditions' => [$c('racing', '>=', 2), $c('th_grandiose', '>=', 2), $c('sleep', '<=', 6)]],
+        'cigarros_acima' => ['name' => 'Cigarros acima do meu limite', 'logic' => 'and', 'severity' => 1, 'description' => 'Mais de 10 cigarros por dia por 3 dias seguidos (ajuste o número e os dias).',
+            'conditions' => [$c('cigarettes', '>', 10, 'streak', 3)]],
+        'pensamentos_morte' => ['name' => 'Pensamentos de morte', 'logic' => 'and', 'severity' => 2, 'description' => 'Pensamentos de morte ou suicídio leves ou mais no dia. O aviso vai só para você (push/e-mail genérico), nunca para outras pessoas.',
+            'conditions' => [$c('th_death', '>=', 1)]],
     ];
 }
 
 /**
- * Bits de privacidade (1 sexualidade, 2 substâncias) das condições.
+ * Bits de privacidade (1 sexualidade, 2 substâncias, 4 pensamentos de morte) das condições.
  * @param list<array<string,mixed>> $conds
  */
 function custom_private_mask(array $conds): int
@@ -140,6 +158,7 @@ function custom_rule_validate(array $in, array $modules = []): array
         $mt = $metrics[$k];
         if ($mt[6] === CUSTOM_PRIV_SEX && empty($modules['sexualidade'])) return ["Condição $n: ative o módulo Sexualidade em Conta para usar esse dado.", []];
         if ($mt[6] === CUSTOM_PRIV_SUBST && empty($modules['substancias'])) return ["Condição $n: ative o módulo Substâncias em Conta para usar esse dado.", []];
+        if ($mt[6] === CUSTOM_PRIV_DEATH && empty($modules['pensamentos_morte'])) return ["Condição $n: ative “Pensamentos de morte ou suicídio” em Conta para usar esse dado.", []];
         $op = (string)($c['op'] ?? '');
         if (!isset(CUSTOM_OPS[$op])) return ["Condição $n: escolha a comparação.", []];
         $v = $c['value'] ?? null;
@@ -215,7 +234,7 @@ function custom_describe_rule(array $r): string
 function custom_daily(array $entries, array $markers, array $sex = [], array $subst = [], array $media = []): array
 {
     $D = signals_daily($entries, $markers, $sex, $subst, $media);
-    foreach ($D as &$x) { $x['anxiety'] = null; $x['sleep_quality'] = null; $x['exercise'] = null; $x['sweets'] = null; $x['processed'] = null; $x['binge'] = null; $x['sex_freq'] = null; $x['sex_online'] = null; $x['sex_diff'] = null; $x['subst_uses'] = 0; $x['subs'] = []; }
+    foreach ($D as &$x) { $x['th_positive'] = null; $x['th_negative'] = null; $x['th_grandiose'] = null; $x['th_rumination'] = null; $x['th_death'] = null; $x['cigarettes'] = null; $x['nicotine_alt'] = null; $x['anxiety'] = null; $x['sleep_quality'] = null; $x['exercise'] = null; $x['sweets'] = null; $x['processed'] = null; $x['binge'] = null; $x['sex_freq'] = null; $x['sex_online'] = null; $x['sex_diff'] = null; $x['subst_uses'] = 0; $x['subs'] = []; }
     unset($x);
     foreach ($entries as $e) {
         if (isset($e['anxiety'])) { $d = (string)$e['entry_date']; $D[$d]['anxiety'] = max($D[$d]['anxiety'] ?? 0, (int)$e['anxiety']); }
@@ -225,6 +244,8 @@ function custom_daily(array $entries, array $markers, array $sex = [], array $su
         if (isset($m['sleep_quality'])) $D[$d]['sleep_quality'] = (int)$m['sleep_quality'];
         if (isset($m['exercise_minutes'])) $D[$d]['exercise'] = (int)$m['exercise_minutes'];
         foreach (['food_sweets' => 'sweets', 'food_processed' => 'processed', 'food_binge' => 'binge'] as $c => $k) if (isset($m[$c])) $D[$d][$k] = (int)$m[$c];
+        foreach (['th_positive', 'th_negative', 'th_grandiose', 'th_rumination', 'th_death', 'cigarettes'] as $c) if (isset($m[$c])) $D[$d][$c] = (int)$m[$c];
+        if (isset($m['nicotine_other']) && $m['nicotine_other'] !== '') $D[$d]['nicotine_alt'] = $m['nicotine_other'] === 'nenhuma' ? 0 : 1;
     }
     foreach ($sex as $s) {
         $d = (string)$s['entry_date'];
@@ -434,6 +455,8 @@ function custom_load(PDO $pdo, array $u, string $from, string $to): array
     $q = function (string $sql) use ($pdo, $u, $base, $to): array { $st = $pdo->prepare($sql); $st->execute([$u['id'], $base, $to]); return $st->fetchAll(); };
     $entries = $q('SELECT entry_date, period, mood, sleep_hours, energy, irritability, anxiety, medication_taken FROM entries WHERE user_id = ? AND entry_date BETWEEN ? AND ?');
     $markers = $q('SELECT * FROM daily_markers WHERE user_id = ? AND entry_date BETWEEN ? AND ?');
+    if (!$prefs['modules']['pensamentos_morte']) foreach ($markers as &$mk) unset($mk['th_death']); // V4.8: módulo desligado = dado fora das regras
+    unset($mk);
     $sex = $prefs['modules']['sexualidade'] ? $q('SELECT entry_date, libido, activities, frequency, online_minutes, different_from_usual FROM sexuality_log WHERE user_id = ? AND entry_date BETWEEN ? AND ?') : [];
     $sub = $prefs['modules']['substancias'] ? $q('SELECT entry_date, substance, amount, above_usual FROM substance_log WHERE user_id = ? AND entry_date BETWEEN ? AND ?') : [];
     $media = [];
@@ -471,6 +494,7 @@ function custom_eval_user(PDO $pdo, array $u, bool $deliver = true, ?string $tod
     foreach ($rules as $r) {
         if (($r['is_private'] & CUSTOM_PRIV_SEX) && !$mods['sexualidade']) continue;
         if (($r['is_private'] & CUSTOM_PRIV_SUBST) && !$mods['substancias']) continue;
+        if (($r['is_private'] & CUSTOM_PRIV_DEATH) && !$mods['pensamentos_morte']) continue;
         $st = $pdo->prepare('SELECT period_end FROM alerts WHERE user_id = ? AND custom_rule_id = ? AND period_end >= ?');
         $st->execute([$u['id'], $r['id'], sig_add($days[0], -15)]);
         $prev = array_map('strval', $st->fetchAll(PDO::FETCH_COLUMN));

@@ -9,7 +9,7 @@ $pf = user_prefs($user);
   <p class="small">Escolha o que aparece em “Meu dia”. O registro de humor por período continua com um toque.</p>
   <form id="form-prefs" novalidate>
     <fieldset class="checks"><legend class="sr-only">Módulos</legend>
-      <?php foreach (DAY_MODULES as $k => [$l]): if ($k === 'sexualidade' || $k === 'substancias' || !tenant_module_available($k)) continue; ?>
+      <?php foreach (DAY_MODULES as $k => [$l]): if (in_array($k, PRIVATE_MODULES, true) || !tenant_module_available($k)) continue; ?>
       <label class="check"><input type="checkbox" name="mod_<?= $k ?>" value="1"<?= $pf['modules'][$k] ? ' checked' : '' ?>> <span><?= e($l) ?></span></label>
       <?php endforeach; ?>
     </fieldset>
@@ -63,12 +63,28 @@ $pf = user_prefs($user);
       <label class="check"><input type="checkbox" name="mod_substancias" value="1"<?= $pf['modules']['substancias'] ? ' checked' : '' ?>> <span>Ativar o módulo Substâncias</span></label>
       <label class="check"><input type="checkbox" name="subst_blur" value="1"<?= $pf['subst_blur'] ? ' checked' : '' ?>> <span>Borrar a seção até eu tocar para mostrar</span></label>
     </details>
+    <?php endif; if (tenant_module_available('pensamentos_morte')): $tc = $pf['trusted_contact']; ?>
+    <details class="extras" id="death-settings">
+      <summary>🔒 Pensamentos de morte ou suicídio (privado)</summary>
+      <p class="small">Pensamentos de morte podem aparecer nas fases depressivas e mistas. Registrar a intensidade por período, com honestidade, ajuda você e sua equipe a perceber cedo e a pedir ajuda no momento certo. Ter esses pensamentos não é culpa sua, e eles costumam passar.</p>
+      <ul class="small">
+        <li>Desligado por padrão; fica atrás do mesmo PIN de Sexualidade e Substâncias e pode ficar borrado na tela.</li>
+        <li>Ao salvar um nível leve, moderado ou intenso, aparece na hora um painel de apoio (CVV 188, SAMU 192 e o seu contato de confiança). <strong>Ninguém é avisado automaticamente.</strong> Só existe aviso se você mesmo(a) criar um alerta personalizado com esse item.</li>
+        <li>Nunca vai para a IA, a não ser que você ligue a categoria própria em Conta → IA. Só entra em relatório se você marcar para um destinatário ou na impressão.</li>
+      </ul>
+      <label class="check"><input type="checkbox" name="mod_pensamentos_morte" value="1"<?= $pf['modules']['pensamentos_morte'] ? ' checked' : '' ?>> <span>Ativar “Pensamentos de morte ou suicídio”</span></label>
+      <label class="check"><input type="checkbox" name="death_blur" value="1"<?= $pf['death_blur'] ? ' checked' : '' ?>> <span>Borrar a seção até eu tocar para mostrar</span></label>
+      <fieldset class="grid2"><legend>Contato de confiança <span class="hint">(opcional; aparece no painel de apoio como botão de ligar)</span></legend>
+        <div class="field"><label for="tc-name">Nome</label><input id="tc-name" name="tc_name" maxlength="80" autocomplete="off" value="<?= e($tc['name']) ?>"></div>
+        <div class="field"><label for="tc-phone">Telefone com DDD</label><input id="tc-phone" name="tc_phone" type="tel" inputmode="tel" maxlength="20" autocomplete="off" placeholder="(65) 99999-9999" value="<?= e($tc['phone']) ?>"></div>
+      </fieldset>
+    </details>
     <?php endif; ?>
     <div class="form-actions"><button class="btn btn-primary" type="submit">Salvar módulos</button></div>
   </form>
 
-  <form id="form-sexpin" class="grid2<?= $pf['modules']['sexualidade'] || $pf['modules']['substancias'] ? '' : ' hidden' ?>" novalidate>
-    <h3 class="span-all">PIN das seções privadas (Sexualidade e Substâncias) <span class="hint" id="sexpin-state"><?= empty($user['sex_pin_hash']) ? '(sem PIN)' : '(PIN ativo)' ?></span></h3>
+  <form id="form-sexpin" class="grid2<?= $pf['modules']['sexualidade'] || $pf['modules']['substancias'] || $pf['modules']['pensamentos_morte'] ? '' : ' hidden' ?>" novalidate>
+    <h3 class="span-all">PIN das seções privadas (Sexualidade, Substâncias e Pensamentos de morte) <span class="hint" id="sexpin-state"><?= empty($user['sex_pin_hash']) ? '(sem PIN)' : '(PIN ativo)' ?></span></h3>
     <div class="field<?= empty($user['sex_pin_hash']) ? ' hidden' : '' ?>" id="sexpin-cur-f"><label for="sexpin-cur">PIN atual</label><input id="sexpin-cur" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></div>
     <div class="field"><label for="sexpin-new">Novo PIN (4 a 8 números; vazio remove)</label><input id="sexpin-new" type="password" inputmode="numeric" maxlength="8" autocomplete="off"></div>
     <div class="form-actions"><button class="btn" type="submit">Salvar PIN</button> <?php if ($pf['modules']['sexualidade']): ?><button class="btn btn-danger-ghost" type="button" id="sex-wipe">Apagar todos os meus registros de sexualidade</button><?php endif; ?> <?php if ($pf['modules']['substancias']): ?><button class="btn btn-danger-ghost" type="button" id="subst-wipe">Apagar todos os meus registros de substâncias</button><?php endif; ?></div>

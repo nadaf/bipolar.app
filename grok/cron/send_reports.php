@@ -23,8 +23,8 @@ foreach ($st->fetchAll() as $r) {
     $cancel = rtrim(cfg('app_url'), '/') . '/confirmar.php?cancelar=1&t=' . $r['confirm_token'];
     $html = email_layout('Relatório de humor — ' . ($r['uname'] ?: 'paciente'),
         report_html($user, $data, (bool)$r['include_notes'], (bool)$r['include_media_list'])
-        . ((int)$r['include_markers'] ? markers_report_html(markers_report_data((int)$r['uid'], $from, $to, (int)$r['include_sexuality'] === 1, (int)$r['include_substances'] === 1, (int)($r['include_food'] ?? 0) === 1)) : '')
-        . (!empty($r['include_custom_alerts']) ? custom_count_html(custom_count_for_report($pdo, (int)$r['uid'], $from, $to, ((int)$r['include_sexuality'] === 1 ? CUSTOM_PRIV_SEX : 0) | ((int)$r['include_substances'] === 1 ? CUSTOM_PRIV_SUBST : 0))) : '')
+        . ((int)$r['include_markers'] ? markers_report_html(markers_report_data((int)$r['uid'], $from, $to, (int)$r['include_sexuality'] === 1, (int)$r['include_substances'] === 1, (int)($r['include_food'] ?? 0) === 1, ['death' => (int)($r['include_death'] ?? 0) === 1])) : '')
+        . (!empty($r['include_custom_alerts']) ? custom_count_html(custom_count_for_report($pdo, (int)$r['uid'], $from, $to, ((int)$r['include_sexuality'] === 1 ? CUSTOM_PRIV_SEX : 0) | ((int)$r['include_substances'] === 1 ? CUSTOM_PRIV_SUBST : 0) | ((int)($r['include_death'] ?? 0) === 1 ? CUSTOM_PRIV_DEATH : 0))) : '')
         . '<p style="font-size:12px;color:#50606c;margin-top:20px">Você recebe este relatório porque confirmou o convite como ' . e(ROLES[$r['role']]) . '. '
         . '<a href="' . e($cancel) . '">Cancelar recebimento</a>.</p>');
     $ok = send_mail($r['email'], 'Relatório de humor: ' . fmt_date($from) . ' a ' . fmt_date($to), $html, '', 'relatorio');

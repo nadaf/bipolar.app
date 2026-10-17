@@ -37,7 +37,7 @@ function send_invite(PDO $pdo, array $u, array $rc, array $freqs): array
 }
 
 if ($m === 'GET') {
-    $st = $pdo->prepare('SELECT id, version, name, email, role, frequency, interval_days, weekday, include_notes, include_media_list, include_markers, include_sexuality, include_substances, include_food, include_alerts, include_custom_alerts, invite_status, invite_error_at, confirmed_at, unsubscribed_at, last_sent_at, next_send_at FROM recipients WHERE user_id = ? ORDER BY created_at');
+    $st = $pdo->prepare('SELECT id, version, name, email, role, frequency, interval_days, weekday, include_notes, include_media_list, include_markers, include_sexuality, include_substances, include_food, include_death, include_alerts, include_custom_alerts, invite_status, invite_error_at, confirmed_at, unsubscribed_at, last_sent_at, next_send_at FROM recipients WHERE user_id = ? ORDER BY created_at');
     $st->execute([$u['id']]);
     json_out(['recipients' => $st->fetchAll()]);
 }
@@ -70,8 +70,8 @@ if ($m === 'POST') {
     ];
     $token = bin2hex(random_bytes(32));
     try {
-    $pdo->prepare('INSERT INTO recipients (user_id, name, email, role, frequency, interval_days, weekday, include_notes, include_media_list, include_markers, include_sexuality, include_substances, include_food, include_alerts, include_custom_alerts, confirm_token, next_send_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-        ->execute([$u['id'], $name, $email, $role, $freq, $r['interval_days'], $r['weekday'], !empty($in['include_notes']) ? 1 : 0, !empty($in['include_media_list']) ? 1 : 0, !isset($in['include_markers']) || !empty($in['include_markers']) ? 1 : 0, ($in['include_sexuality'] ?? false) === true ? 1 : 0, ($in['include_substances'] ?? false) === true ? 1 : 0, ($in['include_food'] ?? false) === true ? 1 : 0, ($in['include_alerts'] ?? false) === true ? 1 : 0, ($in['include_custom_alerts'] ?? false) === true ? 1 : 0, $token, next_send_at($r, $u['timezone'])]);
+    $pdo->prepare('INSERT INTO recipients (user_id, name, email, role, frequency, interval_days, weekday, include_notes, include_media_list, include_markers, include_sexuality, include_substances, include_food, include_death, include_alerts, include_custom_alerts, confirm_token, next_send_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        ->execute([$u['id'], $name, $email, $role, $freq, $r['interval_days'], $r['weekday'], !empty($in['include_notes']) ? 1 : 0, !empty($in['include_media_list']) ? 1 : 0, !isset($in['include_markers']) || !empty($in['include_markers']) ? 1 : 0, ($in['include_sexuality'] ?? false) === true ? 1 : 0, ($in['include_substances'] ?? false) === true ? 1 : 0, ($in['include_food'] ?? false) === true ? 1 : 0, ($in['include_death'] ?? false) === true ? 1 : 0, ($in['include_alerts'] ?? false) === true ? 1 : 0, ($in['include_custom_alerts'] ?? false) === true ? 1 : 0, $token, next_send_at($r, $u['timezone'])]);
     } catch (PDOException $ex) {
         if ((int)($ex->errorInfo[1] ?? 0) === 1062) json_out(['erro' => 'Esse e-mail já está na sua lista.', 'duplicado' => true], 409);
         throw $ex;
@@ -84,7 +84,7 @@ if ($m === 'PATCH') {
     // Ajusta o que o destinatário recebe. Sexualidade e Substâncias só entra com opt-in explícito (true), por destinatário.
     $in = json_input();
     $sets = []; $vals = [];
-    foreach (['include_notes', 'include_media_list', 'include_markers', 'include_sexuality', 'include_substances', 'include_food', 'include_alerts', 'include_custom_alerts'] as $k) {
+    foreach (['include_notes', 'include_media_list', 'include_markers', 'include_sexuality', 'include_substances', 'include_food', 'include_death', 'include_alerts', 'include_custom_alerts'] as $k) {
         if (array_key_exists($k, $in)) { $sets[] = "$k = ?"; $vals[] = $in[$k] === true ? 1 : 0; }
     }
     if (!$sets) json_out(['erro' => 'Nada para alterar.'], 422);

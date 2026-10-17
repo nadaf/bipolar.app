@@ -31,7 +31,7 @@ function page_head(string $title, string $bodyClass = '', array $meta = []): voi
 <link rel="icon" href="/assets/icons/favicon.ico" sizes="any">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/icons/favicon-32.png">
 <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png">
-<link rel="stylesheet" href="/assets/css/app.css?v=12">
+<link rel="stylesheet" href="/assets/css/app.css?v=13">
 <?php if ($brandColor !== null): ?><link rel="stylesheet" href="/brand.css.php?c=<?= e(substr($brandColor, 1)) ?>"><?php endif; ?>
 <script src="/assets/js/theme.js?v=1"></script>
 </head>
