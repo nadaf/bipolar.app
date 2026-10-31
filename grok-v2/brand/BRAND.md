@@ -20,7 +20,6 @@ O gradiente vai sempre do canto superior esquerdo (azul) ao inferior direito (la
 - Deixe um respiro de pelo menos 1/8 do lado do ícone em volta dele. Não distorça, não gire, não troque as cores do gradiente, não ponha sombra.
 - Tamanho mínimo: 16 px (favicon).
 - Ícones "maskable" e adaptativos: a marca fica dentro da zona segura (80% no PWA, 264/432 px no Android).
-- Material público não fala de planos nem preços.
 
 ## Arquivos
 | Arquivo | Para quê |
