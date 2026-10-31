@@ -1,0 +1,11 @@
+{
+  "name": "Bipolar — Diário de Humor",
+  "short_name": "Bipolar",
+  "lang": "pt-BR",
+  "start_url": "/hoje",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f8fafc",
+  "theme_color": "#3b4f9a",
+  "icons": []
+}

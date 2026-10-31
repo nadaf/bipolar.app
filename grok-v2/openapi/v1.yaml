@@ -1,0 +1,776 @@
+openapi: 3.1.0
+info:
+  title: Bipolar API
+  version: 1.0.0-beta.1
+  summary: API do diário de humor Bipolar (bipolar.app.br)
+  description: |
+    API-first para a PWA e futuros apps nativos. Todas as rotas autenticadas usam token Sanctum
+    (`Authorization: Bearer`).
+    **Tenant:** o token fica amarrado ao tenant em que foi emitido (o do subdomínio, ou o padrão do
+    usuário no host principal, ou `tenant_id` no login se o usuário for membro). Em
+    `<slug>.bipolar.app.br`, o tenant do host precisa ser o mesmo do token; `X-Tenant-Id`, se enviado,
+    também. Qualquer divergência responde 404. Subdomínio inexistente ou reservado responde 404.
+    Recurso fora do alcance do usuário responde **404** (nunca 403).
+    Escalas: humor e energia são bipolares de -3 (sinal depressivo) a +3 (sinal de mania), 0 = normal.
+    Status de implementação: `x-status: implemented | planned`.
+  license:
+    name: AGPL-3.0-or-later
+    identifier: AGPL-3.0-or-later
+servers:
+  - url: https://bipolar.app.br/api/v1
+    description: Host principal
+  - url: https://{slug}.bipolar.app.br/api/v1
+    description: Subdomínio de clínica, profissional solo ou pessoa (opcional)
+    variables:
+      slug: { default: minha-clinica, description: '3 a 30 caracteres a-z, 0-9 e hífen; nomes reservados recusados' }
+security:
+  - bearerAuth: []
+tags:
+  - name: auth
+  - name: account
+  - name: entries
+    description: Registro de humor por período (Manhã/Tarde/Noite)
+  - name: day-markers
+  - name: private-modules
+    description: Módulos sensíveis (step-up obrigatório)
+  - name: reminders
+  - name: reports
+  - name: care
+    description: Rede de apoio (concessões, convites) e visão do profissional — somente leitura, por concessão do paciente
+  - name: clinic
+    description: Administração da clínica (profissionais). Não dá acesso a dados clínicos.
+  - name: settings
+    description: Ajustes do paciente (alertas personalizados)
+  - name: export
+
+paths:
+  /auth/register:
+    post:
+      tags: [auth]
+      x-status: implemented
+      security: []
+      summary: Cria conta de paciente independente ou de profissional solo (tenant próprio) e devolve token
+      description: Só no host principal. Em subdomínio de clínica responde 404 (ingresso por convite).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/RegisterRequest' }
+      responses:
+        '201': { description: Criado, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /auth/login:
+    post:
+      tags: [auth]
+      x-status: implemented
+      security: []
+      summary: Login por e-mail e senha (token por aparelho)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/LoginRequest' }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '501': { description: Conta com MFA — verificação TOTP ainda não implementada }
+  /auth/logout:
+    post:
+      tags: [auth]
+      x-status: implemented
+      summary: Revoga o token atual
+      responses:
+        '204': { description: Revogado }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+  /auth/mfa/totp:
+    post:
+      tags: [auth]
+      x-status: planned
+      summary: Configurar/verificar TOTP (stub retorna 501)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                code: { type: string, pattern: '^[0-9]{6}$' }
+      responses:
+        '200': { description: Verificado }
+        '501': { description: Ainda não implementado }
+
+  /account:
+    get:
+      tags: [account]
+      x-status: implemented
+      summary: Dados da conta
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Account' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+    patch:
+      tags: [account]
+      x-status: planned
+      summary: Alterar nome, fuso, preferências
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string, maxLength: 150 }
+                timezone: { type: string, examples: [America/Cuiaba] }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/Account' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+    delete:
+      tags: [account]
+      x-status: planned
+      summary: Excluir conta e todos os dados (LGPD art. 18). Exige step-up.
+      parameters: [ { $ref: '#/components/parameters/StepUp' } ]
+      responses:
+        '202': { description: Exclusão agendada }
+        '423': { $ref: '#/components/responses/StepUpRequired' }
+
+  /entries:
+    get:
+      tags: [entries]
+      x-status: implemented
+      summary: Lista registros do paciente
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+        - { $ref: '#/components/parameters/TenantHeader' }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/MoodEntry' } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [entries]
+      x-status: implemented
+      summary: Cria ou atualiza o registro de (data, período) — período travado pelo cliente
+      description: |
+        O cliente envia a data e o período escolhidos quando o registro começou (trava de período);
+        o servidor não deduz pelo relógio. Recusa período futuro (fuso do paciente). Dias passados não têm limite.
+        Para atualizar, envie `version` atual; se outro aparelho alterou antes, responde 409.
+        `tenant_id`/`patient_id` no corpo são ignorados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/MoodEntryInput' }
+      responses:
+        '200': { description: Atualizado, content: { application/json: { schema: { $ref: '#/components/schemas/MoodEntryEnvelope' } } } }
+        '201': { description: Criado, content: { application/json: { schema: { $ref: '#/components/schemas/MoodEntryEnvelope' } } } }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: Conflito de versão (alterado em outro aparelho) }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /entries/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [entries]
+      x-status: implemented
+      summary: Um registro (404 se não for do usuário)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/MoodEntryEnvelope' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [entries]
+      x-status: implemented
+      summary: Exclui um registro
+      responses:
+        '204': { description: Excluído }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /day-markers/{date}:
+    parameters: [ { $ref: '#/components/parameters/Date' } ]
+    get:
+      tags: [day-markers]
+      x-status: planned
+      summary: Marcadores do dia (sono, sol, cafeína, exercício, gastos, ciclo, medicação)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/DayMarkers' } } } }
+        '404': { $ref: '#/components/responses/NotFound' }
+    put:
+      tags: [day-markers]
+      x-status: planned
+      summary: Grava marcadores do dia
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/DayMarkers' }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /private-modules:
+    get:
+      tags: [private-modules]
+      x-status: planned
+      summary: Lista módulos sensíveis e se estão ativos (sem conteúdo)
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    module: { $ref: '#/components/schemas/PrivateModule' }
+                    enabled: { type: boolean, default: false }
+                    unlocked_until: { type: [string, 'null'], format: date-time }
+  /private-modules/unlock:
+    post:
+      tags: [private-modules]
+      x-status: planned
+      summary: Step-up — desbloqueio temporário (PIN, passkey ou TOTP)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [method]
+              properties:
+                method: { enum: [pin, totp, webauthn] }
+                secret: { type: string }
+      responses:
+        '200':
+          description: Desbloqueado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  step_up_token: { type: string }
+                  expires_at: { type: string, format: date-time }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+  /private-modules/{module}/{date}:
+    parameters:
+      - { name: module, in: path, required: true, schema: { $ref: '#/components/schemas/PrivateModule' } }
+      - { $ref: '#/components/parameters/Date' }
+      - { $ref: '#/components/parameters/StepUp' }
+    get:
+      tags: [private-modules]
+      x-status: planned
+      x-sensitive: true
+      x-step-up: true
+      summary: Lê registro do módulo sensível no dia
+      description: |
+        Módulo `pensamentos_morte`: a resposta inclui `crisis_resources` (CVV 188, SAMU 192) e o servidor
+        NUNCA notifica terceiros automaticamente.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: object, additionalProperties: true }
+                  crisis_resources: { $ref: '#/components/schemas/CrisisResources' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '423': { $ref: '#/components/responses/StepUpRequired' }
+    put:
+      tags: [private-modules]
+      x-status: planned
+      x-sensitive: true
+      x-step-up: true
+      summary: Grava registro do módulo sensível
+      requestBody:
+        content:
+          application/json:
+            schema: { type: object, additionalProperties: true }
+      responses:
+        '200': { description: OK }
+        '423': { $ref: '#/components/responses/StepUpRequired' }
+
+  /reminders:
+    get:
+      tags: [reminders]
+      x-status: planned
+      summary: Grade semanal de lembretes
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ReminderGrid' } } } }
+    put:
+      tags: [reminders]
+      x-status: planned
+      summary: Substitui a grade semanal inteira
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/ReminderGrid' }
+      responses:
+        '200': { description: OK }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /reports/summary:
+    get:
+      tags: [reports]
+      x-status: planned
+      summary: Resumo do período com sinais (depressivo/maníaco/misto). Não é diagnóstico.
+      parameters:
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/ReportSummary' } } } }
+
+  /care/grants:
+    get:
+      tags: [care]
+      x-status: planned
+      summary: Concessões emitidas pelo paciente
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { type: array, items: { $ref: '#/components/schemas/CareGrant' } } } } }
+    post:
+      tags: [care]
+      x-status: planned
+      summary: Cria convite de acesso somente leitura (categorias sensíveis exigem step-up)
+      parameters: [ { $ref: '#/components/parameters/StepUp' } ]
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CareGrantInput' }
+      responses:
+        '201':
+          description: Convite criado (link de uso único; o app compartilha — o servidor não envia e-mail sem pedido)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  grant: { $ref: '#/components/schemas/CareGrant' }
+                  invite_url: { type: string, format: uri }
+        '423': { $ref: '#/components/responses/StepUpRequired' }
+  /care/grants/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    patch:
+      tags: [care]
+      x-status: planned
+      summary: Altera categorias/validade
+      requestBody:
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CareGrantInput' }
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+    delete:
+      tags: [care]
+      x-status: planned
+      summary: Revoga imediatamente
+      responses:
+        '204': { description: Revogado }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /care/grants/{id}/audit:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [care]
+      x-status: planned
+      summary: Quem viu o quê e quando (visível ao paciente)
+      responses:
+        '200': { description: OK }
+  /care/invites/{token}/accept:
+    post:
+      tags: [care]
+      x-status: planned
+      summary: Profissional/familiar aceita convite
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string, minLength: 32 } }
+      responses:
+        '200': { description: Aceito }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /care/patients:
+    get:
+      tags: [care]
+      x-status: implemented
+      operationId: listCarePatients
+      summary: Pacientes que concederam acesso ATIVO ao profissional autenticado
+      description: Papel professional no tenant do token. Admin da clínica não lê dados clínicos.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/CarePatient' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /care/patients/{patientId}/entries:
+    parameters:
+      - { name: patientId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      tags: [care]
+      x-status: implemented
+      operationId: listCarePatientEntries
+      summary: Registros de humor do paciente (exige bit 1 humor; anotação só com bit 8). Auditado.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data: { type: array, items: { $ref: '#/components/schemas/SharedMoodEntry' } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /settings/alerts:
+    get:
+      tags: [settings]
+      x-status: implemented
+      operationId: getAlertSettings
+      summary: Limiares pessoais de alerta (padrão -2 / +2)
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AlertSettingsEnvelope' } } } }
+    put:
+      tags: [settings]
+      x-status: implemented
+      operationId: updateAlertSettings
+      summary: Paciente escolhe a partir de qual nível humor/energia viram sinal
+      description: Baixo (-3..-1) = sinal depressivo; alto (1..3) = sinal de mania. Nunca notifica terceiros sozinho.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: '#/components/schemas/AlertSettings' } } }
+      responses:
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/AlertSettingsEnvelope' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /account/subdomain:
+    put:
+      tags: [account]
+      x-status: implemented
+      operationId: updateSubdomain
+      summary: Define ou remove o endereço opcional <slug>.bipolar.app.br do tenant atual
+      description: Paciente no tenant pessoal, profissional no tenant solo ou admin na clínica. Outros papéis => 404.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [subdomain]
+              properties:
+                subdomain: { type: [string, 'null'] }
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      subdomain: { type: [string, 'null'] }
+                      url: { type: [string, 'null'], format: uri }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /clinic/professionals:
+    get:
+      tags: [clinic]
+      x-status: implemented
+      operationId: listClinicProfessionals
+      summary: Profissionais da clínica (papel admin)
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [clinic]
+      x-status: implemented
+      operationId: addClinicProfessional
+      summary: Vincula um profissional (conta já existente) à clínica
+      description: Convite por e-mail para quem ainda não tem conta está planejado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [email], properties: { email: { type: string, format: email } } }
+      responses:
+        '201': { description: Vinculado }
+        '200': { description: Já era vinculado }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /clinic/professionals/{userId}:
+    parameters:
+      - { name: userId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    delete:
+      tags: [clinic]
+      x-status: implemented
+      operationId: removeClinicProfessional
+      summary: Remove o vínculo do profissional com ESTA clínica (outra clínica => 404)
+      responses:
+        '204': { description: Removido }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /export:
+    post:
+      tags: [export]
+      x-status: planned
+      summary: Solicita exportação completa (JSON/CSV/PDF). Exige step-up.
+      parameters: [ { $ref: '#/components/parameters/StepUp' } ]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format: { enum: [json, csv, pdf] }
+                include_sensitive: { type: boolean, default: false }
+      responses:
+        '202': { description: 'Gerando; disponível em /export/{id}' }
+        '423': { $ref: '#/components/responses/StepUpRequired' }
+  /export/{id}:
+    parameters: [ { $ref: '#/components/parameters/Id' } ]
+    get:
+      tags: [export]
+      x-status: planned
+      summary: Baixa a exportação (link expira)
+      responses:
+        '200': { description: Arquivo, content: { application/octet-stream: {} } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: Token Sanctum por aparelho
+  parameters:
+    Id: { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    Date: { name: date, in: path, required: true, schema: { type: string, format: date } }
+    TenantHeader:
+      name: X-Tenant-Id
+      in: header
+      required: false
+      description: Opcional. Só aceito se o usuário for membro; caso contrário 404.
+      schema: { type: integer }
+    StepUp:
+      name: X-Step-Up
+      in: header
+      required: false
+      description: Token de desbloqueio de /private-modules/unlock
+      schema: { type: string }
+  responses:
+    Unauthorized: { description: Não autenticado }
+    NotFound: { description: Não encontrado ou fora do alcance do usuário }
+    TooManyRequests: { description: Muitas tentativas }
+    StepUpRequired: { description: Desbloqueio extra necessário (step-up) }
+    ValidationError:
+      description: Dados inválidos
+      content:
+        application/json:
+          schema:
+            type: object
+            properties:
+              message: { type: string }
+              errors: { type: object, additionalProperties: { type: array, items: { type: string } } }
+  schemas:
+    RegisterRequest:
+      type: object
+      required: [name, email, password, device_name]
+      properties:
+        name: { type: string, maxLength: 150 }
+        email: { type: string, format: email, maxLength: 190 }
+        password: { type: string, minLength: 10 }
+        device_name: { type: string, maxLength: 100 }
+        account_type: { enum: [patient, professional], default: patient, description: 'professional = profissional solo' }
+        subdomain: { type: [string, 'null'], pattern: '^[a-z0-9](?:[a-z0-9]|-(?!-)){1,28}[a-z0-9]$', description: Opcional }
+    LoginRequest:
+      type: object
+      required: [email, password, device_name]
+      properties:
+        email: { type: string, format: email }
+        password: { type: string }
+        device_name: { type: string, maxLength: 100 }
+        tenant_id: { type: integer, description: 'Opcional, só no host principal; precisa ser membro. Em subdomínio vale o tenant do host.' }
+    TokenResponse:
+      type: object
+      properties:
+        token: { type: string }
+    Account:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        timezone: { type: string }
+        mfa_enabled: { type: boolean }
+    Period:
+      type: string
+      enum: [manha, tarde, noite]
+      description: 'Manhã (00h–11h59), Tarde (12h–17h59), Noite (18h–23h59), no fuso do paciente'
+    BipolarScale:
+      type: integer
+      minimum: -3
+      maximum: 3
+      description: '-3..+3; negativo = sinal depressivo; 0 = normal; positivo = sinal de (hipo)mania'
+    MoodScale:
+      allOf: [ { $ref: '#/components/schemas/BipolarScale' } ]
+      x-labels: { '-3': Depressão grave, '-2': Depressão moderada, '-1': Depressão leve / desânimo, '0': Estável, '1': Elevado leve, '2': Hipomania, '3': Mania / euforia }
+    EnergyScale:
+      allOf: [ { $ref: '#/components/schemas/BipolarScale' } ]
+      x-labels: { '-3': Muito baixa, '-2': Baixa, '-1': Um pouco baixa, '0': Normal, '1': Um pouco alta, '2': Alta, '3': Muito alta }
+    Intensity:
+      type: integer
+      minimum: 0
+      maximum: 3
+      x-labels: { '0': Nenhuma, '1': Leve, '2': Moderada, '3': Intensa }
+    Signal:
+      type: string
+      enum: [depressivo, maniaco, misto, neutro]
+      description: 'Usa os limiares PESSOAIS do paciente (/settings/alerts; padrão -2 e +2). Abaixo ou igual ao baixo → depressivo; acima ou igual ao alto → maníaco; sentidos opostos → misto. Não é diagnóstico.'
+    MoodEntryInput:
+      type: object
+      required: [entry_date, period, mood]
+      properties:
+        entry_date: { type: string, format: date }
+        period: { $ref: '#/components/schemas/Period' }
+        mood: { $ref: '#/components/schemas/MoodScale' }
+        energy: { oneOf: [ { $ref: '#/components/schemas/EnergyScale' }, { type: 'null' } ] }
+        anxiety: { oneOf: [ { $ref: '#/components/schemas/Intensity' }, { type: 'null' } ] }
+        irritability: { oneOf: [ { $ref: '#/components/schemas/Intensity' }, { type: 'null' } ] }
+        sleep_hours: { type: [number, 'null'], minimum: 0, maximum: 24 }
+        medication_taken: { type: [boolean, 'null'] }
+        note: { type: [string, 'null'], maxLength: 5000, description: Criptografada em repouso }
+        client_uuid: { type: [string, 'null'], format: uuid, description: Idempotência offline }
+        version: { type: [integer, 'null'], minimum: 1, description: Versão conhecida (concorrência otimista) }
+    MoodEntry:
+      allOf:
+        - $ref: '#/components/schemas/MoodEntryInput'
+        - type: object
+          properties:
+            id: { type: integer }
+            version: { type: integer }
+            period_label: { type: string, examples: [Tarde] }
+            mood_label: { type: string }
+            energy_label: { type: [string, 'null'], examples: [Muito baixa] }
+            signal: { $ref: '#/components/schemas/Signal' }
+            updated_at: { type: string, format: date-time }
+    MoodEntryEnvelope:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/MoodEntry' }
+    DayMarkers:
+      type: object
+      properties:
+        bed_time: { type: [string, 'null'], pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+        wake_time: { type: [string, 'null'], pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+        sleep_quality: { type: [integer, 'null'], minimum: 0, maximum: 3 }
+        sun_minutes: { type: [integer, 'null'], minimum: 0 }
+        caffeine_cups: { type: [integer, 'null'], minimum: 0 }
+        exercise_minutes: { type: [integer, 'null'], minimum: 0 }
+        racing_thoughts: { type: [integer, 'null'], minimum: 0, maximum: 3 }
+        fast_speech: { type: [integer, 'null'], minimum: 0, maximum: 3 }
+        impulsive_spending: { type: [integer, 'null'], minimum: 0, maximum: 3 }
+        stress_level: { type: [integer, 'null'], minimum: 0, maximum: 3 }
+        cycle_phase: { type: [string, 'null'] }
+        doses: { type: array, items: { type: object, additionalProperties: true } }
+    PrivateModule:
+      type: string
+      enum: [sexualidade, substancias, pensamentos, pensamentos_morte, religiosidade]
+    CrisisResources:
+      type: object
+      properties:
+        cvv: { const: '188' }
+        samu: { const: '192' }
+        message: { type: string }
+    ReminderGrid:
+      type: object
+      description: Grade semanal; cada dia (0=domingo) com horários locais e canal
+      properties:
+        timezone: { type: string }
+        days:
+          type: array
+          minItems: 7
+          maxItems: 7
+          items:
+            type: object
+            properties:
+              weekday: { type: integer, minimum: 0, maximum: 6 }
+              slots:
+                type: array
+                maxItems: 6
+                items:
+                  type: object
+                  properties:
+                    time: { type: string, pattern: '^[0-2][0-9]:[0-5][0-9]$' }
+                    period: { $ref: '#/components/schemas/Period' }
+                    channel: { enum: [push, email, ambos] }
+    ReportSummary:
+      type: object
+      properties:
+        from: { type: string, format: date }
+        to: { type: string, format: date }
+        days_recorded: { type: integer }
+        mood_avg: { type: [number, 'null'] }
+        energy_avg: { type: [number, 'null'] }
+        signals:
+          type: object
+          properties:
+            depressivo: { type: integer }
+            maniaco: { type: integer }
+            misto: { type: integer }
+            neutro: { type: integer }
+        disclaimer: { type: string }
+    AlertSettings:
+      type: object
+      required: [mood_low, mood_high, energy_low, energy_high]
+      properties:
+        mood_low: { type: integer, minimum: -3, maximum: -1, default: -2 }
+        mood_high: { type: integer, minimum: 1, maximum: 3, default: 2 }
+        energy_low: { type: integer, minimum: -3, maximum: -1, default: -2 }
+        energy_high: { type: integer, minimum: 1, maximum: 3, default: 2 }
+    AlertSettingsEnvelope:
+      type: object
+      properties:
+        data: { $ref: '#/components/schemas/AlertSettings' }
+    CarePatient:
+      type: object
+      properties:
+        patient_id: { type: integer }
+        name: { type: [string, 'null'] }
+        scope_mask: { type: integer }
+        expires_at: { type: [string, 'null'], format: date-time }
+    SharedMoodEntry:
+      type: object
+      properties:
+        entry_date: { type: string, format: date }
+        period: { $ref: '#/components/schemas/Period' }
+        mood: { type: integer }
+        mood_label: { type: string }
+        energy: { type: [integer, 'null'] }
+        energy_label: { type: [string, 'null'] }
+        sleep_hours: { type: [number, 'null'] }
+        medication_taken: { type: [boolean, 'null'] }
+        note: { type: [string, 'null'], description: 'null sem o bit 8' }
+    CareGrantInput:
+      type: object
+      properties:
+        grantee_kind: { enum: [psicologo, psiquiatra, familiar, outro] }
+        scope: { type: array, items: { enum: [humor, sono, estresse_alimentacao, pensamentos, substancias, sexualidade, pensamentos_morte, religiosidade] }, default: [humor, sono, estresse_alimentacao] }
+        data_from: { type: [string, 'null'], format: date }
+        expires_at: { type: [string, 'null'], format: date-time }
+    CareGrant:
+      type: object
+      properties:
+        id: { type: integer }
+        grantee_kind: { type: string }
+        grantee_name: { type: [string, 'null'] }
+        scope_mask: { type: integer, description: 'bits: 1 humor,2 sono,4 estresse/alim.,8 pensamentos,16 substâncias,32 sexualidade,64 morte,128 religiosidade' }
+        status: { enum: [pendente, ativo, revogado, expirado] }
+        read_only: { const: true }
+        expires_at: { type: [string, 'null'], format: date-time }

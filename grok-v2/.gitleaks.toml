@@ -1,0 +1,8 @@
+# gitleaks: regras padrao + excecao para a senha ficticia das fixtures de teste
+[extend]
+useDefault = true
+
+[allowlist]
+description = "senha ficticia usada so nos testes Pest"
+regexes = ['''senha-muito-boa-1''']
+paths = ['''storage/framework/''']
