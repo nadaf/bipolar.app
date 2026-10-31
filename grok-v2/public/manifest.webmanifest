@@ -48,5 +48,46 @@
       "type": "image/svg+xml",
       "purpose": "any"
     }
+  ],
+  "shortcuts": [
+    {
+      "name": "Registrar agora",
+      "short_name": "Registrar",
+      "description": "Abrir o registro do período atual",
+      "url": "/registrar",
+      "icons": [
+        {
+          "src": "/icons/shortcut-registrar-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Histórico",
+      "short_name": "Histórico",
+      "description": "Calendário dos seus registros",
+      "url": "/historico",
+      "icons": [
+        {
+          "src": "/icons/shortcut-historico-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    },
+    {
+      "name": "Relatórios",
+      "short_name": "Relatórios",
+      "description": "Gráfico e resumo do período",
+      "url": "/relatorios",
+      "icons": [
+        {
+          "src": "/icons/shortcut-relatorios-96.png",
+          "sizes": "96x96",
+          "type": "image/png"
+        }
+      ]
+    }
   ]
 }

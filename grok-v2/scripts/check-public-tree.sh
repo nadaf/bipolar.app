@@ -20,7 +20,7 @@ if files | grep -vE '^(scripts/check-public-tree\.sh|AGENTS\.md|docs/|\.github/)
 fi
 
 # 3) segredos e IDs de analytics do site principal
-PAT='(G-[A-Z0-9]{8,}|UA-[0-9]{4,}-[0-9]+|GTM-[A-Z0-9]{5,}|sk_live_[A-Za-z0-9]{10,}|pk_live_[A-Za-z0-9]{10,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|^APP_KEY=base64:.{20,})'
+PAT='(VAPID_PRIVATE_KEY=[A-Za-z0-9_-]{20,}|G-[A-Z0-9]{8,}|UA-[0-9]{4,}-[0-9]+|GTM-[A-Z0-9]{5,}|sk_live_[A-Za-z0-9]{10,}|pk_live_[A-Za-z0-9]{10,}|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{30,}|xox[baprs]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|^APP_KEY=base64:.{20,})'
 if files | grep -vE '^scripts/check-public-tree\.sh$' | xargs -r grep -nIE "$PAT" 2>/dev/null; then
   echo "ERRO: possivel segredo ou ID de analytics no publico"; fail=1
 fi

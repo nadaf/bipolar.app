@@ -144,4 +144,13 @@ og = (f'<rect width="1200" height="630" fill="#f3f6f8"/><rect x="40" y="40" widt
       + f'<text x="1100" y="570" text-anchor="end" {font(26, "400", "#2f6f73")}>bipolar.app.br</text>')
 png(svg(1200, 630, og), os.path.join(PUB, 'og-image.png'), 1200, 630)
 Image.open(os.path.join(PUB, 'og-image.png')).save(os.path.join(BRAND, 'og-1200x630.png'), optimize=True)
+# Atalhos do manifesto (96 px): fundo da marca + ícone de linha das telas (mesmos de partials/icon)
+GLYPH = {'registrar': '<path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+         'historico': '<rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/><circle cx="8" cy="15" r="1"/><circle cx="12" cy="15" r="1"/><circle cx="16" cy="15" r="1"/>',
+         'relatorios': '<path d="M3 3v18h18"/><path d="m7 15 4-5 3 3 5-7"/>'}
+for k, g in GLYPH.items():
+    body = (f'<rect width="96" height="96" rx="22" fill="{NAVY}"/>'
+            f'<g transform="translate(24 24) scale(2)" fill="none" stroke="{WHITE}" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">{g}</g>'
+            f'<circle cx="78" cy="18" r="7" fill="{DOT}"/>')
+    png(svg(96, 96, body), os.path.join(PUB, f'icons/shortcut-{k}-96.png'), 96, 96)
 print('ok')

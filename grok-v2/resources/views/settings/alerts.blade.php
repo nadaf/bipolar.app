@@ -40,9 +40,18 @@
 <section class="mt-8" aria-labelledby="lem-t">
   <h2 id="lem-t" class="text-lg font-semibold mb-1">Lembretes de registro</h2>
   <p class="hint mb-3">Marque em quais dias e períodos quer ser lembrado(a). Cada quadrado é um lembrete.</p>
+  <div class="card mb-4" x-data="pushAparelho" data-vapid="{{ $vapid }}" data-url="{{ route('push.subscribe') }}" data-url-remover="{{ route('push.unsubscribe') }}">
+    <h3 class="font-semibold">Notificações neste aparelho</h3>
+    <p class="hint mt-1">O aviso diz só <strong>“Hora do seu registro”</strong>, sem nenhuma informação sobre você, e abre o Registrar. Você pode desligar quando quiser.</p>
+    <p class="mt-2" role="status" aria-live="polite" x-text="msg">@if($vapid === '')O envio de notificações não está configurado neste servidor.@else Verificando este aparelho…@endif</p>
+    <div class="mt-3 flex flex-wrap gap-2">
+      <button type="button" class="btn-primary" x-bind:hidden="!podeAtivar" x-on:click="ativar" x-bind:disabled="ocupado" hidden>Ativar notificações</button>
+      <button type="button" class="btn-secondary" x-bind:hidden="!ativo" x-on:click="desativar" x-bind:disabled="ocupado" hidden>Desativar neste aparelho</button>
+    </div>
+    <p class="hint mt-2">No iPhone/iPad, instale o app na Tela de Início (veja Conta › Instalar o app) antes de ativar.@if($devices > 0) Aparelhos com notificação ligada: {{ $devices }}.@endif</p>
+  </div>
   <form method="post" action="{{ route('alerts.reminders') }}" class="card space-y-5">
     @csrf
-    <p class="warn" role="note"><strong>Em teste:</strong> sua escolha fica salva, mas o app ainda <strong>não envia</strong> lembretes. Avisaremos aqui quando o envio estiver ligado.</p>
     <table class="grid-rem">
       <caption class="sr-only">Grade de lembretes por dia da semana e período</caption>
       <thead><tr><th scope="col"><span class="sr-only">Dia</span></th>
@@ -69,11 +78,9 @@
       </div>
     </fieldset>
     <div>
-      <label for="canal" class="label">Como avisar</label>
-      <select id="canal" name="canal" class="input sm:w-72">
-        @foreach(\App\Domain\Reminders\ReminderService::CHANNELS as $ck => $cl)<option value="{{ $ck }}" @selected($channel === $ck)>{{ $cl }}</option>@endforeach
-      </select>
-      <p class="hint mt-1">Vale quando o envio for ligado; por enquanto nenhum aviso é enviado.</p>
+      <input type="hidden" name="canal" value="push">
+      <p class="label">Como avisar: notificação no aparelho</p>
+      <p class="hint mt-1">A notificação chega nos aparelhos onde você ativou acima. Lembrete por e-mail: em breve.</p>
     </div>
     <button class="btn-primary w-full sm:w-auto">Salvar lembretes</button>
   </form>

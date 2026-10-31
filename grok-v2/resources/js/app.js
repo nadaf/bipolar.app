@@ -174,6 +174,7 @@ Alpine.data('registrar', () => ({
     delete f.dataset.dirty;
     this.status(f, 'fila', 'Sem conexão: guardado só neste aparelho. Enviamos sozinhos quando a internet voltar.');
     this.filaMsg = `${fila.length} bloco(s) aguardando internet.`;
+    window.dispatchEvent(new CustomEvent('fila:mudou'));
   },
   async enviarFila() {
     if (!owner() || !navigator.onLine) return;
@@ -190,6 +191,7 @@ Alpine.data('registrar', () => ({
       } catch (_) { resto.push(i); }
     }
     gravarFila(resto);
+    window.dispatchEvent(new CustomEvent('fila:mudou', { detail: { enviados: enviados.length } }));
     if (enviados.length) this.filaMsg = `Guardados no aparelho e agora enviados: ${enviados.join(' · ')}. Recarregue para ver os valores atuais.`;
   },
   async salvarTudo() {
@@ -243,6 +245,72 @@ Alpine.data('confirmarEnvio', () => ({
   voltar() { if (!this.ok) this.$refs.gatilho.focus(); },
 }));
 
+// Notificacoes deste aparelho (Web Push). Texto do aviso e fixo e neutro; nada de saude sai daqui.
+const b64ParaBytes = (b64) => {
+  const pad = '='.repeat((4 - (b64.length % 4)) % 4);
+  const raw = atob((b64 + pad).replace(/-/g, '+').replace(/_/g, '/'));
+  return Uint8Array.from(raw, (c) => c.charCodeAt(0));
+};
+Alpine.data('pushAparelho', () => ({
+  msg: '',
+  ativo: false,
+  podeAtivar: false,
+  ocupado: false,
+  async init() {
+    const { vapid } = this.$el.dataset;
+    if (!vapid) { this.msg = 'O envio de notificações não está configurado neste servidor.'; return; }
+    if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+      this.msg = 'Este navegador não recebe notificações. No iPhone/iPad, instale o app na Tela de Início e abra por ele.';
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      this.msg = 'As notificações estão bloqueadas para este site. Para receber, libere nas configurações do navegador (ícone de cadeado ao lado do endereço) e volte aqui.';
+      return;
+    }
+    const reg = await navigator.serviceWorker.getRegistration();
+    const sub = reg ? await reg.pushManager.getSubscription() : null;
+    this.marcar(!!sub);
+  },
+  marcar(on) {
+    this.ativo = on;
+    this.podeAtivar = !on;
+    this.msg = on ? 'Notificações ligadas neste aparelho.' : 'Notificações desligadas neste aparelho.';
+  },
+  async ativar() {
+    this.ocupado = true;
+    try {
+      const perm = await Notification.requestPermission();
+      if (perm !== 'granted') {
+        this.msg = perm === 'denied' ? 'Você não permitiu as notificações. Tudo bem: os lembretes ficam desligados neste aparelho.' : 'Nada mudou. Toque de novo quando quiser ativar.';
+        return;
+      }
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: b64ParaBytes(this.$el.dataset.vapid) });
+      const r = await fetch(this.$el.dataset.url, { method: 'POST', credentials: 'same-origin',
+        headers: { 'X-CSRF-TOKEN': csrf(), 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify(sub.toJSON()) });
+      if (!r.ok) throw new Error(String(r.status));
+      this.marcar(true);
+    } catch (_) {
+      this.msg = 'Não deu para ativar agora. Verifique a internet e tente de novo.';
+    } finally { this.ocupado = false; }
+  },
+  async desativar() {
+    this.ocupado = true;
+    try {
+      const reg = await navigator.serviceWorker.getRegistration();
+      const sub = reg ? await reg.pushManager.getSubscription() : null;
+      if (sub) {
+        await fetch(this.$el.dataset.urlRemover, { method: 'POST', credentials: 'same-origin',
+          headers: { 'X-CSRF-TOKEN': csrf(), 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ endpoint: sub.endpoint }) });
+        await sub.unsubscribe();
+      }
+      this.marcar(false);
+    } catch (_) {
+      this.msg = 'Não deu para desativar agora. Tente de novo.';
+    } finally { this.ocupado = false; }
+  },
+}));
+
 window.Alpine = Alpine;
 Alpine.start();
 
@@ -263,6 +331,41 @@ if ('serviceWorker' in navigator && import.meta.env.PROD) {
   }).catch(() => {});
   let recarregou = false;
   navigator.serviceWorker.addEventListener('controllerchange', () => { if (!recarregou) { recarregou = true; window.location.reload(); } });
+}
+
+// Indicador de rede: offline mostra quantos registros estao guardados no aparelho; ao voltar, "Sincronizado".
+{
+  const el = document.getElementById('rede');
+  let timer = null;
+  const pendentes = () => (owner() ? lerFila().length : 0);
+  const mostrar = (cls, txt) => { el.className = `${cls} rede`; el.textContent = txt; el.hidden = false; };
+  const atualizar = (e) => {
+    if (!el) return;
+    clearTimeout(timer);
+    const n = pendentes();
+    if (!navigator.onLine) {
+      mostrar('warn', n ? `Sem internet. ${n} registro(s) guardado(s) neste aparelho; enviamos quando a conexão voltar.` : 'Sem internet. O que você registrar fica guardado neste aparelho.');
+      return;
+    }
+    const enviados = e?.detail?.enviados || 0;
+    if (enviados) {
+      mostrar('ok', `Sincronizado: ${enviados} registro(s) enviado(s).`);
+      timer = setTimeout(() => { el.hidden = true; }, 6000);
+    } else if (n) {
+      mostrar('warn', `${n} registro(s) aguardando envio.`);
+    } else if (e?.type === 'online') {
+      mostrar('ok', 'Conexão de volta.');
+      timer = setTimeout(() => { el.hidden = true; }, 4000);
+    } else {
+      el.hidden = true;
+    }
+  };
+  if (el) {
+    window.addEventListener('online', atualizar);
+    window.addEventListener('offline', atualizar);
+    window.addEventListener('fila:mudou', atualizar);
+    atualizar();
+  }
 }
 
 // PWA: instalar (beforeinstallprompt no Android/desktop; instrucoes manuais no iOS).

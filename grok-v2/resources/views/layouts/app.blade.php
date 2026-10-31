@@ -54,6 +54,7 @@
   <span>Há uma versão nova do app.</span>
   <button type="button" class="btn-primary" data-sw-atualizar>Atualizar</button>
 </div>
+<div id="rede" class="rede" role="status" aria-live="polite" hidden></div>
 <a href="#conteudo" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-white focus:p-3 focus:text-slate-900">Pular para o conteúdo</a>
 <div class="{{ $nav ? 'shell' : '' }}">
   @if($nav)

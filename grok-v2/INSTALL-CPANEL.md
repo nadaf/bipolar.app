@@ -105,7 +105,16 @@ cPanel → **Trabalhos Cron** → **Adicionar novo trabalho cron**:
 cd /home/seuusuario/bipolar && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1
 ```
 
-Isso envia lembretes e processa a fila de envios.
+Isso envia os lembretes de registro (Web Push, `bipolar:send-reminders`, a cada minuto) e processa a fila de envios.
+
+### Lembretes por notificação (Web Push)
+
+1. Gere as chaves uma vez (no seu computador, com o projeto: `php artisan bipolar:vapid`; ou peça ao suporte).
+2. No `.env` do servidor (Gerenciador de Arquivos), preencha `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY` e `VAPID_SUBJECT` (ex.: `mailto:contato@seu-dominio`). **Nunca** coloque essas chaves no Git.
+3. Precisa de https e das extensões PHP `curl`, `openssl`, `mbstring` (padrão na HostGator). Sem as chaves, nada é enviado e a tela Alertas avisa.
+4. Cada pessoa ativa em **Alertas e lembretes › Notificações neste aparelho**. O aviso diz só "Hora do seu registro" e abre o Registrar.
+
+Detalhes: `docs/PUSH.md`.
 
 ## 7. Conferir
 

@@ -40,10 +40,10 @@ it('remover profissional pede confirmacao em dialogo acessivel (A2) e a clinica 
         ->assertSee('E os pacientes?')->assertSee('Compartilhar');
 });
 
-it('grade de lembretes tem dias nas linhas e aviso honesto de que ainda nao envia (A1, A7)', function () {
+it('grade de lembretes tem dias nas linhas e nao promete o que nao faz (A1, A7)', function () {
     $html = $this->actingAs(patient())->get('/alertas')->assertOk()->getContent();
     expect($html)->toContain('<th scope="row" class="text-sm text-left pe-2">Segunda')
-        ->and($html)->toContain('ainda <strong>não envia</strong>')
+        ->and($html)->toContain('Lembrete por e-mail: em breve')
         ->and($html)->not->toContain('Beta:');
 });
 

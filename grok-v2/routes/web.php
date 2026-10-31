@@ -6,6 +6,7 @@ use App\Http\Controllers\Web\CareController;
 use App\Http\Controllers\Web\ClinicController;
 use App\Http\Controllers\Web\HistoryController;
 use App\Http\Controllers\Web\HomeController;
+use App\Http\Controllers\Web\PushController;
 use App\Http\Controllers\Web\RegistrarController;
 use App\Http\Controllers\Web\ReportController;
 use App\Http\Controllers\Web\SessionController;
@@ -54,6 +55,8 @@ Route::middleware(['auth', 'tenant', 'patient'])->group(function () {
     Route::get('/alertas', [AlertSettingsController::class, 'edit'])->name('alerts');
     Route::post('/alertas', [AlertSettingsController::class, 'update'])->name('alerts.save');
     Route::post('/alertas/lembretes', [AlertSettingsController::class, 'reminders'])->name('alerts.reminders');
+    Route::post('/alertas/push', [PushController::class, 'subscribe'])->middleware('throttle:30,1')->name('push.subscribe');
+    Route::post('/alertas/push/remover', [PushController::class, 'unsubscribe'])->middleware('throttle:30,1')->name('push.unsubscribe');
     Route::redirect('/ajustes/alertas', '/alertas');
     Route::get('/compartilhar', [ShareController::class, 'index'])->name('share');
     Route::post('/compartilhar', [ShareController::class, 'store'])->name('share.store');

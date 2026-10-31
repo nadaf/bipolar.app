@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Web;
 use App\Domain\Alerts\AlertSettingsService;
 use App\Domain\Mood\Period;
 use App\Domain\Mood\Scales;
+use App\Domain\Push\PushSubscriptionService;
 use App\Domain\Reminders\ReminderService;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ class AlertSettingsController extends Controller
         }
 
         return view('settings.alerts', ['t' => $svc->for($request->user())->toArray(), 'mood' => Scales::MOOD, 'energy' => Scales::ENERGY,
+            'vapid' => (string) config('bipolar.vapid.public'), 'devices' => app(PushSubscriptionService::class)->count($request->user()),
             'cells' => $cells, 'times' => $times, 'channel' => $channel, 'periods' => Period::cases()]);
     }
 

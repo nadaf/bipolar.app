@@ -13,6 +13,13 @@
 - Blocos sensíveis exigem desbloqueio de 10 minutos; recursos de outra pessoa respondem 404.
 - Testes: CSP por tela e isolamento (Pest); axe 0 serious/critical em 412px e 1280px, claro e escuro.
 
+### PWA: lembretes, atalhos e offline
+- Lembretes reais por Web Push (VAPID, `minishlink/web-push`, sem SSH): ativar/desativar por aparelho em Alertas, grade semanal no fuso da pessoa, comando `bipolar:send-reminders` no agendador (cron do cPanel a cada minuto), uma notificação por período, inscrições expiradas removidas. Texto sempre neutro ("Hora do seu registro"), abre /registrar. Chaves só no `.env` (`php artisan bipolar:vapid`).
+- Lembrete por e-mail continua para depois (a tela diz isso).
+- Atalhos do manifesto: Registrar agora, Histórico, Relatórios, com ícones da marca.
+- Indicador de rede: sem internet mostra quantos registros estão guardados no aparelho; ao voltar, "Sincronizado". Página offline nova, sem script.
+- Tabela `push_subscriptions` (isolada por tenant) e `install-mysql57.sql` regenerado.
+
 ### Revisão de usabilidade (31/10/2026)
 - Alertas: grade de lembretes com dias nas linhas (cabe em 375px) e aviso honesto de que o envio ainda não está ligado.
 - Clínica: remover profissional pede confirmação em diálogo acessível (Esc, foco volta ao botão); explica que o paciente é quem convida pelo Compartilhar.

@@ -3,6 +3,8 @@
 namespace App\Providers;
 
 use App\Domain\Alerts\AlertSettingsService;
+use App\Domain\Push\PushSender;
+use App\Domain\Push\WebPushSender;
 use App\Models\PersonalAccessToken;
 use App\Tenancy\HostTenant;
 use App\Tenancy\TenantContext;
@@ -19,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->scoped(TenantContext::class);
         $this->app->scoped(HostTenant::class);
+        $this->app->bind(PushSender::class, WebPushSender::class);
         $this->app->scoped(AlertSettingsService::class);
     }
 

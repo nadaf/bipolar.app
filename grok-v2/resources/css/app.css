@@ -58,6 +58,7 @@
 
   /* Registrar */
   .lock-banner { @apply sticky top-[3.25rem] lg:top-0 z-10 rounded-xl bg-blue-50 dark:bg-slate-900 border border-blue-800 dark:border-blue-400 p-3 shadow-sm; }
+  .rede { @apply fixed inset-x-2 bottom-20 lg:bottom-4 lg:start-auto lg:end-4 lg:max-w-md z-40 shadow-lg; }
   .period-tab { @apply inline-flex items-center justify-center rounded-lg border border-slate-500 px-3 py-2 min-h-11 min-w-11 no-underline text-slate-900 dark:text-slate-100; }
   .period-tab[aria-current='page'] { @apply bg-blue-800 text-white border-blue-800 font-semibold dark:bg-blue-300 dark:text-slate-950 dark:border-blue-300; }
   .period-tab[aria-disabled='true'] { @apply opacity-60; }

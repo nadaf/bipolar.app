@@ -11,4 +11,10 @@ return [
     'main_hosts' => array_filter(explode(',', (string) env('BIPOLAR_MAIN_HOSTS', ''))),
     // Nomes reservados extras (o pacote privado pode somar os seus).
     'reserved_slugs_extra' => [],
+    // Web Push (lembretes). Gere com `php artisan bipolar:vapid` e coloque SO no .env.
+    'vapid' => [
+        'public' => env('VAPID_PUBLIC_KEY', ''),
+        'private' => env('VAPID_PRIVATE_KEY', ''),
+        'subject' => env('VAPID_SUBJECT', 'mailto:contato@bipolar.app.br'),
+    ],
 ];

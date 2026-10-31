@@ -71,3 +71,9 @@ alter table `users` add `email_change_expires_at` timestamp null after `email_ch
 alter table `alert_settings` add `reminders` text null after `energy_high`;
 alter table `mood_entries` modify `mood` tinyint null;
 INSERT INTO migrations (migration, batch) VALUES ('2026_11_02_000100_day_blocks_prefs_reminders', 1);
+create table `push_subscriptions` (`id` bigint unsigned not null auto_increment primary key, `tenant_id` bigint unsigned not null, `user_id` bigint unsigned not null, `endpoint` text not null, `endpoint_hash` char(64) not null, `p256dh` varchar(200) not null, `auth` varchar(100) not null, `last_slot` varchar(30) null, `created_at` timestamp null, `updated_at` timestamp null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
+alter table `push_subscriptions` add unique `uq_ps_tenant_endpoint`(`tenant_id`, `endpoint_hash`);
+alter table `push_subscriptions` add index `ix_ps_tenant_user`(`tenant_id`, `user_id`);
+alter table `push_subscriptions` add constraint `fk_ps_tenant` foreign key (`tenant_id`) references `tenants` (`id`) on delete cascade;
+alter table `push_subscriptions` add constraint `fk_ps_membership` foreign key (`tenant_id`, `user_id`) references `memberships` (`tenant_id`, `user_id`) on delete cascade;
+INSERT INTO migrations (migration, batch) VALUES ('2026_11_03_000100_create_push_subscriptions_table', 1);

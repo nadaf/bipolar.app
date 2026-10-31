@@ -8,8 +8,8 @@ use App\Models\AuditLog;
 use App\Models\User;
 
 /**
- * Grade semanal de lembretes (formato ReminderGrid do OpenAPI). Nesta versao a grade e so salva;
- * o ENVIO (push/e-mail) fica para a proxima etapa.
+ * Grade semanal de lembretes (formato ReminderGrid do OpenAPI). O envio por Web Push fica em App\Domain\Push\ReminderDispatcher;
+ * e-mail ainda nao e enviado.
  */
 final class ReminderService
 {

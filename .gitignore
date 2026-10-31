@@ -1,0 +1,3 @@
+# pacote de release (zip) nunca vai para o repositorio
+*.zip
+grok-v2/dist/
