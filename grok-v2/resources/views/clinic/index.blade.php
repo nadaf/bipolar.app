@@ -23,19 +23,40 @@
     </li>
     @if($loop->last)</ul>@endif
   @empty
-    <p class="hint">Nenhum profissional vinculado.</p>
+    <p class="hint">Nenhum profissional vinculado ainda. Convide abaixo.</p>
   @endforelse
 </section>
 <section class="card mt-4" aria-labelledby="add-t">
-  <h2 id="add-t" class="font-semibold mb-2">Vincular profissional</h2>
+  <h2 id="add-t" class="font-semibold mb-2">Convidar profissional</h2>
   <form method="post" action="{{ route('clinic.add') }}" class="flex flex-wrap items-end gap-2">
     @csrf
-    <div class="grow"><label for="pro-email" class="label">E-mail da conta do profissional</label>
-      <input id="pro-email" name="email" type="email" class="input" required value="{{ old('email') }}" @error('email') aria-invalid="true" aria-describedby="pro-erro" @enderror>
+    <div class="grow"><label for="pro-email" class="label">E-mail do profissional</label>
+      <input id="pro-email" name="email" type="email" class="input" required autocomplete="off" value="{{ old('email') }}" @error('email') aria-invalid="true" aria-describedby="pro-erro" @enderror>
       @error('email')<p id="pro-erro" class="erro">{{ $message }}</p>@enderror</div>
-    <button class="btn-primary">Vincular</button>
+    <button class="btn-primary">Enviar convite</button>
   </form>
-  <p class="hint mt-2">A pessoa precisa ter criado conta antes. Convite por e-mail: em breve.</p>
+  <p class="hint mt-2">Enviamos um link por e-mail, válido por 7 dias e de uso único. A pessoa entra com a conta que já tem ou cria uma, e passa a fazer parte da clínica.</p>
+  @if($invites->isNotEmpty())
+  <h3 class="font-medium mt-4">Convites pendentes</h3>
+  <ul class="divide-y divide-slate-200 dark:divide-slate-700">
+    @foreach($invites as $i)
+    <li class="py-2 flex flex-wrap items-center justify-between gap-2">
+      <span><span class="font-medium block">{{ $i->email }}</span><span class="text-sm">vence em {{ $i->expires_at?->format('d/m/Y') }}</span></span>
+      <form method="post" action="{{ route('clinic.invite.revoke', $i->id) }}">@csrf<button class="btn-secondary" aria-label="Cancelar convite de {{ $i->email }}">Cancelar convite</button></form>
+    </li>
+    @endforeach
+  </ul>
+  @endif
+</section>
+<section class="card mt-4" aria-labelledby="mfa-t">
+  <h2 id="mfa-t" class="font-semibold mb-1">Segurança da equipe</h2>
+  <p class="hint mb-3">Com a opção ligada, profissionais e administradores desta clínica só usam o Bipolar depois de ativar a verificação em duas etapas (app autenticador). Pacientes não são afetados.</p>
+  <form method="post" action="{{ route('clinic.security') }}" class="space-y-3">
+    @csrf
+    <input type="hidden" name="require_mfa" value="0">
+    <label class="check"><input type="checkbox" name="require_mfa" value="1" @checked($clinic->require_mfa)> Exigir verificação em duas etapas da equipe</label>
+    <button class="btn-primary">Salvar</button>
+  </form>
 </section>
 <section class="card mt-4" aria-labelledby="pac-t">
   <h2 id="pac-t" class="font-semibold mb-1">E os pacientes?</h2>

@@ -79,7 +79,8 @@
     <div class="sm:col-span-3"><button class="btn-primary">Salvar PIN</button> <span class="hint">Deixe o PIN em branco para remover.</span></div>
   </form>
   <h3 class="font-medium mt-6">Verificação em duas etapas</h3>
-  <p class="hint">Em breve: aplicativo autenticador e chave de acesso (passkey).</p>
+  <p class="mb-2">{!! $u->mfaOn() ? '<span class="badge">Ligada</span> Ao entrar, pedimos também o código do app autenticador.' : 'Desligada. Ligue para pedir, além da senha, um código do app autenticador do celular.' !!}</p>
+  <a class="btn-secondary" href="{{ route('mfa.setup') }}">{{ $u->mfaOn() ? 'Gerenciar verificação em duas etapas' : 'Ligar verificação em duas etapas' }}</a>
 </section>
 
 <section id="email" class="card mt-4" aria-labelledby="em-t">
@@ -97,7 +98,7 @@
 @if($patient)
 <section id="dados" class="card mt-4" aria-labelledby="dad-t">
   <h2 id="dad-t" class="font-semibold mb-1">Meus dados</h2>
-  <p class="hint mb-3">Baixe tudo o que você registrou (arquivo JSON). Seus dados são seus (LGPD).</p>
+  <p class="hint mb-3">Para abrir em planilha ou levar à consulta: <a href="{{ route('export') }}">exportar registros em CSV ou PDF</a>. Abaixo, a cópia completa de tudo o que você registrou (arquivo JSON). Seus dados são seus (LGPD).</p>
   <form method="post" action="{{ route('account.export') }}" class="space-y-3">
     @csrf
     <label class="check"><input type="checkbox" name="sensiveis" value="1" @disabled(!$unlocked)> Incluir blocos privados (sexualidade, pensamentos de morte)</label>

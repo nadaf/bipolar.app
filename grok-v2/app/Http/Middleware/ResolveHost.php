@@ -24,6 +24,9 @@ final class ResolveHost
     {
         $h = strtolower($request->getHost());
         $base = strtolower((string) config('bipolar.base_domain'));
+        // nunca herda o host de uma requisicao anterior no mesmo processo (testes, workers longos)
+        $this->host->tenantId = null;
+        $this->host->slug = null;
 
         if (! in_array($h, self::mainHosts(), true)) {
             abort_unless($base !== '' && str_ends_with($h, '.'.$base), 404);

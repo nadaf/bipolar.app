@@ -30,6 +30,12 @@ class SessionController extends Controller
             throw ValidationException::withMessages(['email' => 'E-mail ou senha incorretos.']);
         }
         $m = $issue->tenantFor($user); // lanca a mesma mensagem se nao houver vinculo neste host
+        if ($user->mfaOn()) { // segunda etapa: nada de sessao autenticada antes do codigo
+            $request->session()->regenerate();
+            $request->session()->put(MfaController::PENDING, ['user' => $user->id, 'tenant' => $m->tenant_id, 'at' => time()]);
+
+            return redirect()->route('mfa.challenge');
+        }
         Auth::login($user);
         $request->session()->regenerate();
         $request->session()->put('tenant_id', $m->tenant_id);

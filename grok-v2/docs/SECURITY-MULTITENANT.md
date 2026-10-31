@@ -92,3 +92,34 @@ fora do grupo de sessão. Depois de instalar, o usuário apaga o token.
 - `alert_settings` (tenant-owned, 1 por paciente): limiares baixo (−3..−1) e alto (1..3) para humor e
   energia; padrão −2/+2. `SignalClassifier` usa esses limiares para "depressivo", "maníaco" e "misto".
 - Alertas **nunca** avisam terceiros automaticamente; pensamentos de morte seguem a regra acima.
+
+## Verificação em duas etapas (2FA)
+- TOTP (`pragmarx/google2fa`), QR gerado no servidor como SVG inline (`bacon/bacon-qr-code`); nenhum serviço
+  externo vê o segredo. Segredo cifrado (`encrypted`), códigos de recuperação guardados como HMAC-SHA256 com
+  o `APP_KEY` (10, uso único). Reuso do mesmo código bloqueado (`mfa_last_step`).
+- Limite: 5 tentativas erradas por conta a cada 10 minutos (web e API), inclusive códigos de recuperação.
+- Login web: senha certa leva a `/entrar/verificacao` (pendência de 10 min na sessão, sem autenticar).
+  API: `/auth/login` devolve `mfa_token` cifrado (5 min) e `/auth/mfa/totp` troca por token.
+- Clínica pode exigir 2FA (`tenants.require_mfa`) de profissionais e administradores; quem não tem só
+  acessa a configuração (web redireciona; API 403 `mfa_setup_required`). Pacientes não são afetados.
+  Com a exigência ligada não dá para desligar a 2FA.
+- Passkeys (WebAuthn): **futuro**. Não há hoje biblioteca PHP pura madura o bastante para hospedagem
+  compartilhada sem extensões; a coluna/estrutura atual não impede adicionar depois.
+
+## Exportação de registros
+- Paciente exporta só os próprios registros (CSV UTF-8 com BOM, `;`, datas dd/mm/aaaa; ou PDF via dompdf
+  com acesso remoto, PHP e JS desligados). Intervalo máximo de 3 anos. Células iniciadas por `= + - @`
+  recebem `'` (evita fórmula no Excel).
+- Profissional exporta só paciente com concessão ativa (`GrantDirectory`), respeitando `data_from` e o
+  escopo: sono só com SONO, anotação só com PENSAMENTOS. Sem concessão → 404.
+- Nome do arquivo sempre neutro: `bipolar-registros-AAAA-MM-DD.csv|pdf`; `Cache-Control: no-store`.
+- Toda exportação vai para o `audit_log` do tenant do paciente (`export.csv|pdf`, `care.exported_csv|pdf`
+  com `scope_mask`). Testes: `tests/Feature/ExportTest.php`.
+
+## Convites da clínica
+- Admin convida por e-mail; token aleatório de 48 caracteres, só o SHA-256 vai ao banco; vale 7 dias,
+  uso único (trava `lockForUpdate`), cancelável; novo convite para o mesmo e-mail cancela o anterior.
+- O link só funciona no host da clínica que convidou (outro host → 404). Aceite exige o mesmo e-mail:
+  conta nova (nome + senha) ou conta existente (senha e, se ligada, código 2FA). Vira `professional`.
+- Ninguém é adicionado à equipe sem aceitar. Testes: `tests/Feature/ClinicInviteTest.php`.
+- `ResolveHost` zera o tenant do host a cada requisição (não herda de requisição anterior no mesmo processo).

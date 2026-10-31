@@ -5,11 +5,13 @@ namespace App\Http\Controllers\Api\V1;
 use App\Domain\Account\IssueToken;
 use App\Domain\Account\RegisterPatient;
 use App\Domain\Account\RegisterSoloProfessional;
+use App\Domain\Mfa\TwoFactor;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Rules\ValidSlug;
 use App\Tenancy\HostTenant;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
@@ -44,8 +46,12 @@ class AuthController extends Controller
         if (! $user || ! Hash::check($v['password'], $user->password)) {
             throw ValidationException::withMessages(['email' => 'E-mail ou senha incorretos.']);
         }
-        if ($user->mfa_enabled_at !== null) {
-            return response()->json(['mfa_required' => true, 'message' => 'Verificação em duas etapas ainda não disponível nesta versão.'], 501);
+        if ($user->mfaOn()) {
+            $issue->tenantFor($user, isset($v['tenant_id']) ? (int) $v['tenant_id'] : null); // mesma mensagem se sem vinculo
+
+            return response()->json(['mfa_required' => true, 'mfa_token' => Crypt::encryptString(json_encode([
+                'u' => $user->id, 'd' => $v['device_name'], 't' => $v['tenant_id'] ?? null, 'exp' => time() + 300,
+            ], JSON_THROW_ON_ERROR))]);
         }
 
         return response()->json(['token' => $issue($user, $v['device_name'], isset($v['tenant_id']) ? (int) $v['tenant_id'] : null)]);
@@ -63,8 +69,23 @@ class AuthController extends Controller
         return AccountController::present($request->user());
     }
 
-    public function mfaStub()
+    /** Segunda etapa: mfa_token (5 min, criptografado) + codigo do app ou de recuperacao => token. */
+    public function mfa(Request $request, IssueToken $issue, TwoFactor $mfa)
     {
-        return response()->json(['message' => 'TOTP será implementado na próxima etapa.'], 501);
+        $v = $request->validate(['mfa_token' => ['required', 'string', 'max:2000'], 'code' => ['required', 'string', 'max:20']]);
+        try {
+            $p = json_decode(Crypt::decryptString($v['mfa_token']), true, 4, JSON_THROW_ON_ERROR);
+        } catch (\Throwable) {
+            $p = null;
+        }
+        $user = is_array($p) && ($p['exp'] ?? 0) >= time() ? User::query()->find($p['u'] ?? 0) : null;
+        if ($user === null || ! $user->mfaOn()) {
+            throw ValidationException::withMessages(['mfa_token' => 'Tentativa expirada. Entre de novo.']);
+        }
+        if (! $mfa->verify($user, $v['code'])) {
+            throw ValidationException::withMessages(['code' => $mfa->lockedOut($user) ? 'Muitas tentativas. Espere 10 minutos.' : 'Código incorreto ou vencido.']);
+        }
+
+        return response()->json(['token' => $issue($user, (string) $p['d'], isset($p['t']) ? (int) $p['t'] : null)]);
     }
 }

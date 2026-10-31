@@ -77,3 +77,13 @@ alter table `push_subscriptions` add index `ix_ps_tenant_user`(`tenant_id`, `use
 alter table `push_subscriptions` add constraint `fk_ps_tenant` foreign key (`tenant_id`) references `tenants` (`id`) on delete cascade;
 alter table `push_subscriptions` add constraint `fk_ps_membership` foreign key (`tenant_id`, `user_id`) references `memberships` (`tenant_id`, `user_id`) on delete cascade;
 INSERT INTO migrations (migration, batch) VALUES ('2026_11_03_000100_create_push_subscriptions_table', 1);
+alter table `users` add `mfa_recovery_codes` text null after `mfa_enabled_at`;
+alter table `users` add `mfa_last_step` bigint unsigned null after `mfa_recovery_codes`;
+alter table `tenants` add `require_mfa` tinyint(1) not null default '0' after `slug`;
+create table `clinic_invites` (`id` bigint unsigned not null auto_increment primary key, `tenant_id` bigint unsigned not null, `email` varchar(190) not null, `role` varchar(20) not null default 'professional', `token_hash` char(64) not null, `invited_by` bigint unsigned null, `expires_at` timestamp null, `accepted_at` timestamp null, `accepted_user_id` bigint unsigned null, `revoked_at` timestamp null, `created_at` timestamp null, `updated_at` timestamp null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
+alter table `clinic_invites` add unique `uq_ci_token`(`token_hash`);
+alter table `clinic_invites` add index `ix_ci_tenant_email`(`tenant_id`, `email`);
+alter table `clinic_invites` add constraint `fk_ci_tenant` foreign key (`tenant_id`) references `tenants` (`id`) on delete cascade;
+alter table `clinic_invites` add constraint `fk_ci_inviter` foreign key (`invited_by`) references `users` (`id`) on delete set null;
+alter table `clinic_invites` add constraint `fk_ci_accepted` foreign key (`accepted_user_id`) references `users` (`id`) on delete set null;
+INSERT INTO migrations (migration, batch) VALUES ('2026_11_04_000100_mfa_exports_clinic_invites', 1);

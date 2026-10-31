@@ -7,14 +7,17 @@
 
 use App\Domain\Account\RegisterPatient;
 use App\Domain\Day\DayBlockService;
+use App\Domain\Mfa\TwoFactor;
 use App\Domain\Mood\MoodEntryService;
 use App\Models\CareGrant;
+use App\Models\ClinicInvite;
 use App\Models\Membership;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Tenancy\TenantContext;
 use Carbon\CarbonImmutable;
 use Illuminate\Contracts\Console\Kernel;
+use PragmaRX\Google2FA\Google2FA;
 
 require __DIR__.'/../../vendor/autoload.php';
 $app = require __DIR__.'/../../bootstrap/app.php';
@@ -63,5 +66,16 @@ app(TenantContext::class)->run($tid, function () use ($ana, $pro) {
     $p = new CareGrant(['patient_id' => $ana->id, 'grantee_kind' => 'familiar', 'scope_mask' => 1]);
     $p->forceFill(['invite_token_hash' => hash('sha256', 'demo-token'), 'invite_expires_at' => now()->addDays(7)])->save();
 });
+
+// Convite pendente da clinica (token fixo so de demonstracao, 48 caracteres) e pessoa com 2FA ligada.
+$invTok = str_repeat('demo', 12);
+app(TenantContext::class)->run($clinic->id, function () use ($invTok, $admin) {
+    ClinicInvite::create(['email' => 'nova@demo.test', 'role' => Membership::PROFESSIONAL,
+        'token_hash' => hash('sha256', $invTok), 'invited_by' => $admin->id, 'expires_at' => now()->addDays(7)]);
+});
+$mfaUser = app(RegisterPatient::class)('Bruno Dois Passos', 'mfa@demo.test', $pw);
+$mfa = app(TwoFactor::class);
+$mfaSecret = $mfa->begin($mfaUser);
+$mfa->confirm($mfaUser->fresh(), app(Google2FA::class)->getCurrentOtp($mfaSecret));
 
 echo "ok\n";

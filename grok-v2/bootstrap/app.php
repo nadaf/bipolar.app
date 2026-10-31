@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\InstallerController;
+use App\Http\Middleware\EnsureMfa;
 use App\Http\Middleware\EnsurePatient;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\ResolveHost;
@@ -37,7 +38,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->append(SecurityHeaders::class);
         $middleware->web(prepend: [ResolveHost::class]);
         $middleware->api(prepend: [ResolveHost::class]);
-        $middleware->alias(['tenant' => ResolveTenant::class, 'patient' => EnsurePatient::class, 'role' => EnsureRole::class]);
+        $middleware->alias(['tenant' => ResolveTenant::class, 'patient' => EnsurePatient::class, 'role' => EnsureRole::class, 'mfa' => EnsureMfa::class]);
         $middleware->redirectGuestsTo('/entrar');
     })
     ->withExceptions(function (Exceptions $exceptions): void {

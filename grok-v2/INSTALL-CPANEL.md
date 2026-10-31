@@ -107,6 +107,19 @@ cd /home/seuusuario/bipolar && /usr/local/bin/php artisan schedule:run >> /dev/n
 
 Isso envia os lembretes de registro (Web Push, `bipolar:send-reminders`, a cada minuto) e processa a fila de envios.
 
+### E-mail (convites da clínica)
+1. No cPanel, crie uma conta de e-mail (ex.: `nao-responda@seu-dominio`).
+2. No `.env`: `MAIL_MAILER=smtp`, `MAIL_HOST` (ex.: `mail.seu-dominio`), `MAIL_PORT=465`, `MAIL_SCHEME=smtps`
+   (ou porta 587 sem `MAIL_SCHEME`), `MAIL_USERNAME`, `MAIL_PASSWORD`, `MAIL_FROM_ADDRESS`, `MAIL_FROM_NAME`.
+   A senha fica **só** no `.env`.
+3. Para testar sem enviar nada, use `MAIL_MAILER=log` (o e-mail vai para `storage/logs/laravel.log`).
+4. O texto do convite é neutro: nome da clínica e o link. Nada de saúde no assunto ou no corpo.
+
+### Verificação em duas etapas e exportação
+- Não precisam de chave nova: os segredos TOTP e os códigos de recuperação são cifrados com o `APP_KEY`.
+  **Não troque o `APP_KEY`** depois de ligar a 2FA (as pessoas perderiam o acesso pelo app autenticador).
+- O PDF usa `dompdf` (PHP puro, já no `vendor/`); não precisa de extensão extra além de `mbstring`, `dom` e `gd`.
+
 ### Lembretes por notificação (Web Push)
 
 1. Gere as chaves uma vez (no seu computador, com o projeto: `php artisan bipolar:vapid`; ou peça ao suporte).

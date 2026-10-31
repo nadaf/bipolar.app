@@ -12,6 +12,7 @@ use Illuminate\Database\Eloquent\Model;
  * @property string $kind
  * @property string $name
  * @property string|null $slug
+ * @property bool $require_mfa
  */
 class Tenant extends Model
 {
@@ -22,4 +23,11 @@ class Tenant extends Model
     public const SOLO = 'solo';
 
     protected $fillable = ['kind', 'name', 'slug'];
+
+    protected $attributes = ['require_mfa' => false];
+
+    protected function casts(): array
+    {
+        return ['require_mfa' => 'boolean'];
+    }
 }

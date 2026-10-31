@@ -13,6 +13,12 @@
 - Blocos sensíveis exigem desbloqueio de 10 minutos; recursos de outra pessoa respondem 404.
 - Testes: CSP por tela e isolamento (Pest); axe 0 serious/critical em 412px e 1280px, claro e escuro.
 
+### Segurança, exportação e convites
+- Verificação em duas etapas (TOTP) opcional em Conta, com QR gerado no servidor, 10 códigos de recuperação de uso único, limite de tentativas e segredos cifrados. Clínica pode exigir 2FA da equipe. Passkeys ficam para depois.
+- Exportar registros em CSV (Excel pt-BR) ou PDF, com intervalo de datas; profissional exporta só quem concedeu acesso, dentro do escopo. Toda exportação fica no registro de auditoria; nome de arquivo neutro.
+- Convite de profissional por e-mail (link de uso único, 7 dias, só no endereço da clínica); a pessoa cria a conta ou entra com a que já tem. E-mail via SMTP do cPanel (`MAIL_*`).
+- API: `/account/mfa*`, `/auth/mfa/totp`, `/export/entries`, `/care/patients/{id}/export`, `/clinic/invites*`, `/clinic-invites/{token}*`, `/clinic/settings`.
+
 ### PWA: lembretes, atalhos e offline
 - Lembretes reais por Web Push (VAPID, `minishlink/web-push`, sem SSH): ativar/desativar por aparelho em Alertas, grade semanal no fuso da pessoa, comando `bipolar:send-reminders` no agendador (cron do cPanel a cada minuto), uma notificação por período, inscrições expiradas removidas. Texto sempre neutro ("Hora do seu registro"), abre /registrar. Chaves só no `.env` (`php artisan bipolar:vapid`).
 - Lembrete por e-mail continua para depois (a tela diz isso).

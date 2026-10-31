@@ -4,6 +4,8 @@ namespace App\Http\Controllers\Api\V1;
 
 use App\Domain\Clinic\ClinicProfessionals;
 use App\Http\Controllers\Controller;
+use App\Models\AuditLog;
+use App\Models\Tenant;
 use Illuminate\Http\Request;
 
 /** API fina sobre App\Domain\Clinic\ClinicProfessionals (mesma regra da tela). */
@@ -33,6 +35,17 @@ class ClinicProfessionalController extends Controller
         abort_unless($this->svc->remove($request->user(), $this->clinicId(), $userId), 404);
 
         return response()->noContent();
+    }
+
+    /** PUT clinic/settings {require_mfa: bool} */
+    public function settings(Request $request)
+    {
+        $id = $this->clinicId();
+        $on = (bool) $request->validate(['require_mfa' => ['required', 'boolean']])['require_mfa'];
+        Tenant::query()->whereKey($id)->update(['require_mfa' => $on]);
+        AuditLog::create(['actor_id' => $request->user()->id, 'action' => $on ? 'clinic.mfa_required' : 'clinic.mfa_optional', 'subject_type' => 'tenant', 'subject_id' => $id]);
+
+        return ['data' => ['require_mfa' => $on]];
     }
 
     private function clinicId(): int

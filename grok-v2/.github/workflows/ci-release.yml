@@ -1,0 +1,162 @@
+# CI publico (nadaf/bipolar.app): testes + seguranca + pacote cPanel.
+# Acoes fixadas por SHA de commit (comentario = versao). Atualize com cuidado.
+name: CI e pacote cPanel
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  PHP_VERSION: '8.3'
+  NODE_VERSION: '22'
+
+jobs:
+  secret-scan:
+    name: Varredura de segredos
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Instalar gitleaks (checksum verificado)
+        env:
+          GL_VERSION: 8.30.1
+          GL_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+        run: |
+          curl -sSfL -o gl.tgz "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VERSION}/gitleaks_${GL_VERSION}_linux_x64.tar.gz"
+          echo "${GL_SHA256}  gl.tgz" | sha256sum -c -
+          tar -xzf gl.tgz gitleaks && rm gl.tgz
+      - name: gitleaks
+        run: ./gitleaks git --redact --no-banner --exit-code 1 .
+      - name: Nada privado na arvore publica
+        run: scripts/check-public-tree.sh
+
+  test:
+    name: Lint e testes (PHP 8.3 + MySQL 5.7)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      mysql:
+        image: mysql:5.7
+        env:
+          MYSQL_DATABASE: bipolar_test
+          MYSQL_USER: bp
+          MYSQL_PASSWORD: bp
+          MYSQL_ROOT_PASSWORD: root-ci-only
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -uroot -proot-ci-only"
+          --health-interval=5s --health-timeout=5s --health-retries=20
+    env:
+      DB_CONNECTION: mysql
+      DB_HOST: 127.0.0.1
+      DB_PORT: '3306'
+      DB_DATABASE: bipolar_test
+      DB_USERNAME: bp
+      DB_PASSWORD: bp
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, pdo_mysql, intl, bcmath, zip
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: composer install --no-interaction --no-progress --prefer-dist
+      - run: npm ci --no-audit --no-fund
+      - name: Build front-end (Tailwind + Vite + Workbox)
+        run: npm run build
+      - name: OpenAPI 3.1 valido
+        run: npx --yes @redocly/cli@2.72.1 lint openapi/v1.yaml
+      - name: Pint (estilo)
+        run: vendor/bin/pint --test
+      - name: PHPStan / Larastan
+        run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+      - name: Pest (inclui isolamento entre tenants e arquitetura)
+        run: vendor/bin/pest --colors=never
+      - name: Isolamento (suite dedicada, deve existir e passar)
+        run: vendor/bin/pest tests/Feature/Isolation tests/Arch --colors=never
+      - name: SQL de instalacao reproduzivel no MySQL 5.7
+        run: |
+          mysql -h127.0.0.1 -uroot -proot-ci-only -e "DROP DATABASE IF EXISTS bp_export; CREATE DATABASE bp_export; DROP DATABASE IF EXISTS bp_import; CREATE DATABASE bp_import"
+          DB_DATABASE=bp_export DB_USERNAME=root DB_PASSWORD=root-ci-only php artisan bipolar:export-sql --out=storage/ci-install.sql
+          mysql -h127.0.0.1 -uroot -proot-ci-only bp_import < storage/ci-install.sql
+          diff <(grep -v '^--' storage/ci-install.sql) <(grep -v '^--' database/sql/install-mysql57.sql) \
+            || { echo "database/sql/install-mysql57.sql desatualizado: rode php artisan bipolar:export-sql"; exit 1; }
+
+  package:
+    name: Pacote cPanel (zip)
+    needs: [secret-scan, test]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: shivammathur/setup-php@eb7c497e18156a6bbabfef1d3a82760b9eda3962 # 2.40.0
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, pdo_mysql, intl, bcmath, zip
+          coverage: none
+          tools: composer:v2
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Gerar zip (vendor --no-dev -o, assets prontos, sem .env/segredos)
+        run: scripts/build-release.sh dist/bipolar-release.zip
+      - name: Conferir que nao ha .env nem segredos no zip
+        run: |
+          ! unzip -l dist/bipolar-release.zip | grep -E '(^|/)\.env$|auth\.json|\.pem$|\.key$'
+          (cd dist && sha256sum bipolar-release.zip > bipolar-release.zip.sha256)
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bipolar-cpanel-zip
+          path: |
+            dist/bipolar-release.zip
+            dist/bipolar-release.zip.sha256
+          retention-days: 30
+          if-no-files-found: error
+
+  release:
+    name: Publicar na Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [package]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: bipolar-cpanel-zip
+          path: dist
+      - name: Criar/atualizar Release com o zip
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/bipolar-release.zip dist/bipolar-release.zip.sha256 --clobber --repo "$GITHUB_REPOSITORY"
+          else
+            gh release create "$TAG" dist/bipolar-release.zip dist/bipolar-release.zip.sha256 \
+              --repo "$GITHUB_REPOSITORY" --title "$TAG" --generate-notes --prerelease
+          fi

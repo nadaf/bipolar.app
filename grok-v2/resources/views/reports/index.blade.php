@@ -14,7 +14,10 @@
     <p class="hint">{{ $fmt($r['from']) }} a {{ $fmt($r['to']) }} · {{ $r['days_recorded'] }} dia(s) com registro</p>
     @if($readOnly)<p class="info mt-2 text-sm">Somente leitura. Categorias liberadas: {{ implode(', ', $granted) }}. Seu acesso fica registrado para o(a) paciente.</p>@endif
   </div>
-  <div x-data="imprimir" class="no-print"><button type="button" class="btn-secondary" x-on:click="go">@include('partials.icon', ['name' => 'impressora']) Imprimir</button></div>
+  <div class="no-print flex flex-wrap gap-2">
+    <div x-data="imprimir"><button type="button" class="btn-secondary" x-on:click="go">@include('partials.icon', ['name' => 'impressora']) Imprimir</button></div>
+    <a class="btn-secondary" href="{{ $readOnly ? route('care.export', $r['grant']->patient_id) : route('export') }}">Exportar CSV ou PDF</a>
+  </div>
 </div>
 <p class="print-only">Bipolar — relatório de {{ $who }} · gerado em {{ now()->format('d/m/Y') }}</p>
 

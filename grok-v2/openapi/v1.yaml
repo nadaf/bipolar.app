@@ -75,7 +75,9 @@ paths:
         '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
-        '501': { description: Conta com MFA — verificação TOTP ainda não implementada }
+      description: |
+        Conta com verificação em duas etapas responde 200 com `{mfa_required: true, mfa_token}` (sem token de acesso);
+        complete em POST /auth/mfa/totp em até 5 minutos.
   /auth/logout:
     post:
       tags: [auth]
@@ -87,18 +89,180 @@ paths:
   /auth/mfa/totp:
     post:
       tags: [auth]
-      x-status: planned
-      summary: Configurar/verificar TOTP (stub retorna 501)
+      x-status: implemented
+      security: []
+      summary: Segunda etapa do login (código TOTP de 6 dígitos ou código de recuperação de uso único)
+      description: Limite de 5 erros por conta a cada 10 minutos, além do throttle da rota.
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
+              required: [mfa_token, code]
               properties:
-                code: { type: string, pattern: '^[0-9]{6}$' }
+                mfa_token: { type: string }
+                code: { type: string, maxLength: 20 }
       responses:
-        '200': { description: Verificado }
-        '501': { description: Ainda não implementado }
+        '200': { description: OK, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /account/mfa:
+    get:
+      tags: [account]
+      x-status: implemented
+      summary: Situação da verificação em duas etapas (ligada, códigos restantes, exigida pela clínica)
+      responses:
+        '200': { description: OK }
+    delete:
+      tags: [account]
+      x-status: implemented
+      summary: Desliga (senha + código). 403 se a clínica exigir.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [password], properties: { password: { type: string }, code: { type: string } } } } }
+      responses:
+        '204': { description: Desligada }
+        '403': { description: Exigida pela clínica }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /account/mfa/setup:
+    post:
+      tags: [account]
+      x-status: implemented
+      summary: Inicia a configuração (senha). Devolve segredo, URI otpauth e QR em SVG gerado no servidor.
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [password], properties: { password: { type: string } } } } }
+      responses:
+        '201': { description: Segredo gerado (ainda desligada) }
+        '409': { description: Já está ligada }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /account/mfa/confirm:
+    post:
+      tags: [account]
+      x-status: implemented
+      summary: Confirma o primeiro código e liga; devolve 10 códigos de recuperação (mostrar uma vez)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [code], properties: { code: { type: string, pattern: '^[0-9]{6}$' } } } } }
+      responses:
+        '200': { description: Ligada }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /account/mfa/recovery-codes:
+    post:
+      tags: [account]
+      x-status: implemented
+      summary: Gera novos códigos de recuperação (senha + código); os antigos deixam de valer
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [password, code], properties: { password: { type: string }, code: { type: string } } } } }
+      responses:
+        '200': { description: Novos códigos }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /export/entries:
+    get:
+      tags: [export]
+      x-status: implemented
+      summary: Exporta os próprios registros (CSV UTF-8 com BOM, separador ;, datas dd/mm/aaaa; ou PDF). Auditado.
+      parameters:
+        - { name: format, in: query, required: true, schema: { type: string, enum: [csv, pdf] } }
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Arquivo (nome neutro bipolar-registros-AAAA-MM-DD.ext), content: { text/csv: {}, application/pdf: {} } }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /care/patients/{patientId}/export:
+    parameters:
+      - { name: patientId, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    get:
+      tags: [care]
+      x-status: implemented
+      summary: Exporta registros de paciente que concedeu acesso (só categorias concedidas, desde data_from). Auditado.
+      parameters:
+        - { name: format, in: query, required: true, schema: { type: string, enum: [csv, pdf] } }
+        - { name: from, in: query, required: true, schema: { type: string, format: date } }
+        - { name: to, in: query, required: true, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Arquivo, content: { text/csv: {}, application/pdf: {} } }
+        '404': { $ref: '#/components/responses/NotFound' }
+
+  /clinic/invites:
+    get:
+      tags: [clinic]
+      x-status: implemented
+      summary: Convites pendentes (admin)
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+    post:
+      tags: [clinic]
+      x-status: implemented
+      summary: Convida profissional por e-mail (link de uso único, 7 dias; só o hash do token fica no banco)
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [email], properties: { email: { type: string, format: email } } } } }
+      responses:
+        '201': { description: Convite enviado }
+        '409': { description: Já faz parte da clínica }
+        '422': { $ref: '#/components/responses/ValidationError' }
+  /clinic/invites/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer, minimum: 1 } }
+    delete:
+      tags: [clinic]
+      x-status: implemented
+      summary: Cancela convite pendente
+      responses:
+        '204': { description: Cancelado }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /clinic/settings:
+    put:
+      tags: [clinic]
+      x-status: implemented
+      summary: Exigir verificação em duas etapas de profissionais e admins da clínica
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [require_mfa], properties: { require_mfa: { type: boolean } } } } }
+      responses:
+        '200': { description: OK }
+  /clinic-invites/{token}:
+    parameters:
+      - { name: token, in: path, required: true, schema: { type: string, minLength: 48, maxLength: 48 } }
+    get:
+      tags: [clinic]
+      x-status: implemented
+      security: []
+      summary: Dados mínimos do convite (clínica, e-mail, se já há conta). Só no host da clínica.
+      responses:
+        '200': { description: OK }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /clinic-invites/{token}/accept:
+    parameters:
+      - { name: token, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [clinic]
+      x-status: implemented
+      summary: Aceita com a conta logada (o e-mail tem de ser o convidado)
+      responses:
+        '200': { description: Vinculado }
+        '404': { $ref: '#/components/responses/NotFound' }
+  /clinic-invites/{token}/register:
+    parameters:
+      - { name: token, in: path, required: true, schema: { type: string } }
+    post:
+      tags: [clinic]
+      x-status: implemented
+      security: []
+      summary: Cria a conta pelo convite e devolve token amarrado à clínica
+      requestBody:
+        required: true
+        content: { application/json: { schema: { type: object, required: [name, password, device_name], properties: { name: { type: string }, password: { type: string, minLength: 10 }, device_name: { type: string } } } } }
+      responses:
+        '201': { description: Conta criada, content: { application/json: { schema: { $ref: '#/components/schemas/TokenResponse' } } } }
+        '409': { description: Já existe conta com esse e-mail }
+        '404': { $ref: '#/components/responses/NotFound' }
 
   /account:
     get:
@@ -595,7 +759,7 @@ paths:
       x-status: implemented
       operationId: addClinicProfessional
       summary: Vincula um profissional (conta já existente) à clínica
-      description: Convite por e-mail para quem ainda não tem conta está planejado.
+      description: Vínculo direto de conta existente (legado). Prefira POST /clinic/invites, em que a pessoa aceita.
       requestBody:
         required: true
         content:

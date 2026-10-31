@@ -22,6 +22,10 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $pending_email
  * @property string|null $email_change_hash
  * @property Carbon|null $email_change_expires_at
+ * @property string|null $mfa_totp_secret
+ * @property Carbon|null $mfa_enabled_at
+ * @property array<int, string>|null $mfa_recovery_codes
+ * @property int|null $mfa_last_step
  */
 class User extends Authenticatable
 {
@@ -31,9 +35,9 @@ class User extends Authenticatable
 
     /** Mesmos padroes do banco (modelo recem-criado ja tem tudo, sem MissingAttributeException). */
     protected $attributes = ['timezone' => 'America/Sao_Paulo', 'theme' => 'sistema', 'modules' => null, 'pin_hash' => null,
-        'pending_email' => null, 'email_change_hash' => null, 'email_change_expires_at' => null];
+        'pending_email' => null, 'mfa_totp_secret' => null, 'mfa_enabled_at' => null, 'mfa_recovery_codes' => null, 'mfa_last_step' => null, 'email_change_hash' => null, 'email_change_expires_at' => null];
 
-    protected $hidden = ['password', 'remember_token', 'mfa_totp_secret', 'pin_hash', 'email_change_hash'];
+    protected $hidden = ['password', 'remember_token', 'mfa_totp_secret', 'mfa_recovery_codes', 'pin_hash', 'email_change_hash'];
 
     protected function casts(): array
     {
@@ -41,6 +45,8 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'mfa_enabled_at' => 'datetime',
             'mfa_totp_secret' => 'encrypted',
+            'mfa_recovery_codes' => 'encrypted:array',
+            'mfa_last_step' => 'integer',
             'password' => 'hashed',
             'email_change_expires_at' => 'datetime',
         ];
@@ -50,6 +56,11 @@ class User extends Authenticatable
     public function moduleOn(string $module): bool
     {
         return in_array($module, explode(',', (string) $this->modules), true);
+    }
+
+    public function mfaOn(): bool
+    {
+        return $this->mfa_enabled_at !== null && $this->mfa_totp_secret !== null;
     }
 
     public function memberships(): HasMany
