@@ -242,35 +242,27 @@ final class V47Test extends IntegrationCase
         $this->assertStringContainsString("mfa_enabled_at_local(\$user)['date']", (string)file_get_contents(TestEnv::ROOT . '/app/views/account_mfa.php'));
     }
 
-    /* ---------------- C: app público sem revenda ---------------- */
+    /* ---------------- C: app público funciona sem o módulo privado ---------------- */
     public function testPublicAppWorksWithoutPrivateModule(): void
     {
         if (TestEnv::hasPrivate()) {
-            // árvore completa do site: as páginas e o webhook vêm do módulo privado
-            $this->assertTrue(ext_has('leads'));
-            $this->assertStringContainsString('R$ 49,90', $this->prod()->get('/profissionais.php')['body']);
+            // árvore completa do site: páginas extras vêm do módulo privado
+            $this->assertSame(200, $this->prod()->get('/profissionais.php')['status']);
             $this->assertStringContainsString('id="contatos"', $this->prod()->get('/privacidade.php')['body']);
-            $this->assertSame(404, $this->prod()->get('/api/billing-webhook.php')['status'], 'cobrança desligada no config de teste');
             return;
         }
-        foreach (['app/lib/billing.php', 'app/lib/leads.php', 'app/views/marketing.php', 'public_html/api/billing-webhook.php', 'tools/billing_checkout.php', 'tools/export_leads.php', 'cron/billing_retry.php', 'cron/purge_leads.php', 'app/ext'] as $f) {
-            $this->assertFileDoesNotExist(TestEnv::ROOT . '/' . $f, "$f é do módulo privado");
-        }
-        $this->assertSame([], glob(TestEnv::ROOT . '/migrations/*{leads,billing}*', GLOB_BRACE) ?: []);
-        $this->assertDoesNotMatchRegularExpression('/billing_|CREATE TABLE IF NOT EXISTS leads/', (string)file_get_contents(TestEnv::ROOT . '/schema.sql'));
-        $this->assertDoesNotMatchRegularExpression("/'billing' =>|'sales' =>|mercadopago/i", (string)file_get_contents(TestEnv::ROOT . '/app/config.example.php'));
-        $this->assertFalse(ext_has('leads'));
+        // nenhum arquivo do módulo privado na árvore pública
+        $this->assertFileDoesNotExist(TestEnv::ROOT . '/app/ext', 'app/ext é do módulo privado');
+        $this->assertSame([], glob(TestEnv::ROOT . '/app/ext/*') ?: []);
         $this->assertFalse(ext_page('profissionais'));
         $this->assertSame('', ext_partial('privacidade-contatos'));
         foreach (['/profissionais.php', '/comecar.php'] as $p) {
             $r = $this->prod()->get($p);
             $this->assertSame(200, $r['status'], $p);
             $this->assertStringNotContainsString('<form', $r['body'], "$p sem formulário de contato");
-            $this->assertStringNotContainsString('R$', $r['body'], "$p sem preços");
             $this->assertStringContainsString('rel="canonical"', $r['body']);
         }
         $this->assertStringNotContainsString('id="contatos"', $this->prod()->get('/privacidade.php')['body']);
-        $this->assertSame(404, $this->prod()->get('/api/billing-webhook.php')['status']);
     }
     public function testExtensionNamesAreSafe(): void
     {

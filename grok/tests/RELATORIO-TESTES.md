@@ -9,7 +9,7 @@ Ambiente desta rodada: **PHP 8.4.26** (é o único PHP instalado nesta máquina;
 | Etapa | Resultado |
 |---|---|
 | PHPUnit (suíte inteira) | ✅ 290 testes, 2727 asserções, 0 falhas |
-| `Unit/LeadsUnitTest.php` | subdomínio (21 casos: tamanho 3–30, `a-z0-9-`, maiúsculas, acento, `_`, `.`, espaço, hífen no início/fim, `--`, reservados), honeypot, carimbo de tempo (mínimo, expiração, outra sessão, adulterado, tipos inválidos), validação completa dos 2 formulários (inclusive injeção de cabeçalho no e-mail), preço 49,90 nos 2 planos, hash do IP, CSV com proteção contra fórmulas e aspas, limpeza de 12 meses que preserva `fechado` |
+| `Unit/LeadsUnitTest.php` | subdomínio (21 casos: tamanho 3–30, `a-z0-9-`, maiúsculas, acento, `_`, `.`, espaço, hífen no início/fim, `--`, reservados), honeypot, carimbo de tempo (mínimo, expiração, outra sessão, adulterado, tipos inválidos), validação completa dos 2 formulários (inclusive injeção de cabeçalho no e-mail), hash do IP, CSV com proteção contra fórmulas e aspas, limpeza de 12 meses que preserva `fechado` |
 | PHPStan nível 6 | ✅ 0 erros |
 | `php -l` | ✅ |
 | Varredura de padrões inseguros | ✅ 0 ocorrências |

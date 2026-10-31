@@ -22,7 +22,7 @@ function page_head(string $title, string $bodyClass = '', array $meta = []): voi
 <meta property="og:image" content="<?= e($base) ?>/assets/og/og-bipolar.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
-<meta property="og:image:alt" content="Bipolar: diário de humor gratuito e de código aberto, com planos para profissionais e clínicas">
+<meta property="og:image:alt" content="Bipolar: diário de humor gratuito e de código aberto, com relatórios para profissionais e clínicas">
 <meta name="twitter:card" content="summary_large_image">
 <?php endif; ?>
 <meta name="theme-color" content="<?= e($brandColor ?? '#2f6f73') ?>" media="(prefers-color-scheme: light)">

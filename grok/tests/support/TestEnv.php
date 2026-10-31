@@ -40,7 +40,7 @@ final class TestEnv
         require_once self::ROOT . '/app/lib/webauthn.php';
         require_once self::ROOT . '/app/lib/alerts.php';
         require_once self::ROOT . '/app/lib/ai.php';
-        // V4.7: o módulo privado (pedidos de contato/cobrança) só existe na árvore completa do site
+        // V4.7: o módulo privado só existe na árvore completa do site
         if (is_file(self::ROOT . '/app/lib/leads.php')) require_once self::ROOT . '/app/lib/leads.php';
         self::resetDb();
 

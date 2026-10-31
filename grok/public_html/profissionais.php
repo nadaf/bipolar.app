@@ -1,6 +1,6 @@
 <?php
 require __DIR__ . '/_boot.php';
-// V4.7: com o módulo privado instalado (bipolar.app.br), a página completa (planos e formulário) vem dele.
+// V4.7: com o módulo privado instalado (bipolar.app.br), a página completa vem dele.
 if (ext_page('profissionais')) return;
 page_head('Para profissionais de saúde', 'marketing', [
     'og' => true, 'canonical' => '/profissionais.php',

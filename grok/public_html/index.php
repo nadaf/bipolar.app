@@ -35,7 +35,7 @@ if (!$user) {
   </section>
   <nav class="card narrow landing-links" aria-label="Conheça o Bipolar">
     <p><a href="/comecar.php">Primeira vez aqui? Veja como o app ajuda, de graça</a></p>
-    <p><a href="/profissionais.php">É psiquiatra, psicólogo(a) ou trabalha em clínica ou CAPS? Conheça os planos</a></p>
+    <p><a href="/profissionais.php">É psiquiatra, psicólogo(a) ou trabalha em clínica ou CAPS? Saiba como usar com seus pacientes</a></p>
   </nav>
   <script src="/assets/js/auth.js?v=1"></script>
   <script src="/assets/js/passkey.js?v=4"></script>

@@ -35,4 +35,4 @@
 
 ## 0.3.x — V4.5 e V4.6
 - Páginas informativas `/profissionais.php` e `/comecar.php`, imagens Open Graph, `sitemap.xml` e ajustes de SEO.
-- Recursos comerciais do site oficial (formulários de contato, planos e cobrança) **não fazem parte deste repositório**.
+- Módulos exclusivos do site oficial **não fazem parte deste repositório**.

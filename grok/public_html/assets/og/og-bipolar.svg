@@ -6,7 +6,7 @@
   <text x="250" y="190" font-family="DejaVu Sans, Arial, sans-serif" font-size="68" font-weight="700" fill="#1d2b36">Bipolar</text>
   <text x="100" y="320" font-family="DejaVu Sans, Arial, sans-serif" font-size="46" font-weight="700" fill="#1d2b36">Seu humor, um dia de cada vez</text>
   <text x="100" y="385" font-family="DejaVu Sans, Arial, sans-serif" font-size="30" fill="#50606c">Diário de humor gratuito e de código aberto para pacientes.</text>
-  <text x="100" y="430" font-family="DejaVu Sans, Arial, sans-serif" font-size="30" fill="#50606c">Planos para profissionais e clínicas, com o paciente no controle.</text>
+  <text x="100" y="430" font-family="DejaVu Sans, Arial, sans-serif" font-size="30" fill="#50606c">Relatórios para profissionais e clínicas, com o paciente no controle.</text>
   <polyline points="100,520 220,500 340,540 460,470 580,510 700,490 820,530 940,480 1100,505" fill="none" stroke="#5fae8f" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
   <text x="1100" y="570" text-anchor="end" font-family="DejaVu Sans, Arial, sans-serif" font-size="26" fill="#2f6f73">bipolar.app.br</text>
 </svg>
