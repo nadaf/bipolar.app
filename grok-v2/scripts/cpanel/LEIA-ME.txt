@@ -1,0 +1,98 @@
+BIPOLAR {{VERSAO}} - COMO COLOCAR NO AR (sem programas, so copiar arquivos)
+=========================================================================
+
+Voce NAO precisa de npm, composer nem SSH. Tudo ja vem pronto neste zip.
+Vai precisar so do cPanel (Gerenciador de Arquivos, MySQL e phpMyAdmin).
+
+O que tem dentro do zip:
+  bipolar/       o programa (fica FORA da pasta do site, por seguranca)
+  public_html/   a parte que o visitante ve (o site)
+  banco/         arquivos para o banco de dados
+  cron.txt       a linha da tarefa automatica
+  LEIA-ME.txt    este arquivo
+
+
+-------------------------------------------------
+A) PRIMEIRA INSTALACAO
+-------------------------------------------------
+
+1. Faca uma copia de seguranca. No Gerenciador de Arquivos, se ja existe
+   a pasta public_html com um site, renomeie para public_html_antigo.
+
+2. Envie o zip. Gerenciador de Arquivos -> abra a sua pasta inicial
+   (a que mostra public_html dentro dela, NAO entre na public_html)
+   -> Carregar -> escolha o cpanel.zip.
+
+3. Extraia. Clique com o botao direito no cpanel.zip -> Extract (Extrair).
+   Aparecem as pastas bipolar, public_html e banco ao lado umas das outras.
+
+4. Crie o banco. cPanel -> "Assistente de banco de dados MySQL":
+   crie um banco, um usuario com senha, e marque TODOS OS PRIVILEGIOS.
+   Anote: nome do banco, usuario e senha.
+
+5. Crie o arquivo de configuracao. Gerenciador de Arquivos -> pasta bipolar
+   (se nao aparecer, clique em Configuracoes e marque "Mostrar arquivos ocultos").
+   Clique com o botao direito em .env.example -> Copy (Copiar) -> nome: .env
+   Depois clique com o botao direito no .env -> Edit (Editar) e preencha:
+     APP_URL=https://seu-site.com.br
+     DB_DATABASE=nome do banco do passo 4
+     DB_USERNAME=usuario do passo 4
+     DB_PASSWORD=senha do passo 4
+     BIPOLAR_BASE_DOMAIN=seu-site.com.br
+     INSTALLER_TOKEN=invente um codigo com 32 letras e numeros ou mais
+                     (ex.: Bipolar2026instalacaoSeguraXyz123)
+   Deixe APP_KEY= vazio: ele e criado sozinho no passo 6.
+   Salve.
+
+6. Crie as tabelas. No navegador, abra:  https://seu-site.com.br/instalar
+   Digite o codigo que voce inventou no INSTALLER_TOKEN e clique no botao.
+   Ao aparecer "Pronto!", o banco esta criado. Esse codigo nao funciona
+   de novo (o instalador se desliga sozinho).
+
+   (Outra opcao, sem o passo 6: cPanel -> phpMyAdmin -> clique no seu banco
+    -> Importar -> escolha banco/instalar-banco-novo.sql -> Executar.
+    Nesse caso, invente o INSTALLER_TOKEN mesmo assim e abra o site uma vez
+    para a chave APP_KEY ser criada.)
+
+7. Abra https://seu-site.com.br e crie sua conta.
+
+8. Tarefa automatica (lembretes): abra o arquivo cron.txt e siga o que ele diz.
+
+9. E-mail (convites de clinica), opcional: crie uma conta de e-mail no cPanel
+   e preencha no .env as linhas MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD e
+   MAIL_FROM_ADDRESS.
+
+
+-------------------------------------------------
+B) ATUALIZAR UMA VERSAO QUE JA ESTA NO AR
+-------------------------------------------------
+
+1. Copia de seguranca: phpMyAdmin -> seu banco -> Exportar -> Executar
+   (guarda um arquivo .sql). Baixe tambem o arquivo bipolar/.env.
+
+2. Envie o cpanel.zip para a pasta inicial e Extraia por cima
+   (aceite substituir). O seu .env NAO e apagado (ele nao vem no zip).
+
+3. Atualize o banco (escolha UM jeito):
+   a) phpMyAdmin -> seu banco -> Importar -> banco/atualizar-banco.sql -> Executar.
+      Ele so aplica o que falta; pode importar de novo sem problema.
+   b) Ou: no .env troque o INSTALLER_TOKEN por um codigo NOVO (32 ou mais)
+      e abra https://seu-site.com.br/atualizar , digite o codigo e confirme.
+
+4. Abra o site e confira se entra normalmente.
+
+
+-------------------------------------------------
+SE ALGO DER ERRADO
+-------------------------------------------------
+- "Erro 500" ou pagina branca: confira os dados do banco no .env
+  (nome, usuario, senha) e se o usuario tem todos os privilegios.
+- Pagina sem cores/estilo: a pasta public_html/build nao foi extraida.
+  Extraia o zip de novo.
+- "Not Found" em /instalar: o INSTALLER_TOKEN esta vazio, tem menos de
+  32 caracteres, ou ja foi usado. Coloque um codigo novo.
+- Detalhes do erro ficam em bipolar/storage/logs (arquivo do dia).
+- Para voltar atras: renomeie public_html_antigo para public_html e
+  importe a copia do banco no phpMyAdmin.
+
+Nunca mande o arquivo .env para ninguem: ele tem as senhas.

@@ -31,6 +31,8 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::group([], function () { // sem throttle: cache/sessao ainda nao existem antes da instalacao
                 Route::get('/instalar', [InstallerController::class, 'form']);
                 Route::post('/instalar', [InstallerController::class, 'run']);
+                Route::get('/atualizar', [InstallerController::class, 'form']);
+                Route::post('/atualizar', [InstallerController::class, 'run']);
             });
         },
     )

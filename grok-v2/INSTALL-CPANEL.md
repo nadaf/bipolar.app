@@ -11,18 +11,21 @@ Tempo estimado: 30 minutos. Não precisa de SSH.
 
 ## 1. Baixar o pacote (arquivo .zip)
 
-Você recebe um arquivo chamado `bipolar-release.zip` (ou `bipolar-v2-release.zip`).
+Você recebe um arquivo chamado **`cpanel.zip`**. Ele já vem pronto: **não precisa de npm, composer
+nem SSH**. Dentro dele há um **`LEIA-ME.txt`** com o passo a passo curto (instalar e atualizar),
+a pasta `banco/` (`instalar-banco-novo.sql` e `atualizar-banco.sql` para o phpMyAdmin) e o `cron.txt`.
+Este guia é a versão longa.
 
 **Se ele estiver no GitHub:**
 
 - **Versões oficiais (recomendado):** abra a página do projeto no GitHub →
   clique em **Releases** (lado direito) → escolha a versão mais nova (ex.: `v2.0.0-beta.1`) →
-  em **Assets**, clique em `bipolar-release.zip` para baixar.
+  em **Assets**, clique em `cpanel.zip` para baixar.
 - **Versão de teste (de um commit):** na página do projeto clique em **Actions** →
   clique no item mais recente com ✅ verde chamado **CI e pacote cPanel** →
-  role até **Artifacts** → clique em **bipolar-cpanel-zip**.
-  O GitHub baixa um zip que tem **dentro** o `bipolar-release.zip`: abra-o no seu computador e
-  use o `bipolar-release.zip` de dentro. (Esse download exige estar logado no GitHub e
+  role até **Artifacts** → clique em **cpanel.zip**.
+  O GitHub baixa um zip que tem **dentro** o `cpanel.zip`: abra-o no seu computador e
+  use o `cpanel.zip` de dentro. (Esse download exige estar logado no GitHub e
   some depois de 30 dias.)
 
 Dentro do zip há duas pastas:
@@ -42,7 +45,7 @@ Dentro do zip há duas pastas:
 ## 3. Enviar os arquivos
 
 1. cPanel → **Gerenciador de Arquivos**. Você estará na sua pasta inicial (ex.: `/home/seuusuario`).
-2. Clique em **Carregar** e envie o `bipolar-release.zip` para essa pasta inicial
+2. Clique em **Carregar** e envie o `cpanel.zip` para essa pasta inicial
    (**não** dentro de `public_html`).
 3. Clique com o botão direito no zip → **Extract** (Extrair). Aparecem `bipolar/` e `public_html/`.
    - Se já existe um site em `public_html`, o cPanel pergunta se quer sobrescrever.

@@ -1,0 +1,5 @@
+Tarefa automatica (lembretes e envios). No cPanel: "Trabalhos Cron" -> "Adicionar novo trabalho cron".
+Frequencia: "Uma vez por minuto" (* * * * *). No campo "Comando", cole a linha abaixo
+trocando SEUUSUARIO pelo seu usuario do cPanel (aparece no canto da tela do cPanel):
+
+cd /home/SEUUSUARIO/bipolar && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1

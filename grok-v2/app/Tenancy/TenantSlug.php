@@ -15,7 +15,7 @@ final class TenantSlug
         'api', 'app', 'apps', 'admin', 'administrador', 'root', 'painel', 'dashboard', 'static', 'cdn', 'assets', 'media',
         'img', 'files', 'arquivos', 'backup', 'backups', 'db', 'mysql', 'vpn', 'proxy', 'status', 'monitor',
         'blog', 'docs', 'wiki', 'ajuda', 'help', 'suporte', 'support', 'contato', 'comercial', 'financeiro',
-        'login', 'entrar', 'sair', 'conta', 'contas', 'auth', 'sso', 'oauth', 'instalar',
+        'login', 'entrar', 'sair', 'conta', 'contas', 'auth', 'sso', 'oauth', 'instalar', 'atualizar',
         'dev', 'teste', 'test', 'testes', 'staging', 'homolog', 'demo', 'beta', 'alpha', 'sandbox', 'local', 'localhost',
         'bipolar', 'grok', 'oficial', 'seguranca', 'security', 'privacidade', 'lgpd', 'dpo', 'termos', 'abuse', 'postmaster',
         'hostmaster', 'noc', 'clinica', 'clinicas', 'profissional', 'profissionais', 'paciente', 'pacientes', 'caps', 'sus',

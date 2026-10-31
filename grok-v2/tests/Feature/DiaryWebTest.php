@@ -94,5 +94,11 @@ it('instalador com token: recusa token errado e roda migrations com o certo', fu
     $this->post('/instalar', ['token' => 'errado'])->assertForbidden();
     $this->post('/instalar', ['token' => str_repeat('a', 40)])->assertOk()->assertSee('Pronto!');
     expect(file_exists(storage_path('app/installer.lock')))->toBeTrue();
+    // uso unico: o mesmo codigo nao abre de novo (nem em /atualizar); codigo novo abre
+    $this->get('/atualizar')->assertNotFound();
+    $this->post('/instalar', ['token' => str_repeat('a', 40)])->assertNotFound();
+    config(['bipolar.installer_token' => str_repeat('b', 40)]);
+    $this->get('/atualizar')->assertOk()->assertSee('action="/atualizar"', false);
+    $this->post('/atualizar', ['token' => str_repeat('b', 40)])->assertOk();
     @unlink(storage_path('app/installer.lock'));
 });

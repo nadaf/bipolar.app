@@ -13,6 +13,13 @@
 - Blocos sensíveis exigem desbloqueio de 10 minutos; recursos de outra pessoa respondem 404.
 - Testes: CSP por tela e isolamento (Pest); axe 0 serious/critical em 412px e 1280px, claro e escuro.
 
+### Pacote cpanel.zip (sem npm, composer ou SSH)
+- `scripts/build-cpanel-zip.sh` gera o `cpanel.zip` (o mesmo script roda local e no CI, artefato `cpanel.zip`): `bipolar/` com `vendor/` pronto e `lang/`, `public_html/` com `build/`, `sw.js` e ícones, `banco/instalar-banco-novo.sql` e `banco/atualizar-banco.sql`, `cron.txt` e `LEIA-ME.txt` em português simples. Sem `.env`, sem config em cache.
+- `atualizar-banco.sql` (phpMyAdmin) aplica só as migrations que faltam e pode ser importado de novo.
+- Atualizador web `/atualizar` (e `/instalar`) com código de uso único do `.env`: depois de usado, o mesmo código dá 404.
+- CI simula o cPanel (`scripts/smoke-cpanel-zip.sh`): extrai, importa o SQL no MySQL 5.7, sobe `php -S` na `public_html`, cria conta, entra, `/registrar`, assets e atualizador, sem nenhum 500.
+- Corrigido: o pacote antigo não levava a pasta `lang/` (traduções pt-BR). Agora vai junto.
+
 ### Segurança, exportação e convites
 - Verificação em duas etapas (TOTP) opcional em Conta, com QR gerado no servidor, 10 códigos de recuperação de uso único, limite de tentativas e segredos cifrados. Clínica pode exigir 2FA da equipe. Passkeys ficam para depois.
 - Exportar registros em CSV (Excel pt-BR) ou PDF, com intervalo de datas; profissional exporta só quem concedeu acesso, dentro do escopo. Toda exportação fica no registro de auditoria; nome de arquivo neutro.

@@ -10,7 +10,7 @@
   <pre>{{ $done }}</pre>
   <p><strong>Agora apague a linha INSTALLER_TOKEN do arquivo .env</strong> (Gerenciador de Arquivos do cPanel).</p>
 @else
-  <form method="post" action="/instalar">
+  <form method="post" action="{{ '/'.request()->path() }}">
     <label for="token">Código de instalação (o mesmo que você colocou em INSTALLER_TOKEN no .env)</label><br>
     <input id="token" name="token" type="password" required autocomplete="off" size="50">
     <button>Instalar / atualizar</button>

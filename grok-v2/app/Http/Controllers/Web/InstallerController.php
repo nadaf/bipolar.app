@@ -11,14 +11,22 @@ use Illuminate\Support\Facades\Artisan;
  * - So funciona se INSTALLER_TOKEN (>= 32 caracteres) estiver no .env.
  * - Compara o token em tempo constante; sem token valido => 404.
  * - APP_KEY e gerada antes do boot por App\Support\FirstRunKey. Roda as migrations (--force).
- * - Grava storage/app/installer.lock com a data; o usuario deve apagar INSTALLER_TOKEN depois.
+ * - Uso unico: grava storage/app/installer.lock com o hash do token; o MESMO token nao abre de novo
+ *   (404). Para a proxima atualizacao, coloque um codigo NOVO em INSTALLER_TOKEN.
  * Roda fora do grupo "web" (nao depende de sessao/APP_KEY).
  */
 class InstallerController extends Controller
 {
     private function enabled(): bool
     {
-        return strlen((string) config('bipolar.installer_token')) >= 32;
+        $token = (string) config('bipolar.installer_token');
+        if (strlen($token) < 32) {
+            return false;
+        }
+        $lock = storage_path('app/installer.lock');
+        $used = is_file($lock) ? (string) file_get_contents($lock) : '';
+
+        return ! str_contains($used, hash('sha256', $token));
     }
 
     public function form()
@@ -45,7 +53,7 @@ class InstallerController extends Controller
 
             return response()->view('installer', ['done' => null, 'error' => 'Falha ao criar as tabelas. Confira os dados do banco no arquivo .env.'], 500);
         }
-        file_put_contents(storage_path('app/installer.lock'), now()->toIso8601String()."\n");
+        file_put_contents(storage_path('app/installer.lock'), now()->toIso8601String().' '.hash('sha256', (string) config('bipolar.installer_token'))."\n", FILE_APPEND);
 
         return response()->view('installer', ['done' => trim($out) ?: 'Nada a atualizar.', 'error' => null]);
     }
