@@ -10,8 +10,8 @@ ErrorDocument 404 /404.php
   RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
   RewriteRule ^ https://%1%{REQUEST_URI} [L,R=301]
   # Força HTTPS
+  # V5.1: cabeçalhos de proxy não são confiáveis sem um proxy conhecido, então não são usados aqui
   RewriteCond %{HTTPS} off
-  RewriteCond %{HTTP:X-Forwarded-Proto} !https
   RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
   # Bloqueia arquivos internos
   RewriteRule ^_boot\.php$ - [F,L]
@@ -21,10 +21,12 @@ ErrorDocument 404 /404.php
   Require all denied
 </FilesMatch>
 
-<Files "sw.js">
-  Header set Cache-Control "no-cache"
-  Header set Service-Worker-Allowed "/"
-</Files>
+<IfModule mod_headers.c>
+  <Files "sw.js">
+    Header set Cache-Control "no-cache"
+    Header set Service-Worker-Allowed "/"
+  </Files>
+</IfModule>
 
 <IfModule mod_expires.c>
   ExpiresActive On

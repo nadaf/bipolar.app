@@ -1,8 +1,7 @@
 <?php
 require __DIR__ . '/_boot.php';
 // V4.7: com o módulo privado instalado (bipolar.app.br), a página completa (com formulário de indicação) vem dele.
-if (ext_page('comecar')) return;
-page_head('Comece grátis', 'marketing', [
+page_head('Comece a usar', 'marketing', [
     'og' => true, 'canonical' => '/comecar.php',
     'description' => 'Diário de humor gratuito e de código aberto para quem vive com transtorno bipolar: registre seu dia em menos de um minuto, perceba padrões e leve relatórios para a consulta.',
 ]); ?>
@@ -10,7 +9,7 @@ page_head('Comece grátis', 'marketing', [
   <p class="eyebrow">Gratuito para pacientes, para sempre</p>
   <h1>Um lugar tranquilo para cuidar do seu humor</h1>
   <p class="lead">Quem vive com transtorno bipolar sabe: um dia de cada vez. O Bipolar ajuda você a registrar como está, perceber padrões a tempo e chegar à consulta com a sua história na mão.</p>
-  <p class="mk-cta"><a class="btn btn-primary btn-lg" href="/conta/cadastro.php">Criar conta grátis</a> <a class="btn btn-lg" href="/">Já tenho conta</a></p>
+  <p class="mk-cta"><a class="btn btn-primary btn-lg" href="/conta/cadastro.php">Criar conta</a> <a class="btn btn-lg" href="/">Já tenho conta</a></p>
   <p class="small">Sem anúncios, sem rastreadores, código aberto. Feito por alguém que também convive com o transtorno bipolar.</p>
 </section>
 
@@ -30,7 +29,7 @@ page_head('Comece grátis', 'marketing', [
 <section class="card" id="convidar" aria-labelledby="convidar-t">
   <h2 id="convidar-t">Quer levar para quem cuida de você?</h2>
   <p>Você não precisa de nada além da sua conta: em <strong>Relatórios</strong>, cadastre o e-mail do seu psiquiatra ou psicólogo(a). A pessoa confirma o convite e passa a receber o resumo que <strong>você</strong> escolher, na frequência que você definir. Também dá para imprimir ou salvar em PDF e levar na consulta.</p>
-  <p><a class="btn btn-primary" href="/conta/cadastro.php">Criar conta grátis</a></p>
+  <p><a class="btn btn-primary" href="/conta/cadastro.php">Criar conta</a></p>
 </section>
 <p class="center"><a href="/profissionais.php">Você é profissional de saúde? Veja como o app ajuda no acompanhamento</a></p>
 <?php page_foot();

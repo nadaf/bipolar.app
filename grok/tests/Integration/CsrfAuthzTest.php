@@ -97,8 +97,8 @@ final class CsrfAuthzTest extends IntegrationCase
         $a = $this->user('ea'); $b = $this->user('eb');
         $this->entry($a, ['note' => 'NOTA-DE-A']);
         $this->entry($b, ['note' => 'NOTA-DE-B']);
-        $json = $b->get('/api/account.php?action=export&format=json');
-        $csv = $b->get('/api/account.php?action=export&format=csv');
+        $json = $b->export('json');
+        $csv = $b->export('csv');
         $this->assertStringContainsString('NOTA-DE-B', $json['body']);
         $this->assertStringNotContainsString('NOTA-DE-A', $json['body']);
         $this->assertStringNotContainsString('NOTA-DE-A', $csv['body']);

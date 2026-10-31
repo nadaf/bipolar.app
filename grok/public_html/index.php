@@ -35,13 +35,13 @@ if (!$user) {
   </section>
   <nav class="card narrow landing-links" aria-label="Conheça o Bipolar">
     <p><a href="/comecar.php">Primeira vez aqui? Veja como o app ajuda, de graça</a></p>
-    <p><a href="/profissionais.php">É psiquiatra, psicólogo(a) ou trabalha em clínica ou CAPS? Saiba como usar com seus pacientes</a></p>
+    <p><a href="https://blog.bipolar.app.br">Conheça o Blog do Bipolar</a></p>
   </nav>
   <script src="/assets/js/auth.js?v=1"></script>
   <script src="/assets/js/passkey.js?v=4"></script>
 <?php page_foot(); exit; }
 
-if (app_locked($user)) { require_once APP_ROOT . '/views/lock.php'; view_lock_screen($user); exit; }
+lock_guard_page($user); // V5.1: mesma guarda em todas as páginas com dados
 require_once APP_ROOT . '/lib/ai.php';
 require_once APP_ROOT . '/lib/signals.php';
 $aiOn = ai_configured();
@@ -53,6 +53,7 @@ $tz = $user['timezone'];
 page_head('Diário', 'app'); ?>
 <script id="boot" type="application/json"><?= json_encode([
     'csrf' => csrf_token(),
+    'qowner' => queue_owner(), // V5.1: dono da fila offline (esta conta, esta sessão)
     'tz' => $tz,
     'name' => $user['name'],
     'email' => $user['email'],
@@ -77,13 +78,14 @@ page_head('Diário', 'app'); ?>
   </div>
 </nav>
 
-<div id="offline-banner" class="notice hidden" role="status">Você está offline. Os registros ficam salvos neste aparelho e serão enviados quando a conexão voltar.</div>
+<div id="offline-banner" class="notice hidden" role="status">Você está offline. Humor, sono e anotações do registro podem ficar guardados neste aparelho e serão enviados quando a conexão voltar, se você continuar conectado nesta conta. Seções privadas, áudio e vídeo não são guardados offline.</div>
 <div id="extreme-note" class="notice gentle hidden" role="status"></div>
 
 <!-- REGISTRAR -->
 <section role="tabpanel" id="painel-registrar" aria-labelledby="tab-registrar" class="panel">
   <div id="alert-banner" class="notice alert-banner hidden" role="status"></div>
   <h2 class="greet">Olá<?= $user['name'] ? ', ' . e(explode(' ', $user['name'])[0]) : '' ?>. Como você está?</h2>
+  <div id="reg-indicator" class="reg-indicator" role="status" aria-live="polite"><span aria-hidden="true">✎</span> <strong class="reg-text">Registrando…</strong> <a href="#form-entry" class="small" id="reg-change" data-ga="trocar_periodo">mudar data ou período</a></div>
   <form id="form-entry" class="card" novalidate>
     <div id="edit-note" class="notice gentle hidden" role="status"></div>
     <div class="row">
@@ -155,13 +157,18 @@ page_head('Diário', 'app'); ?>
     </details>
 
     <div class="form-actions">
-      <button type="submit" class="btn btn-primary btn-lg" id="btn-save-entry">Salvar registro</button>
-      <button type="button" class="btn btn-ghost hidden" id="btn-new-entry">Cancelar edição</button>
+      <button type="submit" class="btn btn-primary btn-lg" id="btn-save-entry">Salvar registro</button> <button type="button" class="btn btn-lg" id="btn-save-entry-next" data-ga="salvar_e_continuar" data-ga-bloco="humor">Salvar e continuar</button>
+      <button type="button" class="btn btn-ghost hidden" id="btn-new-entry" data-ga="novo_registro">Cancelar edição</button>
     </div>
     </div>
   </form>
 
   <?php require_once APP_ROOT . '/views/day_panels.php'; view_day_panels($user); ?>
+  <div class="card save-all-card">
+    <p class="small">Salva de uma vez o humor e todos os blocos do “Meu dia” que você preencheu, na mesma data e período.</p>
+    <p class="form-actions"><button type="button" class="btn btn-primary btn-lg" id="btn-save-all" data-ga="salvar_tudo">Salvar tudo</button></p>
+    <div id="save-all-summary" class="notice save-summary hidden" role="status" tabindex="-1"></div>
+  </div>
 
   <div id="push-onboard" class="card onboard hidden" role="region" aria-labelledby="po-title">
     <h2 id="po-title">Quer um lembrete no celular?</h2>
@@ -274,7 +281,7 @@ page_head('Diário', 'app'); ?>
       <?php if (user_prefs($user)['modules']['substancias']): ?><label class="check"><input type="checkbox" name="substancias" value="1"> <span>Incluir resumo de substâncias</span></label><?php endif; ?>
       <?php if (user_prefs($user)['modules']['alimentacao']): ?><label class="check"><input type="checkbox" name="alimentacao" value="1"> <span>Incluir resumo de alimentação</span></label><?php endif; ?>
       <?php if (user_prefs($user)['modules']['pensamentos_morte']): ?><label class="check"><input type="checkbox" name="pensamentos_morte" value="1"> <span>Incluir pensamentos de morte (privado; só com as seções desbloqueadas)</span></label><?php endif; ?>
-      <button class="btn btn-primary" type="submit">Abrir relatório</button>
+      <button class="btn btn-primary" type="submit" data-ga="abrir_relatorio">Abrir relatório</button>
     </form>
   </div>
   <div class="card">
@@ -329,7 +336,9 @@ page_head('Diário', 'app'); ?>
         </ul>
       </details>
     </div>
-    <ul id="reminders" class="list"></ul>
+    <h3>Semana de lembretes</h3>
+    <div id="reminders" aria-live="polite"></div>
+    <h3>Adicionar horário</h3>
     <form id="form-reminder" class="grid2" novalidate>
       <fieldset class="field"><legend>Horário</legend>
         <div class="seg"><input type="radio" name="preset" id="pr-m" value="08:00"><label for="pr-m">Manhã 08:00</label><input type="radio" name="preset" id="pr-t" value="14:00"><label for="pr-t">Tarde 14:00</label><input type="radio" name="preset" id="pr-n" value="21:00" checked><label for="pr-n">Noite 21:00</label><input type="radio" name="preset" id="pr-c" value="custom"><label for="pr-c">Outro</label></div>
@@ -343,7 +352,7 @@ page_head('Diário', 'app'); ?>
         </div>
       </fieldset>
       <div class="field"><label for="rm-channel">Como avisar</label><select id="rm-channel" name="channel"><option value="email" selected>E-mail</option><?php if (push_configured()): ?><option value="push">Notificação (push)</option><option value="ambos">Ambos</option><?php endif; ?></select></div>
-      <div class="form-actions"><button class="btn btn-primary" type="submit">Adicionar lembrete</button></div>
+      <div class="form-actions"><button class="btn btn-primary" type="submit">Adicionar horário</button></div>
     </form>
   </div>
 </section>
@@ -360,6 +369,13 @@ page_head('Diário', 'app'); ?>
       <div class="form-actions"><button class="btn btn-primary" type="submit">Salvar</button></div>
     </form>
   </div>
+  <?php if (ga4_active()): // V5.2 ?>
+  <div class="card" id="conta-estatisticas">
+    <h2>Estatísticas de uso</h2>
+    <p class="small">Contagem anônima de visitas e cliques (Google Analytics), sem seus registros nem dados de saúde. Só funciona se você aceitar. <a href="/privacidade.php#estatisticas">Saiba mais</a>.</p>
+    <p class="form-actions"><button type="button" class="btn" data-consent-open>Mudar minha escolha sobre estatísticas</button></p>
+  </div>
+  <?php endif; ?>
   <?php require_once APP_ROOT . '/views/account_modules.php'; view_account_modules($user); ?>
   <?php require_once APP_ROOT . '/views/account_v4.php'; view_account_v4($user, $aiOn, $aiSet, $lockSet); ?>
   <?php require_once APP_ROOT . '/views/account_care.php'; view_account_care($user); // V4.8 ?>
@@ -380,7 +396,9 @@ page_head('Diário', 'app'); ?>
   <div class="card">
     <h2>Seus dados (LGPD)</h2>
     <p>Baixe uma cópia dos seus dados quando quiser. O pacote completo (ZIP) traz tudo: registros, marcadores, sexualidade, substâncias, alertas, destinatários, lembretes e todos os áudios, vídeos e imagens.</p>
-    <p class="row"><?php if (class_exists('ZipArchive')): ?><a class="btn btn-primary" href="/api/account.php?action=export&amp;format=zip" download>Baixar tudo (ZIP)</a> <?php endif; ?><a class="btn" href="/api/account.php?action=export&amp;format=json" download>Exportar JSON</a> <a class="btn" href="/api/account.php?action=export&amp;format=csv" download>Exportar CSV (registros)</a></p>
+    <p class="row"><?php if (class_exists('ZipArchive')): ?><button type="button" class="btn btn-primary" data-export="zip">Baixar tudo (ZIP)</button> <?php endif; ?><button type="button" class="btn" data-export="json">Exportar JSON</button> <button type="button" class="btn" data-export="csv">Exportar CSV (registros)</button></p>
+    <p class="small">O arquivo traz dados íntimos. Antes de baixar, pedimos para você confirmar que é você (senha, PIN ou biometria).</p>
+    <form id="export-form" method="post" action="/api/account.php?action=export" hidden><input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>"><input type="hidden" name="token" value=""><input type="hidden" name="format" value=""></form>
     <p class="small">Saiba como tratamos seus dados na <a href="/privacidade.php">Política de Privacidade</a> e nos <a href="/termos.php">Termos de Uso</a>.</p>
     <form method="post" action="/auth/logout.php"><input type="hidden" name="csrf" value="<?= e(csrf_token()) ?>"><button class="btn" type="submit">Sair</button></form>
   </div>
@@ -392,7 +410,7 @@ page_head('Diário', 'app'); ?>
 </section>
 <script src="/assets/js/auth.js?v=1"></script>
 <script src="/assets/js/passkey.js?v=4"></script>
-<script src="/assets/js/app.js?v=13"></script>
+<script src="/assets/js/app.js?v=15"></script>
 <script src="/assets/js/mfa.js?v=2"></script>
-<script src="/assets/js/care.js?v=1"></script>
+<script src="/assets/js/care.js?v=2"></script>
 <?php page_foot();

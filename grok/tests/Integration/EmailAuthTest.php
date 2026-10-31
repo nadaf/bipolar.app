@@ -270,7 +270,7 @@ final class EmailAuthTest extends IntegrationCase
         $a->csrf = $r['json']['csrf'];
         $this->assertSame(200, $a->json('POST', '/api/entries.php', ['entry_date' => '2026-10-10', 'period' => 'manha', 'mood' => 0])['status'], 'novo token CSRF funciona');
         // exportação não contém o hash
-        $exp = $a->get('/api/account.php?action=export&format=json');
+        $exp = $a->export('json', ['senha' => 'outra senha boa 1']);
         $this->assertStringNotContainsString('password_hash', $exp['body']);
         $this->assertStringNotContainsString('$argon2', $exp['body']);
         $this->assertStringNotContainsString('$2y$', $exp['body']);

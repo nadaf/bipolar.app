@@ -36,7 +36,7 @@ page_head('Política de Privacidade'); ?>
 <h2>2. Quais dados tratamos</h2>
 <ul>
 <li><strong>Cadastro:</strong> nome, e-mail, fuso horário e preferências. Você entra com <?= e($loginOpts) ?>. Da senha guardamos apenas um <em>hash</em> irreversível (Argon2id ou bcrypt); ninguém consegue ver sua senha.<?php if ($provNames): ?> Ao entrar com <?= e(implode(' ou ', $provNames)) ?>, recebemos nome, e-mail (quando o provedor fornece) e um identificador da conta, nunca a senha desse provedor.<?php endif; ?></li>
-<li><strong>Dados de saúde (dados pessoais sensíveis, art. 5º, II e art. 11):</strong> humor por período, sono, medicação, energia, irritabilidade, ansiedade, anotações, etiquetas, marcadores diários que você ativar (horários de sono, sol, cafeína, álcool, exercício, gastos, ciclo menstrual, doses, sinais de alerta pessoais), acontecimentos e estresse <strong>por período do dia</strong> e, se você ativar, alimentação por período (doces, industrializados/ultraprocessados e se comeu fora de hora) e, se você quiser, áudios, vídeos e imagens.</li>
+<li><strong>Dados de saúde (dados pessoais sensíveis, art. 5º, II e art. 11):</strong> humor por período, sono, medicação, energia, irritabilidade, ansiedade, anotações, etiquetas, marcadores diários que você ativar (horários de sono, sol, cafeína, álcool, exercício, gastos, ciclo menstrual, doses, sinais de alerta pessoais), religiosidade por período, se você ativar (convicção religiosa também é dado sensível pela LGPD; fica fora da IA e só vai para profissional com sua escolha explícita), acontecimentos e estresse <strong>por período do dia</strong> e, se você ativar, alimentação por período (doces, industrializados/ultraprocessados e se comeu fora de hora) e, se você quiser, áudios, vídeos e imagens.</li>
 <li id="alimentacao"><strong>Alimentação (opcional):</strong> doces, industrializados/ultraprocessados (de “nenhum” a “muito”) e se você comeu fora de hora ou teve compulsão, por período do dia. Pode ser desligada em Conta → Módulos. Não aparece em lembretes. Em relatórios, só para quem você autorizar e apenas como contagem de dias. Só vai para a IA se você marcar a categoria “Alimentação”, que vem desmarcada.</li>
 <li id="pensamentos"><strong>Pensamentos por período (opcional):</strong> positivos/esperançosos, negativos/pessimistas, acelerados, grandiosidade/missão especial e ruminação/culpa, de “nenhum” a “intenso”. Pode ser desligado em Conta → Módulos. Só vai para a IA se você marcar a categoria “Pensamentos”, que vem desmarcada.</li>
 <li id="pensamentos-morte"><strong>Pensamentos de morte ou suicídio (opcional, dado sensível de saúde):</strong> só com o módulo próprio ligado (vem desligado), atrás do mesmo PIN/biometria das seções privadas. Ao salvar um nível leve ou maior, o app mostra só para você um painel de apoio com CVV 188, SAMU 192 e o contato de confiança que você cadastrar (o nome e o telefone desse contato ficam guardados nas suas preferências). <strong>Ninguém é notificado automaticamente</strong>; só há aviso se você criar um alerta personalizado com esse item, e o aviso vai para você, com texto genérico. Nunca vai para a IA sem a categoria própria marcada; só entra em relatório se você marcar na impressão ou para um destinatário específico, e mesmo assim só como contagem de dias.</li>
@@ -60,7 +60,8 @@ page_head('Política de Privacidade'); ?>
 <li><strong>Compartilhamento com profissional de saúde:</strong> seu <strong>consentimento</strong> específico (art. 11, I), dado ao criar cada convite, por categoria e por prazo. A <strong>revogação</strong> (art. 8º, §5º) é feita em Conta → Compartilhar com profissional → Encerrar, vale na hora, e o profissional perde o acesso imediatamente. O registro de acessos continua disponível para você como prova de quem viu o quê.</li>
 <li><strong>Cadastro e segurança (login, limite de tentativas):</strong> execução do serviço que você pediu (art. 7º, V) e legítimo interesse em proteger as contas (art. 7º, IX).</li>
 </ul>
-<p>Não vendemos dados, não temos anúncios, não usamos ferramentas de análise de terceiros e não usamos seus dados para treinar modelos de IA.</p>
+<?php $gaOn = ga4_id() !== ''; // V5.2 ?>
+<p>Não vendemos dados, não temos anúncios<?= $gaOn ? ', só usamos ferramenta de estatísticas de terceiros (Google Analytics) se você aceitar, sem dados de saúde (veja a seção 8)' : ', não usamos ferramentas de análise de terceiros' ?> e não usamos seus dados para treinar modelos de IA.</p>
 
 <h2>4. Onde ficam e como protegemos</h2>
 <ul>
@@ -98,10 +99,21 @@ page_head('Política de Privacidade'); ?>
 
 <h2>8. Cookies e armazenamento no aparelho</h2>
 <ul>
-<li>Usamos <strong>um único cookie</strong>, essencial, de sessão (<code>bpsid</code>), para manter você conectado. Ele some ao fechar o navegador ou ao sair. Não usamos cookies de publicidade nem de análise.</li>
+<li>Usamos <strong><?= $gaOn ? 'um cookie' : 'um único cookie' ?></strong> essencial de sessão (<code>bpsid</code>), para manter você conectado. Ele some ao fechar o navegador ou ao sair. Não usamos cookies de publicidade<?= $gaOn ? '' : ' nem de análise' ?>.<?php if ($gaOn): ?> Também guardamos a sua escolha no aviso de estatísticas no cookie <code>bp_consent</code> (só “granted” ou “denied”, por 1 ano), para o aviso não voltar a cada página.<?php endif; ?></li>
 <li>No próprio aparelho, o app guarda: o tema (claro/escuro), registros feitos sem internet até serem enviados, preferências de avisos e uma cópia da página inicial para funcionar offline. Em aparelho compartilhado, use “Sair” e, se quiser, limpe os dados do site no navegador.</li>
 </ul>
 
+<?php if ($gaOn): ?>
+<h3 id="estatisticas">Estatísticas de uso (Google Analytics 4) — só se você aceitar</h3>
+<ul>
+<li><strong>Base legal:</strong> consentimento (LGPD, art. 7º, I). Por padrão fica <strong>desligado</strong>: o código do Google só é carregado depois que você clica em “Aceitar” no aviso. Se recusar, nada é enviado.</li>
+<li><strong>O que é enviado:</strong> páginas e telas visitadas (endereço sem parâmetros, sem datas e sem números de identificação, com título genérico, como “Registrar” ou “Configurações”), cliques em botões (por exemplo, “salvar_tudo”, “trocar_periodo”, “exportar”), o nome do bloco aberto ou salvo (por exemplo, “sono”), e os marcos “cadastro”, “login” e “primeiro registro”. O Google recebe também dados técnicos do navegador (tipo de aparelho, cidade aproximada pelo IP).</li>
+<li><strong>O que nunca é enviado:</strong> valores de humor, sono ou qualquer escala, textos e anotações, nomes, e-mails, identificação da sua conta, datas dos registros, e nada dos módulos privados (pensamentos, sexualidade, substâncias, religiosidade — no máximo “bloco privado”, sem o nome). O módulo de pensamentos de morte não gera nenhum evento. A visão do profissional, os relatórios impressos e links com código nunca carregam o Google Analytics.</li>
+<li><strong>Configurações:</strong> sinais do Google e personalização de anúncios desligados (Consent Mode v2: anúncios sempre negados). Os cookies <code>_ga</code> ficam até 2 anos e são apagados quando você recusa depois.</li>
+<li>O Google (Google LLC, EUA) atua como operador, com transferência internacional baseada nas cláusulas contratuais do Google. Veja a <a href="https://policies.google.com/privacy?hl=pt-BR">política do Google</a>.</li>
+<li><strong>Mudar de ideia:</strong> use “Cookies e estatísticas de uso” no rodapé ou em Conta › Preferências, a qualquer momento.</li>
+</ul>
+<?php endif; ?>
 <h2>9. Por quanto tempo guardamos</h2>
 <ul>
 <li>Seus dados ficam guardados enquanto a conta existir. Não apagamos contas inativas automaticamente.</li>

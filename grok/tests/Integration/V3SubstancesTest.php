@@ -28,7 +28,7 @@ final class V3SubstancesTest extends IntegrationCase
         $this->assertSame([], $o->get('/api/day.php?from=2026-10-10&to=2026-10-10')['json']['substances']);
         $this->assertSame(200, $c->json('POST', '/api/day.php?action=subst_delete', ['id' => $id])['status']);
         $this->assertCount(1, $c->get('/api/day.php?from=2026-10-10&to=2026-10-10')['json']['substances']);
-        $exp = $c->get('/api/account.php?action=export&format=json')['json'];
+        $exp = $c->export('json')['json'];
         $this->assertSame('tabaco', $exp['substancias'][0]['substance']);
         $this->assertSame(422, $c->json('POST', '/api/day.php?action=subst_wipe', [])['status']);
         $this->assertSame(200, $c->json('POST', '/api/day.php?action=subst_wipe', ['confirm' => true])['status']);

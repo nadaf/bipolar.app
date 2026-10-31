@@ -22,7 +22,7 @@ const axeSrc = fs.readFileSync(createRequire(import.meta.url).resolve('axe-core/
 // conta de e-mail e senha criada direto no banco de teste
 const email = `mfa${Date.now().toString(36)}@example.com`;
 const PW = 'cavalo correto bateria';
-const mk = spawnSync(php, ['-r', `require '${root}/app/bootstrap.php'; $p = db(); $p->prepare('INSERT INTO users (name, email, timezone, password_hash, email_verified_at) VALUES (?,?,?,?,UTC_TIMESTAMP())')->execute(['Bia Teste', '${email}', 'America/Cuiaba', pw_hash('${PW}')]); $p->prepare("INSERT INTO oauth_identities (user_id, provider, subject) VALUES (?, 'email', ?)")->execute([(int)$p->lastInsertId(), '${email}']); $p->exec('DELETE FROM rate_limits');`], { env });
+const mk = spawnSync(php, ['-r', `require '${root}/app/bootstrap.php'; $p = db(); $p->prepare('INSERT INTO users (name, email, timezone, password_hash, email_verified_at) VALUES (?,?,?,?,UTC_TIMESTAMP())')->execute(['Bia Teste', '${email}', 'America/Cuiaba', pw_hash('${PW}')]); identity_insert($p, (int)$p->lastInsertId(), 'email', '${email}'); $p->exec('DELETE FROM rate_limits');`], { env });
 if (mk.status !== 0) { console.error(String(mk.stderr) + String(mk.stdout)); process.exit(2); }
 
 const b32 = (s) => { const a = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567'; let bits = ''; for (const c of s.replace(/\s/g, '')) bits += a.indexOf(c).toString(2).padStart(5, '0'); const out = []; for (let i = 0; i + 8 <= bits.length; i += 8) out.push(parseInt(bits.slice(i, i + 8), 2)); return Buffer.from(out); };

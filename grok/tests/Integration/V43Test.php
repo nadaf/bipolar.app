@@ -108,7 +108,7 @@ final class V43Test extends IntegrationCase
         $c->json('POST', '/api/custom_alerts.php?action=save', ['name' => 'Exp', 'conditions' => [['metric' => 'mood_max', 'op' => '>=', 'value' => 3, 'mode' => 'day']]]);
         $c->json('POST', '/api/ai.php?action=key', ['provider' => 'custom', 'base_url' => 'http://127.0.0.1:' . TestEnv::$xaiPort . '/v1', 'model' => 'modelo-x', 'api_key' => 'sk-segredo-export-1234']);
 
-        $z = $c->get('/api/account.php?action=export&format=zip');
+        $z = $c->export('zip');
         $this->assertSame(200, $z['status']);
         $this->assertStringContainsString('application/zip', $c->header($z, 'content-type'));
         $f = tempnam(sys_get_temp_dir(), 'z');
@@ -128,7 +128,7 @@ final class V43Test extends IntegrationCase
         $all = (string)$zip->getFromName('dados.json');
         $zip->close();
         foreach (['ai_key_enc', 'sk-segredo-export-1234', 'password_hash', 'sex_pin_hash'] as $bad) $this->assertStringNotContainsString($bad, $all);
-        $this->assertStringNotContainsString('sk-segredo-export-1234', $c->get('/api/account.php?action=export&format=json')['body']);
+        $this->assertStringNotContainsString('sk-segredo-export-1234', $c->export('json')['body']);
 
         // exclusão: tudo some (banco e arquivos)
         $this->assertSame(422, $c->json('POST', '/api/account.php?action=delete', ['confirm' => 'excluir'])['status']);

@@ -1,6 +1,6 @@
 // Verificação de acessibilidade com axe-core (WCAG 2.0/2.1/2.2 A e AA) em Chrome headless.
 import puppeteer from 'puppeteer-core';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
@@ -13,6 +13,8 @@ if (!fs.existsSync(cfg)) { console.error('Rode o PHPUnit antes (gera tests/tmp/c
 const port = 8800 + Math.floor(Math.random() * 100);
 const base = `http://127.0.0.1:${port}`;
 const php = process.env.PHP_BIN || 'php';
+// V5.2: o banco de teste guarda o limite de cadastros por hora (5/IP); zera antes, senão rodar a suíte duas vezes na mesma hora falha
+spawnSync(php, ['-r', `require '${root}/app/bootstrap.php'; db()->exec('DELETE FROM rate_limits');`], { env: { ...process.env, BIPOLAR_CONFIG: path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../tmp/config.dev.php') } });
 const srv = spawn(php, ['-S', `127.0.0.1:${port}`, '-t', path.join(root, 'public_html')], { env: { ...process.env, BIPOLAR_CONFIG: cfg }, stdio: 'ignore' });
 await new Promise((r) => setTimeout(r, 800));
 const axeSrc = fs.readFileSync(createRequire(import.meta.url).resolve('axe-core/axe.min.js'), 'utf8');

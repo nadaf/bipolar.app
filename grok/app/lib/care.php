@@ -14,14 +14,17 @@ const CARE_SCOPE = [
     'humor' => [1, 'Humor, energia e marcadores gerais (sol, exercício, fala, gastos, medicação)', true, false],
     'sono' => [2, 'Sono', true, false],
     'estresse_alimentacao' => [4, 'Estresse e alimentação', true, false],
-    'pensamentos' => [8, 'Pensamentos (positivos, negativos, acelerados, grandiosidade, ruminação)', true, false],
+    // V5.1: pensamentos deixam de vir marcados e passam a ser sensíveis (opt-in explícito, pede desbloqueio)
+    'pensamentos' => [8, 'Pensamentos (positivos, negativos, acelerados, grandiosidade, ruminação)', false, true],
     'substancias' => [16, 'Substâncias, nicotina, cafeína e álcool', false, true],
     'sexualidade' => [32, 'Sexualidade', false, true],
     'pensamentos_morte' => [64, 'Pensamentos de morte ou suicídio', false, true],
+    // V5.1: religiosidade — bit próprio, sensível (convicção religiosa é dado sensível na LGPD), só com opt-in
+    'religiosidade' => [128, 'Religiosidade por período', false, true],
 ];
-const CARE_SCOPE_ALL = 127;
-const CARE_SENSITIVE = 112;
-const CARE_SCOPE_DEFAULT = 15;
+const CARE_SCOPE_ALL = 255;
+const CARE_SENSITIVE = 248; // V5.1: 8 (pensamentos) + 16 + 32 + 64 + 128 (religiosidade)
+const CARE_SCOPE_DEFAULT = 7; // V5.1: humor, sono, estresse/alimentação. Compartilhamentos já existentes não mudam.
 const CARE_INVITE_DAYS = 14;
 const CARE_CODE_HOURS = 24;
 const CARE_CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -65,7 +68,7 @@ function care_scope_rows(int $scope, array $entries, array $markers): array
     if ($scope & 2) $ek[] = 'sleep_hours';
     $mkCols = [1 => ['sun_minutes', 'sun_period', 'exercise_minutes', 'fast_speech', 'impulsive_spending', 'spending_amount', 'irritability_day', 'doses_json', 'signs_json', 'cycle_phase'],
         2 => ['bed_time', 'wake_time', 'sleep_quality'], 4 => ['stress_level', 'food_sweets', 'food_processed', 'food_binge'],
-        8 => ['racing_thoughts', 'th_positive', 'th_negative', 'th_grandiose', 'th_rumination'], 16 => ['caffeine_cups', 'alcohol_units', 'cigarettes', 'nicotine_other'], 64 => ['th_death']];
+        8 => ['racing_thoughts', 'th_positive', 'th_negative', 'th_grandiose', 'th_rumination'], 16 => ['caffeine_cups', 'alcohol_units', 'cigarettes', 'nicotine_other'], 64 => ['th_death'], 128 => ['religiosity']];
     $mk = ['entry_date', 'user_id'];
     foreach ($mkCols as $bit => $cols) if ($scope & $bit) $mk = array_merge($mk, $cols);
     $pick = function (array $rows, array $keep): array {
@@ -89,17 +92,17 @@ function care_new_code(): string
 function care_hash(string $raw): string { return hash('sha256', 'care|' . $raw); }
 
 /**
- * E-mail confirmado da conta (cadastro por e-mail verificado, ou login por provedor externo que já confirma o e-mail).
+ * E-mail COMPROVADO da conta: só o endereço em que a pessoa clicou no link de confirmação (ou que o Google garantiu).
+ * V5.1: vale sempre, com ou sem require_email_verification; um e-mail trocado e ainda não confirmado nunca vale,
+ * nem o antigo carimbo de verificação de outro endereço.
  * @param array<string,mixed> $u
  */
 function care_verified_email(array $u): ?string
 {
     $email = normalize_email((string)($u['email'] ?? ''));
-    if ($email === '') return null;
-    if (!empty($u['email_verified_at']) || !cfg('require_email_verification', true)) return $email;
-    $st = db()->prepare("SELECT COUNT(*) FROM oauth_identities WHERE user_id = ? AND provider <> 'email'");
-    $st->execute([$u['id']]);
-    return (int)$st->fetchColumn() > 0 ? $email : null;
+    $proven = normalize_email((string)($u['email_verified_email'] ?? ''));
+    if ($email === '' || $proven === '' || !hash_equals($proven, $email)) return null;
+    return $email;
 }
 
 /** @param array<string,mixed> $u */

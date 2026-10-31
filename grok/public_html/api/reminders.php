@@ -16,6 +16,17 @@ if ($m === 'POST') {
     $pdo->prepare('INSERT INTO reminders (user_id, time_local, days, channel) VALUES (?,?,?,?)')->execute([$u['id'], $v['time_local'], $v['days'], $v['channel']]);
     json_out(['ok' => true]);
 }
+if ($m === 'PATCH') { // V5.1: grade semanal — liga/desliga dias de um horário existente
+    $in = json_input();
+    $st = $pdo->prepare('SELECT id, time_local, channel FROM reminders WHERE id = ? AND user_id = ?');
+    $st->execute([(int)($in['id'] ?? 0), $u['id']]);
+    $r = $st->fetch();
+    if (!$r) json_out(['erro' => 'Lembrete não encontrado.'], 404);
+    [$err, $v] = validate_reminder(['time_local' => substr((string)$r['time_local'], 0, 5), 'days' => $in['days'] ?? [], 'channel' => $r['channel']], true);
+    if ($err !== null) json_out(['erro' => $err === 'Escolha ao menos um dia da semana.' ? 'Cada horário precisa de ao menos um dia. Para parar de receber, use “Remover”.' : $err], 422);
+    $pdo->prepare('UPDATE reminders SET days = ?, next_due_at = NULL WHERE id = ? AND user_id = ?')->execute([$v['days'], $r['id'], $u['id']]);
+    json_out(['ok' => true, 'days' => $v['days']]);
+}
 if ($m === 'DELETE') {
     $st = $pdo->prepare('DELETE FROM reminders WHERE id = ? AND user_id = ?');
     $st->execute([(int)($_GET['id'] ?? 0), $u['id']]);

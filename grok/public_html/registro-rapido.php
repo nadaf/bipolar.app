@@ -3,14 +3,14 @@
 require __DIR__ . '/_boot.php';
 $user = current_user();
 if (!$user) { redirect('/'); }
-if (app_locked($user)) { require_once APP_ROOT . '/views/lock.php'; view_lock_screen($user); exit; }
+lock_guard_page($user);
 $now = new DateTime('now', new DateTimeZone((string)$user['timezone']));
 $h = (int)$now->format('G');
 $p = (string)($_GET['p'] ?? '');
 if (!isset(PERIODS[$p])) $p = $h < 12 ? 'manha' : ($h < 18 ? 'tarde' : 'noite');
 $label = ['manha' => 'nesta manhã', 'tarde' => 'nesta tarde', 'noite' => 'nesta noite'][$p];
 page_head('Registro rápido', 'app quick-page'); ?>
-<section class="card narrow quick" id="quick" data-csrf="<?= e(csrf_token()) ?>" data-date="<?= e($now->format('Y-m-d')) ?>" data-period="<?= e($p) ?>">
+<section class="card narrow quick" id="quick" data-csrf="<?= e(csrf_token()) ?>" data-owner="<?= e(queue_owner()) ?>" data-date="<?= e($now->format('Y-m-d')) ?>" data-period="<?= e($p) ?>">
   <h1>Como está seu humor <?= e($label) ?>?</h1>
   <p class="small"><?= e(PERIODS[$p]) ?> de <?= e($now->format('d/m/Y')) ?> · um toque salva.</p>
   <div class="quick-grid" role="group" aria-label="Escolha seu humor">
@@ -21,5 +21,5 @@ page_head('Registro rápido', 'app quick-page'); ?>
   <p id="quick-msg" role="status" class="quick-msg"></p>
   <p class="row"><a class="btn btn-ghost" href="/?aba=registrar" id="quick-more">Registrar com detalhes</a></p>
 </section>
-<script src="/assets/js/quick.js?v=2"></script>
+<script src="/assets/js/quick.js?v=3"></script>
 <?php page_foot();

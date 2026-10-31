@@ -6,16 +6,20 @@ $pdo = db();
 $m = $_SERVER['REQUEST_METHOD'];
 
 if ($m === 'GET') {
-    $from = (string)($_GET['from'] ?? date('Y-m-d', strtotime('-30 days')));
-    $to = (string)($_GET['to'] ?? date('Y-m-d', strtotime('+1 day')));
+    // V5.1: sem from/to, o período padrão é calculado no fuso da conta (não no do servidor): últimos 30 dias até hoje
+    try { $utz = new DateTimeZone((string)$u['timezone']); } catch (Exception $e) { $utz = new DateTimeZone('America/Sao_Paulo'); }
+    $todayU = new DateTimeImmutable('now', $utz);
+    $from = (string)($_GET['from'] ?? $todayU->modify('-30 days')->format('Y-m-d'));
+    $to = (string)($_GET['to'] ?? $todayU->format('Y-m-d'));
     if (!valid_iso_date($from) || !valid_iso_date($to)) json_out(['erro' => 'Datas inválidas.'], 422);
+    if ($from > $to) json_out(['erro' => 'A data inicial é depois da data final.'], 422);
     // V4.7: o Histórico mostra junto o estresse e a alimentação daquele período (period_markers)
     // V4.8: + pensamentos do período e nicotina do dia; pensamentos de morte só com o módulo ligado e as seções privadas desbloqueadas
     $hp = user_prefs($u);
     $death = $hp['modules']['pensamentos_morte'] && private_unlocked($u);
     try {
         $st = $pdo->prepare('SELECT e.id, e.version, e.entry_date, e.period, e.mood, e.sleep_hours, e.irritability, e.anxiety, e.energy, e.medication_taken, e.note, e.tags,
-            pm.stress_level AS pm_stress, pm.stress_note AS pm_stress_note, pm.food_sweets AS pm_sweets, pm.food_processed AS pm_processed, pm.food_binge AS pm_binge,
+            pm.stress_level AS pm_stress, pm.stress_note AS pm_stress_note, pm.food_sweets AS pm_sweets, pm.food_processed AS pm_processed, pm.food_binge AS pm_binge, pm.religiosity AS pm_religiosity,
             pm.th_positive AS pm_th_positive, pm.th_negative AS pm_th_negative, pm.th_racing AS pm_th_racing, pm.th_grandiose AS pm_th_grandiose, pm.th_rumination AS pm_th_rumination'
             . ($death ? ', pm.th_death AS pm_th_death' : '') . ', dm.cigarettes AS dm_cigarettes, dm.nicotine_other AS dm_nicotine_other
             FROM entries e LEFT JOIN period_markers pm ON pm.user_id = e.user_id AND pm.entry_date = e.entry_date AND pm.period = e.period
@@ -25,7 +29,7 @@ if ($m === 'GET') {
     } catch (PDOException $e) { // migração V4.8 ainda não aplicada
         try {
             $st = $pdo->prepare('SELECT e.id, e.version, e.entry_date, e.period, e.mood, e.sleep_hours, e.irritability, e.anxiety, e.energy, e.medication_taken, e.note, e.tags,
-                pm.stress_level AS pm_stress, pm.stress_note AS pm_stress_note, pm.food_sweets AS pm_sweets, pm.food_processed AS pm_processed, pm.food_binge AS pm_binge
+                pm.stress_level AS pm_stress, pm.stress_note AS pm_stress_note, pm.food_sweets AS pm_sweets, pm.food_processed AS pm_processed, pm.food_binge AS pm_binge, pm.religiosity AS pm_religiosity
                 FROM entries e LEFT JOIN period_markers pm ON pm.user_id = e.user_id AND pm.entry_date = e.entry_date AND pm.period = e.period
                 WHERE e.user_id = ? AND e.entry_date BETWEEN ? AND ? ORDER BY e.entry_date, e.period');
             $st->execute([$u['id'], $from, $to]);
@@ -44,6 +48,28 @@ if ($m === 'POST') {
     [$err, $v] = validate_entry($in);
     if ($err !== null) json_out(['erro' => $err], 422);
     $ver = client_version($in); // V4.3.1: concorrência otimista
+    // V5.1: item da fila offline traz o dono da fila; se não for o desta sessão (outra conta/outro login no aparelho), recusa
+    if (array_key_exists('queue_owner', $in) && (!is_string($in['queue_owner']) || !hash_equals(queue_owner(), $in['queue_owner']))) {
+        json_out(['erro' => 'Este registro foi guardado offline em outra sessão e não foi enviado.', 'dono_diferente' => true], 409);
+    }
+    // V5.1: idempotência por client_uuid — cada envio grava uma única vez, mesmo repetido pela fila offline.
+    // A reserva e a gravação acontecem na mesma transação: se algo falhar no meio, nada fica reservado.
+    $cu = $v['client_uuid'];
+    $inTx = false;
+    if ($cu !== null) {
+        $pdo->beginTransaction();
+        $inTx = true;
+        $claim = $pdo->prepare('INSERT IGNORE INTO entry_client_ids (user_id, client_uuid) VALUES (?, ?)');
+        $claim->execute([$u['id'], $cu]);
+        if ($claim->rowCount() === 0) {
+            $pdo->rollBack();
+            $st = $pdo->prepare('SELECT c.entry_id, e.version, e.entry_date, e.period, e.mood, e.sleep_hours FROM entry_client_ids c LEFT JOIN entries e ON e.id = c.entry_id AND e.user_id = c.user_id WHERE c.user_id = ? AND c.client_uuid = ?');
+            $st->execute([$u['id'], $cu]);
+            $d = $st->fetch() ?: [];
+            json_out(['ok' => true, 'duplicado' => true, 'id' => (int)($d['entry_id'] ?? 0), 'alerta' => null, 'alertas_personalizados' => 0,
+                'entry' => ['id' => (int)($d['entry_id'] ?? 0), 'version' => (int)($d['version'] ?? 0), 'entry_date' => $d['entry_date'] ?? $v['entry_date'], 'period' => $d['period'] ?? $v['period'], 'mood' => isset($d['mood']) ? (int)$d['mood'] : $v['mood'], 'sleep_hours' => $d['sleep_hours'] ?? null]]);
+        }
+    }
     $claimed = false;
     // Edição por id (V4.1): o registro editado precisa ser da pessoa e continuar no mesmo dia/período,
     // ou ir para um dia/período livre. Nunca sobrescreve o registro de outro período.
@@ -83,7 +109,7 @@ if ($m === 'POST') {
             $ins->execute([$u['id'], $v['entry_date'], $v['period'], $v['mood'], $v['sleep_hours'], $v['irritability'], $v['anxiety'], $v['energy'], $v['medication_taken'], $v['note'], $v['tags'], $v['client_uuid']]);
             break;
         } catch (PDOException $ex) {
-            if ($try >= 3 || !in_array((int)($ex->errorInfo[1] ?? 0), [1213, 1205], true)) throw $ex;
+            if ($inTx || $try >= 3 || !in_array((int)($ex->errorInfo[1] ?? 0), [1213, 1205], true)) { if ($inTx && $pdo->inTransaction()) $pdo->rollBack(); throw $ex; }
             usleep(80000 * $try);
         }
     }
@@ -92,6 +118,10 @@ if ($m === 'POST') {
         $st = $pdo->prepare('SELECT id FROM entries WHERE user_id = ? AND entry_date = ? AND period = ?');
         $st->execute([$u['id'], $v['entry_date'], $v['period']]);
         $id = (int)$st->fetchColumn();
+    }
+    if ($inTx) {
+        $pdo->prepare('UPDATE entry_client_ids SET entry_id = ? WHERE user_id = ? AND client_uuid = ?')->execute([$id, $u['id'], $cu]);
+        $pdo->commit();
     }
     unset($_SESSION['sig_run']); // dados novos: o Histórico reavalia os alertas na próxima consulta
 

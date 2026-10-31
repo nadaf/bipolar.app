@@ -7,6 +7,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $uid = consume_auth_token($t, 'verify');
     if ($uid) {
         db()->prepare('UPDATE users SET email_verified_at = COALESCE(email_verified_at, UTC_TIMESTAMP()) WHERE id = ?')->execute([$uid]);
+        // V5.1: o link foi para o e-mail de login; se ele ainda é o e-mail da conta, fica comprovado (convites de profissional)
+        db()->prepare("UPDATE users u JOIN oauth_identities i ON i.user_id = u.id AND i.provider = 'email' SET u.email_verified_email = i.subject WHERE u.id = ? AND LOWER(TRIM(u.email)) = i.subject")->execute([$uid]);
         flash('E-mail confirmado. Bem-vindo(a)!');
         login_or_mfa($uid); // V4.4
     }

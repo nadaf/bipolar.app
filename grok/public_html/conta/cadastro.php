@@ -27,7 +27,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($r['status'] === 'created' && $old['pro']) db()->prepare('UPDATE users SET is_professional = 1, professional_kind = ?, professional_reg = ? WHERE id = ?')
             ->execute([$old['tipo'] !== '' ? $old['tipo'] : null, $old['registro'] !== '' ? $old['registro'] : null, $r['uid']]);
         if (!cfg('require_email_verification', true)) {
-            if ($r['status'] === 'created') { login_user((int)$r['uid']); flash('Conta criada. Bem-vindo(a)!'); redirect($convite ? '/convite-profissional.php?t=' . rawurlencode($conviteRaw) : '/'); }
+            if ($r['status'] === 'created') {
+                // V5.1: sem verificação obrigatória o e-mail não fica comprovado; profissional recebe o link para comprovar (convites)
+                if ($old['pro']) { $nu = db()->prepare('SELECT * FROM users WHERE id = ?'); $nu->execute([$r['uid']]); $nr = $nu->fetch(); if ($nr) email_change_request($nr, $old['email']); }
+                login_user((int)$r['uid']); ga4_flash('sign_up'); flash('Conta criada. Bem-vindo(a)!' . ($old['pro'] ? ' Para receber convites de pacientes, confirme seu e-mail pelo link que enviamos.' : '')); redirect($convite ? '/convite-profissional.php?t=' . rawurlencode($conviteRaw) : '/'); }
             $errors[] = 'Não foi possível criar a conta com esse e-mail. Se você já tem conta, entre ou use “Esqueci minha senha”.';
         } else {
             $done = true; // mesma resposta para e-mail novo ou já cadastrado

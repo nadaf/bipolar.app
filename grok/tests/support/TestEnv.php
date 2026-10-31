@@ -40,8 +40,8 @@ final class TestEnv
         require_once self::ROOT . '/app/lib/webauthn.php';
         require_once self::ROOT . '/app/lib/alerts.php';
         require_once self::ROOT . '/app/lib/ai.php';
-        // V4.7: o módulo privado só existe na árvore completa do site
-        if (is_file(self::ROOT . '/app/lib/leads.php')) require_once self::ROOT . '/app/lib/leads.php';
+        // V4.7: bibliotecas do módulo privado (só existem na árvore completa do site)
+        foreach (glob(self::ROOT . '/app/lib/*.php') ?: [] as $f) require_once $f;
         self::resetDb();
 
         $php = PHP_BINARY;

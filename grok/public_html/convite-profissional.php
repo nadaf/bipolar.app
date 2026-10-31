@@ -7,14 +7,15 @@
 require __DIR__ . '/_boot.php';
 require_once APP_ROOT . '/lib/care.php';
 require_once APP_ROOT . '/lib/smtp.php';
-header('Cache-Control: no-store');
+header('Cache-Control: no-store, private');
 header('X-Robots-Tag: noindex');
 header('Referrer-Policy: no-referrer');
 $pdo = db();
+$u = current_user();
+if ($u) lock_guard_page($u); // V5.1: logado com o app bloqueado, só a tela de bloqueio (nem o nome de quem convidou)
 $t = (string)($_GET['t'] ?? $_POST['t'] ?? '');
 if (!rate_limit('care_link', 60, 900)) { http_response_code(429); page_head('Aguarde'); echo '<section class="card narrow"><h1>Muitas tentativas</h1><p>Aguarde alguns minutos.</p></section>'; page_foot(); exit; }
 $s = care_invite_by_token($pdo, $t);
-$u = current_user();
 $msg = null;
 if ($s && $u && $_SERVER['REQUEST_METHOD'] === 'POST') {
     form_csrf_or_back('/convite-profissional.php?t=' . rawurlencode($t));

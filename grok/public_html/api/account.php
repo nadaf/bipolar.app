@@ -4,7 +4,20 @@ $u = require_user_api();
 $pdo = db();
 $action = (string)($_GET['action'] ?? '');
 
+// V5.1: a exportação traz dados íntimos (sexualidade, substâncias, pensamentos de morte, anotações).
+// Só por POST + CSRF, depois de confirmar a identidade (senha, PIN, biometria ou login recente) e com um token de uso único (10 min).
 if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    json_out(['erro' => 'Para baixar seus dados, use o botão em Conta → Seus dados (é preciso confirmar que é você).', 'stepup' => true], 405);
+}
+if ($action === 'export_prepare' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!stepup_check($u, json_input())) stepup_required($u, 'baixar seus dados');
+    json_out(['ok' => true, 'token' => create_auth_token((int)$u['id'], 'export', 600), 'aviso' => 'O arquivo contém dados íntimos (sexualidade, substâncias, pensamentos de morte e anotações, se você registrou). Guarde em local seguro e não envie a ninguém sem querer.']);
+}
+if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    $ein = $_POST ?: json_input();
+    $tokUid = consume_auth_token(is_string($ein['token'] ?? null) ? $ein['token'] : '', 'export');
+    if ($tokUid === null || $tokUid !== (int)$u['id']) json_out(['erro' => 'O pedido de exportação expirou. Toque de novo em baixar e confirme que é você.', 'stepup' => true], 403);
+    $_GET['format'] = is_string($ein['format'] ?? null) ? $ein['format'] : 'json';
     $q = function ($sql) use ($pdo, $u) { $st = $pdo->prepare($sql); $st->execute([$u['id']]); return $st->fetchAll(); };
     $entries = $q('SELECT entry_date, period, mood, sleep_hours, irritability, anxiety, energy, medication_taken, note, tags, created_at, updated_at FROM entries WHERE user_id = ? ORDER BY entry_date, period');
     try { $utz = new DateTimeZone((string)($u['timezone'] ?? 'America/Sao_Paulo')); } catch (Exception $e) { $utz = new DateTimeZone('America/Sao_Paulo'); }
@@ -23,7 +36,7 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         if ($out === false) return '';
         fwrite($out, "\xEF\xBB\xBF");
         fputcsv($out, ['data', 'período', 'humor', 'descrição', 'sono_h', 'irritabilidade', 'ansiedade', 'energia', 'medicação', 'anotação', 'etiquetas', 'criado_em (' . tz_label_br((string)$u['timezone']) . ')', 'estresse', 'acontecimento', 'doces', 'ultraprocessados', 'comeu_fora_de_hora',
-            'pens_positivos', 'pens_negativos', 'pens_acelerados', 'pens_grandiosidade', 'pens_ruminacao', 'pens_morte', 'cafe_xicaras_dia', 'cigarros_dia', 'outra_nicotina_dia'], ';', '"', '\\');
+            'pens_positivos', 'pens_negativos', 'pens_acelerados', 'pens_grandiosidade', 'pens_ruminacao', 'pens_morte', 'cafe_xicaras_dia', 'cigarros_dia', 'outra_nicotina_dia', 'religiosidade'], ';', '"', '\\');
         $th = function ($v): string { return $v === null ? '' : (THOUGHT_LEVELS[(int)$v] ?? (string)$v); };
         $lv = function ($v): string { return $v === null ? '' : (FOOD_LEVELS[(int)$v] ?? (string)$v); };
         $tzUser = new DateTimeZone((string)$u['timezone']);
@@ -37,7 +50,8 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
                 $th($pm[$r['entry_date'] . '|' . $r['period']]['th_racing'] ?? null), $th($pm[$r['entry_date'] . '|' . $r['period']]['th_grandiose'] ?? null),
                 $th($pm[$r['entry_date'] . '|' . $r['period']]['th_rumination'] ?? null), $th($pm[$r['entry_date'] . '|' . $r['period']]['th_death'] ?? null),
                 $dayRows[$r['entry_date']]['caffeine_cups'] ?? '', $dayRows[$r['entry_date']]['cigarettes'] ?? '',
-                isset($dayRows[$r['entry_date']]['nicotine_other']) ? (NICOTINE_OTHER[$dayRows[$r['entry_date']]['nicotine_other']] ?? '') : ''], ';', '"', '\\');
+                isset($dayRows[$r['entry_date']]['nicotine_other']) ? (NICOTINE_OTHER[$dayRows[$r['entry_date']]['nicotine_other']] ?? '') : '',
+                isset($pm[$r['entry_date'] . '|' . $r['period']]['religiosity']) ? (RELIGIOSITY_LEVELS[(int)$pm[$r['entry_date'] . '|' . $r['period']]['religiosity']] ?? '') : ''], ';', '"', '\\');
         }
         rewind($out);
         $s = (string)stream_get_contents($out);
@@ -64,7 +78,7 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
         'registros' => $entries,
         'midias' => $q('SELECT id, kind, mime, size_bytes, original_name, created_at FROM media WHERE user_id = ?'),
         'destinatarios' => $q('SELECT name, email, role, frequency, interval_days, weekday, include_notes, include_markers, include_sexuality, include_substances, include_food, include_death, include_alerts, include_custom_alerts, invite_status, confirmed_at, last_sent_at FROM recipients WHERE user_id = ?'),
-        'marcadores_diarios' => $q('SELECT entry_date, bed_time, wake_time, sleep_quality, sun_minutes, sun_period, caffeine_cups, alcohol_units, substances, exercise_minutes, racing_thoughts, fast_speech, impulsive_spending, spending_amount, irritability_day, cycle_phase, stress_level, stress_note, food_sweets, food_processed, food_binge, th_positive, th_negative, th_grandiose, th_rumination, th_death, cigarettes, nicotine_other, doses_json, signs_json, updated_at FROM daily_markers WHERE user_id = ? ORDER BY entry_date'),
+        'marcadores_diarios' => $q('SELECT entry_date, bed_time, wake_time, sleep_quality, sun_minutes, sun_period, caffeine_cups, alcohol_units, substances, exercise_minutes, racing_thoughts, fast_speech, impulsive_spending, spending_amount, irritability_day, cycle_phase, stress_level, stress_note, food_sweets, food_processed, food_binge, th_positive, th_negative, th_grandiose, th_rumination, religiosity, th_death, cigarettes, nicotine_other, doses_json, signs_json, updated_at FROM daily_markers WHERE user_id = ? ORDER BY entry_date'),
         'marcadores_por_periodo' => $pmRows,
         'sexualidade' => $q('SELECT entry_date, libido, activities, frequency, online_minutes, different_from_usual, note, updated_at FROM sexuality_log WHERE user_id = ? ORDER BY entry_date'),
         'substancias' => $q('SELECT entry_date, period, substance, form, other_name, amount, reason, mood_effect, above_usual, created_at FROM substance_log WHERE user_id = ? ORDER BY entry_date, id'),
@@ -98,6 +112,7 @@ if ($action === 'export' && $_SERVER['REQUEST_METHOD'] === 'GET') {
             $zip->addFile($f, 'midias/' . (int)$m['id'] . ($ext !== '' ? '.' . preg_replace('/[^a-z0-9]/i', '', $ext) : ''));
         }
         $zip->addFromString('LEIA-ME.txt', "Cópia completa dos seus dados do Bipolar, gerada em " . gmdate('d/m/Y H:i') . " (UTC).\r\n"
+            . "ATENÇÃO: este pacote contém dados íntimos de saúde (por exemplo sexualidade, substâncias, pensamentos de morte e anotações, se você registrou). Guarde em local seguro.\r\n"
             . "dados.json: tudo o que está guardado na sua conta.\r\nregistros.csv: os registros de humor, para abrir no Excel.\r\nmidias/: áudios, vídeos e imagens (o número é o id em dados.json > midias).\r\n");
         $zip->close();
         header('Content-Type: application/zip');
@@ -115,11 +130,39 @@ if ($action === 'settings' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $in = json_input();
     $tz = (string)($in['timezone'] ?? $u['timezone']);
     if (!valid_timezone($tz)) json_out(['erro' => 'Fuso horário inválido.'], 422);
-    $email = trim((string)($in['email'] ?? ''));
-    if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) json_out(['erro' => 'E-mail inválido.'], 422);
-    $pdo->prepare('UPDATE users SET name = ?, email = ?, timezone = ?, extreme_alerts = ? WHERE id = ?')
-        ->execute([mb_substr(trim((string)($in['name'] ?? '')), 0, 150), $email ?: null, $tz, !empty($in['extreme_alerts']) ? 1 : 0, $u['id']]);
+    $email = normalize_email(is_string($in['email'] ?? null) ? $in['email'] : (string)($u['email'] ?? ''));
+    if ($email !== '' && !valid_email($email)) json_out(['erro' => 'E-mail inválido.'], 422);
+    // V5.1: o e-mail NÃO muda aqui. Trocar pede confirmação de identidade e depois o clique no link enviado ao novo endereço.
+    $aviso = null; $pendente = $u['pending_email'] ?? null;
+    if ($email !== normalize_email((string)($u['email'] ?? '')) && $email !== normalize_email((string)($pendente ?? ''))) {
+        if (!stepup_check($u, $in)) stepup_required($u, 'trocar o e-mail');
+        if ($email === '') {
+            if (has_email_identity($u)) json_out(['erro' => 'Você entra com e-mail e senha, então o e-mail não pode ficar em branco.'], 422);
+            email_change_cancel($u);
+            $pdo->prepare('UPDATE users SET email = NULL, email_verified_email = NULL WHERE id = ?')->execute([$u['id']]);
+            $aviso = 'E-mail removido. Lembretes por e-mail deixam de ser enviados.'; $pendente = null;
+        } else {
+            if (!rate_limit('email_change_' . $u['id'], 5, 3600, false)) json_out(['erro' => 'Muitos pedidos de troca de e-mail. Aguarde uma hora.'], 429);
+            email_change_request($u, $email);
+            $pendente = $email;
+            $aviso = 'Enviamos um link de confirmação para ' . $email . '. Seu e-mail só muda depois que você clicar nele (vale ' . EMAIL_CHANGE_TTL_HOURS . ' h). Até lá, continua valendo o e-mail atual.';
+        }
+    }
+    $pdo->prepare('UPDATE users SET name = ?, timezone = ?, extreme_alerts = ? WHERE id = ?')
+        ->execute([mb_substr(trim((string)($in['name'] ?? '')), 0, 150), $tz, !empty($in['extreme_alerts']) ? 1 : 0, $u['id']]);
+    if ($tz !== (string)$u['timezone']) $pdo->prepare('UPDATE reminders SET next_due_at = NULL WHERE user_id = ?')->execute([$u['id']]); // V5.1: recalcula no novo fuso
+    json_out(['ok' => true, 'email_pendente' => $pendente, 'aviso' => $aviso]);
+}
+if ($action === 'email_cancel' && $_SERVER['REQUEST_METHOD'] === 'POST') { // V5.1
+    email_change_cancel($u);
     json_out(['ok' => true]);
+}
+if ($action === 'email_confirm' && $_SERVER['REQUEST_METHOD'] === 'POST') { // V5.1: comprovar o e-mail atual (ex.: sem verificação obrigatória)
+    $cur = normalize_email((string)($u['email'] ?? ''));
+    if ($cur === '') json_out(['erro' => 'Informe um e-mail primeiro.'], 422);
+    if (!rate_limit('email_change_' . $u['id'], 5, 3600, false)) json_out(['erro' => 'Muitos pedidos. Aguarde uma hora.'], 429);
+    email_change_request($u, $cur);
+    json_out(['ok' => true, 'aviso' => 'Enviamos um link de confirmação para ' . $cur . '.']);
 }
 if ($action === 'prefs' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $in = json_input();
@@ -157,11 +200,16 @@ if ($action === 'password' && $_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 if ($action === 'delete' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     if ((json_input()['confirm'] ?? '') !== 'EXCLUIR') json_out(['erro' => 'Confirmação incorreta.'], 422);
-    $dir = STORAGE_DIR . '/media/' . (int)$u['id'];
-    if (is_dir($dir)) { foreach (glob($dir . '/*') ?: [] as $f) @unlink($f); @rmdir($dir); }
-    $pdo->prepare('DELETE FROM users WHERE id = ?')->execute([$u['id']]); // cascata apaga o resto
+    require_once APP_ROOT . '/lib/storage_cleanup.php';
+    // V5.1: primeiro o banco (cascata apaga o resto); depois os arquivos, conferindo cada um.
+    // Se algum arquivo resistir, a resposta diz isso (não promete exclusão completa) e o cron termina a limpeza.
+    $st = $pdo->prepare('DELETE FROM users WHERE id = ?');
+    $st->execute([$u['id']]);
+    if ($st->rowCount() !== 1) json_out(['erro' => 'Não foi possível excluir a conta agora. Tente de novo.'], 500);
+    $filesOk = storage_remove_dir(STORAGE_DIR . '/media/' . (int)$u['id']);
     $_SESSION = [];
     session_destroy();
-    json_out(['ok' => true]);
+    json_out(['ok' => true, 'completo' => $filesOk, 'mensagem' => $filesOk ? 'Sua conta e todos os seus dados foram apagados.'
+        : 'Sua conta e seus registros foram apagados. Alguns arquivos de mídia ainda não puderam ser removidos do servidor; a limpeza automática tenta de novo em até 1 hora. Ninguém consegue abri-los pelo app.']);
 }
 json_out(['erro' => 'Ação inválida.'], 400);

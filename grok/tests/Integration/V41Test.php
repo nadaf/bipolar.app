@@ -54,8 +54,9 @@ final class V41Test extends IntegrationCase
         $this->assertStringNotContainsString('analyze_signals.php', $h);
         $this->assertStringContainsString(' analise usuarios=', (string)file_get_contents(TestEnv::$tmp . '/storage/logs/cron.log'));
         $hb = json_decode((string)file_get_contents(TestEnv::$tmp . '/storage/heartbeat-analise.json'), true);
-        $this->assertSame(['at', 'usuarios', 'alertas', 'personalizados', 'pendentes_entregues'], array_keys($hb), 'só data e contadores');
-        $e = $c->get('/api/account.php?action=export&format=json');
+        $this->assertSame(['at', 'fase', 'usuarios', 'alertas', 'personalizados', 'pendentes_entregues', 'midia_removida', 'midia_falhas'], array_keys($hb), 'só data, fase e contadores');
+        $this->assertSame('fim', $hb['fase']);
+        $e = $c->export('json');
         $today = (new DateTime('now', new DateTimeZone('America/Cuiaba')))->format('Y-m-d');
         $this->assertStringContainsString('bipolar-dados-' . $today . '-', $e['headers']['content-disposition'][0]);
     }

@@ -15,7 +15,7 @@ $scale = function (string $id, string $name, string $label, ?array $levels = nul
     return $h . '</div></fieldset>';
 };
 $foodLv = ['' => '—', '0' => 'Nenhum', '1' => 'Pouco', '2' => 'Moderado', '3' => 'Muito'];
-$anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] || $mods['pensamentos'] || $mods['estresse'] || $mods['alimentacao'] || $mods['medicacao'] || $mods['sinais'] || $mods['ciclo'];
+$anyDay = $mods['sono'] || $mods['sol'] || $mods['habitos'] || $mods['mente'] || $mods['pensamentos'] || $mods['estresse'] || $mods['alimentacao'] || $mods['medicacao'] || $mods['sinais'] || $mods['ciclo'] || !empty($mods['religiosidade']);
 $thLv = ['' => '—'] + array_map('strval', THOUGHT_LEVELS);
 $tc = $pf['trusted_contact'];
 ?>
@@ -74,6 +74,12 @@ $tc = $pf['trusted_contact'];
     <?php foreach (THOUGHT_FIELDS as $k => [$l, $help]): if ($k === 'th_death') continue; ?><?= $scale('d-' . str_replace('_', '', $k), $k, $l . ($help ? ' (' . $help . ')' : ''), $thLv) ?><?php endforeach; ?>
   </details>
 
+  <details class="extras" data-mod="religiosidade" data-per-period<?= $hide('religiosidade') ?>>
+    <summary>🕊 Religiosidade <span class="hint">· <span class="day-period-name">—</span></span></summary>
+    <p class="small">Opcional. Como esteve sua relação com temas religiosos ou espirituais neste período? Não há resposta certa: o registro ajuda a perceber mudanças ao longo do tempo, junto com o humor.</p>
+    <?= $scale('d-rel', 'religiosity', 'Religiosidade neste período', ['' => '—'] + RELIGIOSITY_LEVELS) ?>
+  </details>
+
   <details class="extras" data-mod="estresse" data-per-period<?= $hide('estresse') ?>>
     <summary>🌧 Acontecimentos e estresse <span class="hint">· <span class="day-period-name">—</span></span></summary>
     <?= $scale('d-st', 'stress_level', 'Nível de estresse neste período') ?>
@@ -113,7 +119,7 @@ $tc = $pf['trusted_contact'];
 <form id="form-sex" class="card sex-card<?= $mods['sexualidade'] ? '' : ' hidden' ?><?= $pf['sex_blur'] ? ' blurred' : '' ?>" novalidate aria-labelledby="sex-title">
   <div class="row between">
     <h2 id="sex-title">🔒 Sexualidade <span class="hint">(privado)</span></h2>
-    <button type="button" class="btn btn-ghost btn-sm" id="sex-hide" aria-controls="sex-body" aria-label="<?= $pf['sex_blur'] ? 'Revelar' : 'Ocultar' ?> dados de Sexualidade"><?= $pf['sex_blur'] ? 'Revelar' : 'Ocultar' ?></button>
+    <button type="button" class="btn btn-ghost btn-sm" data-ga="ocultar_revelar" data-ga-bloco="privado" id="sex-hide" aria-controls="sex-body" aria-label="<?= $pf['sex_blur'] ? 'Revelar' : 'Ocultar' ?> dados de Sexualidade"><?= $pf['sex_blur'] ? 'Revelar' : 'Ocultar' ?></button>
   </div>
   <div id="sex-locked" class="sex-locked hidden">
     <p>Esta seção está protegida por PIN.</p>
@@ -143,7 +149,7 @@ $tc = $pf['trusted_contact'];
 <form id="form-subst" class="card sex-card subst-card<?= $mods['substancias'] ? '' : ' hidden' ?><?= $pf['subst_blur'] ? ' blurred' : '' ?>" novalidate aria-labelledby="subst-title">
   <div class="row between">
     <h2 id="subst-title">🔒 Substâncias <span class="hint">(privado)</span></h2>
-    <button type="button" class="btn btn-ghost btn-sm" id="subst-hide" aria-controls="subst-body" aria-label="<?= $pf['subst_blur'] ? 'Revelar' : 'Ocultar' ?> dados de Substâncias"><?= $pf['subst_blur'] ? 'Revelar' : 'Ocultar' ?></button>
+    <button type="button" class="btn btn-ghost btn-sm" data-ga="ocultar_revelar" data-ga-bloco="privado" id="subst-hide" aria-controls="subst-body" aria-label="<?= $pf['subst_blur'] ? 'Revelar' : 'Ocultar' ?> dados de Substâncias"><?= $pf['subst_blur'] ? 'Revelar' : 'Ocultar' ?></button>
   </div>
   <div id="subst-locked" class="sex-locked hidden">
     <p>Esta seção está protegida pelo seu PIN.</p>
@@ -184,7 +190,7 @@ $tc = $pf['trusted_contact'];
   </div>
 </form>
 
-<form id="form-death" class="card sex-card death-card<?= $mods['pensamentos_morte'] ? '' : ' hidden' ?><?= $pf['death_blur'] ? ' blurred' : '' ?>" novalidate aria-labelledby="death-title">
+<form id="form-death" data-ga-off class="card sex-card death-card<?= $mods['pensamentos_morte'] ? '' : ' hidden' ?><?= $pf['death_blur'] ? ' blurred' : '' ?>" novalidate aria-labelledby="death-title">
   <div class="row between">
     <h2 id="death-title">🔒 Pensamentos de morte <span class="hint">(privado · <span class="day-period-name">—</span>)</span></h2>
     <button type="button" class="btn btn-ghost btn-sm" id="death-hide" aria-controls="death-body" aria-label="<?= $pf['death_blur'] ? 'Revelar' : 'Ocultar' ?> dados de Pensamentos de morte"><?= $pf['death_blur'] ? 'Revelar' : 'Ocultar' ?></button>

@@ -40,11 +40,11 @@ final class V47Test extends IntegrationCase
         $this->assertStringContainsString("setTimeout(() => { t._until = 0; t.classList.remove('show'); }, ms)", $mfa);
         // os arquivos novos chegam a quem já tem o app instalado (cache do service worker renovado)
         $sw = (string)file_get_contents(TestEnv::ROOT . '/public_html/sw.js');
-        $this->assertStringContainsString("const VERSION = 'bp-v15';", $sw);
+        $this->assertStringContainsString("const VERSION = 'bp-v18';", $sw);
         $layout = (string)file_get_contents(TestEnv::ROOT . '/app/views/layout.php');
-        $this->assertStringContainsString('/assets/css/app.css?v=13', $layout);
-        $this->assertStringContainsString('/assets/css/app.css?v=13', $sw);
-        $this->assertStringContainsString('/assets/js/app.js?v=13', $sw);
+        $this->assertStringContainsString('/assets/css/app.css?v=16', $layout);
+        $this->assertStringContainsString('/assets/css/app.css?v=16', $sw);
+        $this->assertStringContainsString('/assets/js/app.js?v=15', $sw);
     }
 
     /* ---------------- Bug 2: estresse/acontecimentos por período ---------------- */
@@ -147,10 +147,10 @@ final class V47Test extends IntegrationCase
         $e = $c->get('/api/entries.php?from=2026-10-14&to=2026-10-14')['json']['entries'][0];
         $this->assertSame(['tarde', 3, 2, 1], [$e['period'], (int)$e['pm_sweets'], (int)$e['pm_processed'], (int)$e['pm_binge']]);
         // exportação: CSV com colunas novas, JSON com marcadores por período
-        $csv = $c->get('/api/account.php?action=export&format=csv')['body'];
+        $csv = $c->export('csv')['body'];
         $this->assertStringContainsString(';estresse;acontecimento;doces;ultraprocessados;comeu_fora_de_hora', $csv);
         $this->assertStringContainsString(';Muito;Moderado;sim', $csv);
-        $json = $c->get('/api/account.php?action=export&format=json')['json'];
+        $json = $c->export('json')['json'];
         $this->assertCount(2, $json['marcadores_por_periodo']);
         $this->assertArrayHasKey('food_sweets', $json['marcadores_diarios'][0]);
         $this->assertArrayHasKey('include_food', $json['destinatarios'] ? $json['destinatarios'][0] : ['include_food' => 0]);
@@ -242,26 +242,26 @@ final class V47Test extends IntegrationCase
         $this->assertStringContainsString("mfa_enabled_at_local(\$user)['date']", (string)file_get_contents(TestEnv::ROOT . '/app/views/account_mfa.php'));
     }
 
-    /* ---------------- C: app público funciona sem o módulo privado ---------------- */
+    /* ---------------- C: app público sem módulo privado ---------------- */
     public function testPublicAppWorksWithoutPrivateModule(): void
     {
+        // V5.3.1: /profissionais.php e /comecar.php são só informativas, com ou sem o módulo privado
+        foreach (['/profissionais.php', '/comecar.php'] as $p) {
+            $r = $this->prod()->get($p);
+            $this->assertSame(200, $r['status'], $p);
+            $this->assertStringNotContainsString('<form', $r['body'], "$p sem formulário");
+            $this->assertDoesNotMatchRegularExpression('/R\$|\bplanos?\b/i', $r['body'], "$p só informativa");
+            $this->assertStringContainsString('rel="canonical"', $r['body']);
+        }
+        $this->assertStringContainsString('https://blog.bipolar.app.br', $this->prod()->get('/profissionais.php')['body']);
         if (TestEnv::hasPrivate()) {
-            // árvore completa do site: páginas extras vêm do módulo privado
-            $this->assertSame(200, $this->prod()->get('/profissionais.php')['status']);
             $this->assertStringContainsString('id="contatos"', $this->prod()->get('/privacidade.php')['body']);
             return;
         }
         // nenhum arquivo do módulo privado na árvore pública
         $this->assertFileDoesNotExist(TestEnv::ROOT . '/app/ext', 'app/ext é do módulo privado');
-        $this->assertSame([], glob(TestEnv::ROOT . '/app/ext/*') ?: []);
         $this->assertFalse(ext_page('profissionais'));
         $this->assertSame('', ext_partial('privacidade-contatos'));
-        foreach (['/profissionais.php', '/comecar.php'] as $p) {
-            $r = $this->prod()->get($p);
-            $this->assertSame(200, $r['status'], $p);
-            $this->assertStringNotContainsString('<form', $r['body'], "$p sem formulário de contato");
-            $this->assertStringContainsString('rel="canonical"', $r['body']);
-        }
         $this->assertStringNotContainsString('id="contatos"', $this->prod()->get('/privacidade.php')['body']);
     }
     public function testExtensionNamesAreSafe(): void

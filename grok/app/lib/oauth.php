@@ -139,7 +139,14 @@ function oauth_login_or_register(string $p, array $id): int {
         $pdo->prepare('INSERT INTO users (name, email, timezone) VALUES (?, ?, ?)')
             ->execute([mb_substr($id['name'], 0, 150), $id['email'], cfg('default_timezone', 'America/Cuiaba')]);
         $uid = (int)$pdo->lastInsertId();
-        $pdo->prepare('INSERT INTO oauth_identities (user_id, provider, subject) VALUES (?, ?, ?)')->execute([$uid, $p, $id['subject']]);
+        identity_insert($pdo, $uid, $p, $id['subject']);
+    }
+    // V5.1: o Google garante o e-mail (email_verified). Se for o mesmo e-mail da conta, ele fica comprovado
+    // (vale para convites de profissional). Microsoft e X não comprovam o e-mail.
+    if ($p === 'google' && !empty($id['email'])) {
+        $em = normalize_email((string)$id['email']);
+        $pdo->prepare('UPDATE users SET email_verified_email = ?, email_verified_at = COALESCE(email_verified_at, UTC_TIMESTAMP()) WHERE id = ? AND LOWER(TRIM(email)) = ? AND (email_verified_email IS NULL OR email_verified_email <> ?)')
+            ->execute([$em, (int)$uid, $em, $em]);
     }
     return (int)$uid;
 }

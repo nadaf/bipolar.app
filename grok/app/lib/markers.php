@@ -19,7 +19,10 @@ const DAY_MODULES = [
     'sexualidade' => ['Sexualidade (privado)', false],
     'substancias' => ['Substâncias (privado, redução de danos)', false],
     'pensamentos_morte' => ['Pensamentos de morte ou suicídio (privado)', false],
+    'religiosidade' => ['Religiosidade (por período)', true], // V5.1
 ];
+/** V5.1: religiosidade por período — escolha única, opcional (null = não informado). Aumento pode ser sinal de mania/hipomania. */
+const RELIGIOSITY_LEVELS = [0 => 'Nenhuma', 1 => 'Normal', 2 => 'Sensível ao tema', 3 => 'Muito sensível ao tema'];
 /** V4.8: módulos atrás do PIN/biometria (seções privadas). */
 const PRIVATE_MODULES = ['sexualidade', 'substancias', 'pensamentos_morte'];
 
@@ -190,7 +193,7 @@ const DAY_STRICT_LABELS = ['sleep_quality' => 'Qualidade do sono', 'sun_minutes'
 const DAY_DATA_COLS = ['bed_time', 'wake_time', 'sleep_quality', 'sun_minutes', 'sun_period', 'caffeine_cups', 'alcohol_units', 'substances',
     'exercise_minutes', 'racing_thoughts', 'fast_speech', 'impulsive_spending', 'spending_amount', 'irritability_day', 'cycle_phase',
     'stress_level', 'stress_note', 'food_sweets', 'food_processed', 'food_binge', 'doses_json', 'signs_json',
-    'th_positive', 'th_negative', 'th_grandiose', 'th_rumination', 'th_death', 'cigarettes', 'nicotine_other'];
+    'th_positive', 'th_negative', 'th_grandiose', 'th_rumination', 'th_death', 'cigarettes', 'nicotine_other', 'religiosity'];
 
 /**
  * Valida marcadores do dia. Só os campos ENVIADOS entram no resultado (edição sem perda).
@@ -236,7 +239,7 @@ function validate_day(array $in): array
 
 /** V4.7: campos registrados POR PERÍODO (manhã, tarde, noite) — os demais marcadores valem para o dia. */
 const PERIOD_MARKER_FIELDS = ['stress_level', 'stress_note', 'food_sweets', 'food_processed', 'food_binge',
-    'th_positive', 'th_negative', 'th_racing', 'th_grandiose', 'th_rumination', 'th_death'];
+    'th_positive', 'th_negative', 'th_racing', 'th_grandiose', 'th_rumination', 'th_death', 'religiosity'];
 /** Escala da Alimentação (mesmos 4 níveis dos outros itens; null = não informado). */
 const FOOD_LEVELS = [0 => 'Nenhum', 1 => 'Pouco', 2 => 'Moderado', 3 => 'Muito'];
 const PERIODS_ALL = ['manha', 'tarde', 'noite'];
@@ -266,12 +269,13 @@ function validate_period_markers(array $in, string $tz = 'America/Sao_Paulo'): a
         'food_sweets' => fn ($x) => int_or_null($x, 0, 3),
         'food_processed' => fn ($x) => int_or_null($x, 0, 3),
         'food_binge' => fn ($x) => in_array($x, [true, 1, '1'], true) ? 1 : (in_array($x, [false, 0, '0'], true) ? 0 : null),
+        'religiosity' => fn ($x) => int_or_null($x, 0, 3),
     ];
     foreach (array_keys(THOUGHT_FIELDS) as $k) $map[$k] = fn ($x) => int_or_null($x, 0, 3);
     $v = ['period' => $p];
     foreach ($sent as $k) $v[$k] = $map[$k]($in[$k]);
     $bad = markers_invalid_field($in, $v, ['stress_level' => 'Nível de estresse', 'food_sweets' => 'Doces',
-        'food_processed' => 'Industrializados / ultraprocessados', 'food_binge' => 'Comi fora de hora / compulsão']
+        'food_processed' => 'Industrializados / ultraprocessados', 'food_binge' => 'Comi fora de hora / compulsão', 'religiosity' => 'Religiosidade']
         + array_map(function (array $t): string { return strpos($t[0], 'Pensamentos') === 0 ? $t[0] : 'Pensamentos ' . mb_strtolower($t[0]); }, THOUGHT_FIELDS));
     if ($bad !== null) return [$bad, []];
     return [null, $v];
@@ -291,7 +295,7 @@ function period_markers_day_totals(array $rows): array
     $notes = [];
     foreach ($withNote as $r) $notes[] = (count($withNote) > 1 ? ($names[$r['period']] ?? $r['period']) . ': ' : '') . trim((string)$r['stress_note']);
     $out = ['stress_level' => $max('stress_level'), 'stress_note' => $notes ? mb_substr(implode(' · ', $notes), 0, 500) : null,
-        'food_sweets' => $max('food_sweets'), 'food_processed' => $max('food_processed'), 'food_binge' => $max('food_binge')];
+        'food_sweets' => $max('food_sweets'), 'food_processed' => $max('food_processed'), 'food_binge' => $max('food_binge'), 'religiosity' => $rows && array_key_exists('religiosity', $rows[0]) ? $max('religiosity') : null];
     foreach (array_keys(THOUGHT_FIELDS) as $k) $out[$k] = $rows && array_key_exists($k, $rows[0]) ? $max($k) : null;
     return $out;
 }
@@ -315,6 +319,7 @@ function period_markers_save(PDO $pdo, int $uid, string $date, array $v): void
     $rows = $st->fetchAll();
     $t = period_markers_day_totals($rows);
     $dayCols = ['stress_level', 'stress_note', 'food_sweets', 'food_processed', 'food_binge', 'th_positive', 'th_negative', 'th_grandiose', 'th_rumination', 'th_death'];
+    if (array_key_exists('religiosity', $v)) $dayCols[] = 'religiosity'; // V5.1
     $vals = array_map(function (string $c) use ($t) { return $t[$c] ?? null; }, $dayCols);
     // V4.8: pensamentos acelerados do dia = maior valor dos períodos (só quando este envio mexeu nesse item;
     // quem desligou "Pensamentos por período" continua usando o campo do dia)

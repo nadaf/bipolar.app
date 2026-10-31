@@ -32,13 +32,16 @@ Guia completo para cPanel: [README-INSTALACAO.md](README-INSTALACAO.md). Atualiz
 
 ## Novidades
 
-Versão atual: **0.5.0-beta** (V4.8). Resumo de V4.5 a V4.8:
+Versão atual: **0.5.3-beta** (V5.3.1). Resumo de V4.5 a V5.3.1:
+
+- **V5.3.1 (0.5.3):** links para o Blog do Bipolar (blog.bipolar.app.br), imagem de compartilhamento nova e página para profissionais só informativa.
+- **V5.1–V5.2.1 (0.5.1–0.5.3):** segurança, usabilidade e estatísticas de uso opcionais (só com consentimento).
 
 - **V4.8 (0.5.0):** pensamentos por período, pensamentos de morte (privado, com painel de apoio CVV 188/SAMU 192), nicotina em Hábitos e compartilhamento só leitura com profissional de saúde, controlado pelo paciente.
 - **V4.7.2 (0.4.2):** "Meu dia" sempre mostra a data escolhida — corrigido o caso em que, depois de registrar hoje e escolher ontem, o bloco mostrava (e podia salvar) os dados de hoje.
 - **V4.7.1 (0.4.1):** valores fora da escala recusados com mensagem clara; limpar um período não deixa linhas vazias.
 - **V4.7 (0.4.0):** estresse e alimentação por período, aviso "salvo" que some sozinho, Ocultar/Revelar acessível, ponto de extensão desligado por padrão.
-- **V4.5–V4.6 (0.3.x):** páginas informativas para profissionais e "Comece grátis", Open Graph e sitemap.
+- **V4.5–V4.6 (0.3.x):** páginas informativas para profissionais e "Comece a usar", Open Graph e sitemap.
 
 Detalhes em [CHANGELOG.md](CHANGELOG.md).
 

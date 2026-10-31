@@ -35,8 +35,9 @@ final class SchemaCompatTest extends TestCase
     {
         $schema = (string)file_get_contents(TestEnv::ROOT . '/schema.sql');
         preg_match_all('/CREATE TABLE IF NOT EXISTS (\w+) \((.*?)\) ENGINE/s', $schema, $tables, PREG_SET_ORDER);
-        // V4.4: + mfa_recovery_codes, V4.7: + period_markers. leads/billing_* (V4.5/V4.6) foram para o módulo privado (schema-private.sql).
-        $this->assertCount(21, $tables);
+        // V4.4: + mfa_recovery_codes, V4.7: + period_markers. tabelas do módulo privado ficam fora deste schema.
+        // V5.1: + outbox, entry_client_ids
+        $this->assertCount(23, $tables);
         foreach ($tables as [, $name, $body]) {
             $this->assertStringContainsString('utf8mb4', $schema);
             preg_match_all('/^\s*(\w+) VARCHAR\((\d+)\)/m', $body, $cols, PREG_SET_ORDER);
@@ -96,8 +97,14 @@ final class SchemaCompatTest extends TestCase
             foreach ($pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN) as $t) $pdo->exec("DROP TABLE `$t`");
             $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
             $old = (string)file_get_contents(TestEnv::ROOT . '/schema.sql');
-            $old = preg_replace('/  (prefs|sex_pin_hash|include_markers|include_sexuality|include_substances|include_alerts|last_alert_at|label|last_ok_at|snooze_until|include_custom_alerts|invite_status|invite_error_at|food_sweets|food_processed|food_binge|include_food|th_positive|th_negative|th_racing|th_grandiose|th_rumination|th_death|cigarettes|nicotine_other|include_death|is_professional|professional_kind|professional_reg) [^\n]*\n/', '', $old);
+            $old = preg_replace('/  (prefs|sex_pin_hash|include_markers|include_sexuality|include_substances|include_alerts|last_alert_at|label|last_ok_at|snooze_until|include_custom_alerts|invite_status|invite_error_at|food_sweets|food_processed|food_binge|include_food|th_positive|th_negative|th_racing|th_grandiose|th_rumination|th_death|cigarettes|nicotine_other|include_death|religiosity|is_professional|professional_kind|professional_reg) [^\n]*\n/', '', $old);
             $old = preg_replace('/  UNIQUE KEY uq_recipient_user_email[^\n]*\n/', '', (string)$old);
+            // V5.1: volta ao formato 0.5.0 (sem colunas/tabelas novas, índice antigo de oauth_identities, enum antigo)
+            $old = preg_replace('/  (pending_email|pending_email_at|email_verified_email|subject_hash|next_due_at|payload) [^\n]*\n/', '', (string)$old);
+            $old = preg_replace('/  UNIQUE KEY uq_oi_subject_hash \(subject_hash\),\n  KEY idx_oi_provider_subject \(provider, subject\(150\)\),/', '  UNIQUE KEY uq_provider_subject (provider, subject),', (string)$old);
+            $old = preg_replace('/  KEY idx_rm_due[^\n]*\n/', '', (string)$old);
+            $old = str_replace("ENUM('verify','reset','email_change','export')", "ENUM('verify','reset')", (string)$old);
+            $old = preg_replace('/CREATE TABLE IF NOT EXISTS (outbox|entry_client_ids) .*?;\n/s', '', (string)$old);
             $old = preg_replace('/CREATE TABLE IF NOT EXISTS (daily_markers|sexuality_log|substance_log|alerts|webauthn_credentials|ai_usage|alert_rules|period_markers|care_shares|care_codes|care_access_log) .*?;\n/s', '', (string)$old);
             self::runSql($pdo, (string)$old);
             $this->assertSame([], $pdo->query("SHOW TABLES LIKE 'daily_markers'")->fetchAll());
@@ -143,6 +150,22 @@ final class SchemaCompatTest extends TestCase
                 self::runSql($pdo, $sqlM);
                 self::runSql($pdo, $sqlM);
             }
+            // V5.1: sobre dados 0.5.0 — identidade sem hash, e-mail confirmado pelo link (token usado) e outro sem token
+            $this->assertSame([], $pdo->query("SHOW TABLES LIKE 'outbox'")->fetchAll());
+            $pdo->exec("UPDATE users SET email = 'antigo@example.com', email_verified_at = UTC_TIMESTAMP() WHERE id = 1");
+            $pdo->exec("INSERT INTO users (name, email, email_verified_at) VALUES ('sem token', 'semtoken@example.com', UTC_TIMESTAMP())");
+            $pdo->exec("INSERT INTO oauth_identities (user_id, provider, subject) VALUES (1, 'email', 'antigo@example.com'), (2, 'email', 'semtoken@example.com'), (2, 'google', 'g-1')");
+            $pdo->exec("INSERT INTO auth_tokens (user_id, purpose, token_hash, expires_at, used_at) VALUES (1, 'verify', REPEAT('b', 64), UTC_TIMESTAMP(), UTC_TIMESTAMP())");
+            $mig51 = (string)file_get_contents(TestEnv::ROOT . '/migrations/2026-11-17-v5-1-seguranca.sql');
+            self::runSql($pdo, $mig51);
+            self::runSql($pdo, $mig51);
+            $this->assertSame(['antigo@example.com', null], $pdo->query('SELECT email_verified_email FROM users ORDER BY id')->fetchAll(PDO::FETCH_COLUMN), 'só quem comprovou pelo link');
+            $this->assertSame([hash('sha256', 'email|antigo@example.com'), hash('sha256', 'email|semtoken@example.com'), hash('sha256', 'google|g-1')],
+                $pdo->query('SELECT subject_hash FROM oauth_identities ORDER BY user_id, provider')->fetchAll(PDO::FETCH_COLUMN), 'hash igual ao do PHP');
+            try { $pdo->exec("INSERT INTO oauth_identities (user_id, provider, subject, subject_hash) VALUES (2, 'x', 'y', '" . hash('sha256', 'google|g-1') . "')"); $this->fail('hash duplicado aceito'); } catch (PDOException $e) { $this->assertSame(1062, (int)$e->errorInfo[1]); }
+            $pdo->exec("INSERT INTO oauth_identities (user_id, provider, subject) VALUES (2, 'dev', 'durante-a-atualizacao')"); // código 0.5.0 ainda no ar
+            $pdo->exec("INSERT INTO auth_tokens (user_id, purpose, token_hash, payload, expires_at) VALUES (1, 'email_change', REPEAT('c', 64), 'novo@example.com', UTC_TIMESTAMP())");
+            $this->assertSame(['entry_client_ids', 'outbox'], array_merge($pdo->query("SHOW TABLES LIKE 'entry_client_ids'")->fetchAll(PDO::FETCH_COLUMN), $pdo->query("SHOW TABLES LIKE 'outbox'")->fetchAll(PDO::FETCH_COLUMN)));
             $this->assertSame(['alert_rules'], $pdo->query("SHOW TABLES LIKE 'alert_rules'")->fetchAll(PDO::FETCH_COLUMN));
             $pm = $pdo->query('SELECT entry_date, period, stress_level, stress_note, migrated FROM period_markers ORDER BY entry_date')->fetchAll(PDO::FETCH_NUM);
             $this->assertSame([['2026-10-01', 'tarde', '3', 'briga', '1'], ['2026-10-02', 'noite', '1', null, '1']], array_map(fn($r) => array_map(fn($v) => $v === null ? null : (string)$v, $r), $pm), 'estresse antigo copiado uma vez, sem perder o valor do dia');
@@ -159,7 +182,9 @@ final class SchemaCompatTest extends TestCase
             $this->assertSame(['0', null], array_map(fn($v) => $v === null ? null : (string)$v, $pdo->query('SELECT include_custom_alerts, invite_status FROM recipients')->fetch(PDO::FETCH_NUM)));
             $cols = function (string $t) use ($pdo): array { return $pdo->query("SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE, COLUMN_DEFAULT FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = '$t' ORDER BY COLUMN_NAME")->fetchAll(PDO::FETCH_ASSOC); };
             $migrated = [];
-            foreach (['users', 'entries', 'recipients', 'daily_markers', 'sexuality_log', 'substance_log', 'push_subscriptions', 'alerts', 'webauthn_credentials', 'ai_usage', 'alert_rules', 'mfa_recovery_codes', 'period_markers', 'care_shares', 'care_codes', 'care_access_log'] as $t) $migrated[$t] = $cols($t);
+            foreach (['users', 'entries', 'recipients', 'daily_markers', 'sexuality_log', 'substance_log', 'push_subscriptions', 'alerts', 'webauthn_credentials', 'ai_usage', 'alert_rules', 'mfa_recovery_codes', 'period_markers', 'care_shares', 'care_codes', 'care_access_log', 'reminders', 'auth_tokens', 'outbox', 'entry_client_ids'] as $t) $migrated[$t] = $cols($t);
+            // oauth_identities: na migração subject_hash fica NULL-ável (o código 0.5.0 continua inserindo durante a atualização) — o resto é igual
+            $oi = array_values(array_filter($cols('oauth_identities'), fn($c) => $c['COLUMN_NAME'] !== 'subject_hash'));
             $this->assertSame('0', (string)$pdo->query('SELECT include_sexuality FROM recipients')->fetchColumn(), 'sexualidade nunca vem ligada');
             $this->assertSame('1', (string)$pdo->query('SELECT include_markers FROM recipients')->fetchColumn());
             // compara com schema.sql completo
@@ -168,6 +193,49 @@ final class SchemaCompatTest extends TestCase
             $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
             self::runSql($pdo, (string)file_get_contents(TestEnv::ROOT . '/schema.sql'));
             foreach ($migrated as $t => $c) $this->assertSame($cols($t), $c, "colunas de $t iguais ao schema.sql");
+            $this->assertSame(array_values(array_filter($cols('oauth_identities'), fn($c) => $c['COLUMN_NAME'] !== 'subject_hash')), $oi);
+        } finally {
+            $pdo->exec('DROP DATABASE IF EXISTS bipolar_migtest');
+            $pdo->exec('USE `' . cfg('db.name') . '`');
+        }
+    }
+    /** V5.1 (P2-a): regra de repetidos da migração V4.1 — fica o ativo, depois o cancelado, depois o que compartilha menos. */
+    public function testV41DedupeKeepsActiveAndAbortsOnConflictingActives(): void
+    {
+        $pdo = db();
+        $pdo->exec('CREATE DATABASE IF NOT EXISTS bipolar_migtest CHARACTER SET utf8mb4');
+        $pdo->exec('USE bipolar_migtest');
+        try {
+            $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+            foreach ($pdo->query('SHOW TABLES')->fetchAll(PDO::FETCH_COLUMN) as $t) $pdo->exec("DROP TABLE `$t`");
+            $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+            $old = preg_replace('/  UNIQUE KEY uq_recipient_user_email[^\n]*\n/', '', (string)file_get_contents(TestEnv::ROOT . '/schema.sql'));
+            self::runSql($pdo, (string)$old);
+            $pdo->exec("INSERT INTO users (name) VALUES ('a'), ('b')");
+            $ins = $pdo->prepare('INSERT INTO recipients (id, user_id, name, email, confirm_token, confirmed_at, unsubscribed_at, include_notes, include_sexuality) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
+            $now = gmdate('Y-m-d H:i:s');
+            foreach ([
+                [1, 1, 'a-pendente-mais', 'a@example.com', null, null, 1, 1], [2, 1, 'a-ativo', 'A@example.com', $now, null, 0, 0],
+                [3, 1, 'b-cancelado', 'b@example.com', $now, $now, 0, 0], [4, 1, 'b-pendente', 'b@example.com', null, null, 0, 0],
+                [5, 1, 'c-pendente-notas', 'c@example.com', null, null, 1, 0], [6, 1, 'c-pendente-menos', 'c@example.com', null, null, 0, 0],
+                [7, 1, 'd-ativo-1', 'd@example.com', $now, null, 0, 0], [8, 1, 'd-ativo-2', 'd@example.com', $now, null, 0, 0],
+                [9, 2, 'outra-pessoa', 'a@example.com', null, null, 1, 1],
+            ] as $r) $ins->execute([$r[0], $r[1], $r[2], $r[3], 'tok' . $r[0], $r[4], $r[5], $r[6], $r[7]]);
+            $mig = (string)file_get_contents(TestEnv::ROOT . '/migrations/2026-10-19-v4-1-destinatarios-unicos.sql');
+            self::runSql($pdo, $mig);
+            self::runSql($pdo, $mig);
+            $this->assertSame(['a-ativo', 'b-cancelado', 'c-pendente-menos', 'd-ativo-1', 'outra-pessoa'], $pdo->query('SELECT name FROM recipients ORDER BY id')->fetchAll(PDO::FETCH_COLUMN));
+            // dois ativos com opções diferentes: para com #1062 e não apaga nada
+            $pdo->exec('ALTER TABLE recipients ADD KEY idx_tmp_user (user_id), DROP INDEX uq_recipient_user_email');
+            $ins->execute([20, 2, 'e-ativo-sem', 'e@example.com', 'tok20', $now, null, 0, 0]);
+            $ins->execute([21, 2, 'e-ativo-com-sexualidade', 'e@example.com', 'tok21', $now, null, 0, 1]);
+            $before = (int)$pdo->query('SELECT COUNT(*) FROM recipients')->fetchColumn();
+            try { self::runSql($pdo, $mig); $this->fail('conflito entre ativos não parou a migração'); }
+            catch (PDOException $e) { $this->assertSame(1062, (int)$e->errorInfo[1]); }
+            $this->assertSame($before, (int)$pdo->query('SELECT COUNT(*) FROM recipients')->fetchColumn(), 'nada apagado');
+            $pdo->exec('DELETE FROM recipients WHERE id = 21'); // a pessoa escolhe à mão, como o guia explica
+            self::runSql($pdo, $mig);
+            $this->assertCount(2, $pdo->query("SHOW INDEX FROM recipients WHERE Key_name = 'uq_recipient_user_email'")->fetchAll());
         } finally {
             $pdo->exec('DROP DATABASE IF EXISTS bipolar_migtest');
             $pdo->exec('USE `' . cfg('db.name') . '`');

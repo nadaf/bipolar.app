@@ -58,14 +58,21 @@ function b64url(string $d): string { return rtrim(strtr(base64_encode($d), '+/',
 function b64url_decode(string $d): string { return base64_decode(strtr($d, '-_', '+/') . str_repeat('=', (4 - strlen($d) % 4) % 4)); }
 function is_https(): bool {
     return (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
-        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https' && is_trusted_proxy());
+}
+/** V5.1: X-Forwarded-Proto só vale vindo de um proxy listado em 'trusted_proxies' (padrão: nenhum). */
+function is_trusted_proxy(): bool {
+    $list = cfg('trusted_proxies', []);
+    if (!is_array($list) || !$list) return false;
+    return in_array((string)($_SERVER['REMOTE_ADDR'] ?? ''), array_map('strval', $list), true);
 }
 function send_security_headers(): void {
     header('X-Content-Type-Options: nosniff');
     header('X-Frame-Options: DENY');
     header('Referrer-Policy: strict-origin-when-cross-origin');
     header('Permissions-Policy: camera=(self), microphone=(self), geolocation=()');
-    header("Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:; media-src 'self' blob:; style-src 'self'; script-src 'self'; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://login.microsoftonline.com https://twitter.com https://x.com");
+    $ga = function_exists('ga4_csp_sources') ? ga4_csp_sources() : ['script' => '', 'connect' => '', 'img' => '']; // V5.2: só com GA ativo
+    header("Content-Security-Policy: default-src 'self'; img-src 'self' data: blob:{$ga['img']}; media-src 'self' blob:; style-src 'self'; script-src 'self'{$ga['script']}; connect-src 'self'{$ga['connect']}; frame-ancestors 'none'; base-uri 'self'; form-action 'self' https://accounts.google.com https://login.microsoftonline.com https://twitter.com https://x.com");
     if (is_https()) header('Strict-Transport-Security: max-age=31536000; includeSubDomains');
 }
 /**
@@ -229,16 +236,33 @@ function plural_br(int $n, string $one, string $many): string { return $n . ' ' 
  *
  * @param array<string, int> $info
  */
-function cron_heartbeat(string $name, array $info = []): void {
+/**
+ * Batimento do cron: gravado no começo ('inicio') e no fim ('fim') de cada execução.
+ * V5.1: devolve false se não conseguiu gravar (disco cheio, permissão) e avisa no log de erros e no STDERR,
+ * para o cron terminar com código de saída diferente de zero (o cPanel manda e-mail ao dono da conta).
+ *
+ * @param array<string, int|string> $info
+ */
+function cron_heartbeat(string $name, array $info = [], string $phase = 'fim'): bool {
     $n = (string)preg_replace('/[^a-z_]/', '', $name);
+    $phase = $phase === 'inicio' ? 'inicio' : 'fim';
     $f = STORAGE_DIR . '/heartbeat-' . $n . '.json';
-    @file_put_contents($f, (string)json_encode(['at' => gmdate('c')] + $info), LOCK_EX);
+    $prev = cron_heartbeat_read($n);
+    $data = ['at' => gmdate('c'), 'fase' => $phase] + $info;
+    if ($phase === 'inicio') $data['ultimo_fim'] = (string)($prev['fase'] ?? 'fim') === 'fim' ? (string)($prev['at'] ?? '') : (string)($prev['ultimo_fim'] ?? '');
+    $ok1 = @file_put_contents($f, (string)json_encode($data), LOCK_EX) !== false;
     // V4.3: a situação dos crons existe só no servidor (heartbeat + este log), sem tela nem API.
     // Veja com: php /home1/USUARIO/tools/cron_status.php
-    @mkdir(STORAGE_DIR . '/logs', 0700, true);
-    $line = gmdate('c') . ' ' . $n;
+    if (!is_dir(STORAGE_DIR . '/logs')) @mkdir(STORAGE_DIR . '/logs', 0700, true);
+    $line = gmdate('c') . ' ' . $n . ' ' . $phase;
     foreach ($info as $k => $v) $line .= ' ' . preg_replace('/[^a-z_]/', '', (string)$k) . '=' . (int)$v;
-    @file_put_contents(STORAGE_DIR . '/logs/cron.log', $line . "\n", FILE_APPEND | LOCK_EX);
+    $ok2 = @file_put_contents(STORAGE_DIR . '/logs/cron.log', $line . "\n", FILE_APPEND | LOCK_EX) !== false;
+    if (!$ok1 || !$ok2) {
+        $msg = "cron $n: não foi possível gravar o batimento ($phase) em storage/ — verifique espaço em disco e permissões";
+        error_log($msg);
+        if (PHP_SAPI === 'cli' && defined('STDERR')) @fwrite(STDERR, "ERRO: $msg\n");
+    }
+    return $ok1 && $ok2;
 }
 
 /**

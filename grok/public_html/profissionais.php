@@ -1,7 +1,6 @@
 <?php
 require __DIR__ . '/_boot.php';
-// V4.7: com o módulo privado instalado (bipolar.app.br), a página completa vem dele.
-if (ext_page('profissionais')) return;
+// V5.3.1: página informativa única (igual no site e no código aberto).
 page_head('Para profissionais de saúde', 'marketing', [
     'og' => true, 'canonical' => '/profissionais.php',
     'description' => 'Diário de humor gratuito e de código aberto para pacientes com transtorno bipolar: life-chart, alertas e relatórios que o paciente envia para quem cuida dele.',
@@ -10,7 +9,7 @@ page_head('Para profissionais de saúde', 'marketing', [
   <p class="eyebrow">Para psiquiatras, psicólogos, clínicas e CAPS</p>
   <h1>O que acontece entre as consultas, com o consentimento do paciente</h1>
   <p class="lead">O Bipolar é um diário de humor gratuito e de código aberto, inspirado no NIMH Life Chart Method. Indique para seus pacientes: eles registram em menos de um minuto por dia e enviam a você, se quiserem, um relatório periódico por e-mail.</p>
-  <p class="mk-cta"><a class="btn btn-primary btn-lg" href="/comecar.php">Conhecer o app</a></p>
+  <p class="mk-cta"><a class="btn btn-primary btn-lg" href="/comecar.php">Conhecer o app</a> <a class="btn btn-lg" href="https://blog.bipolar.app.br">Blog do Bipolar</a></p>
 </section>
 
 <section class="card" aria-labelledby="problema">
@@ -39,7 +38,7 @@ page_head('Para profissionais de saúde', 'marketing', [
   <ol class="steps">
     <li><strong>O paciente decide.</strong> Ele convida o(a) profissional pelo próprio app. Sem convite aceito, nada é compartilhado.</li>
     <li><strong>Escolhe o que mostrar.</strong> Humor, sono e marcadores entram no resumo. Dos módulos sensíveis (sexualidade e substâncias) e dos alertas, o profissional recebe <strong>só contagens</strong>, e apenas se o paciente marcar cada opção.</li>
-    <li><strong>Pode desfazer a qualquer momento.</strong> Revogar o acesso é um clique,.</li>
+    <li><strong>Pode desfazer a qualquer momento.</strong> Revogar o acesso é um clique.</li>
   </ol>
   <p class="small">Anotações livres só vão se o paciente marcar essa opção para aquele destinatário. Áudios e vídeos nunca são enviados.</p>
 </section>
@@ -47,6 +46,6 @@ page_head('Para profissionais de saúde', 'marketing', [
 <section class="card prose" aria-labelledby="faq">
   <h2 id="faq">Perguntas frequentes</h2>
   <details><summary>O app faz diagnóstico?</summary><p><strong>Não.</strong> O Bipolar não é dispositivo médico, não diagnostica, não indica tratamento e não substitui o julgamento clínico. Ele organiza o que o paciente registra e aponta padrões para conversar na consulta.</p></details>
-  <details><summary>Por que código aberto?</summary><p>Porque saúde mental pede confiança. Com o código aberto (licença AGPL), qualquer pessoa pode verificar o que acontece com os dados. O que se paga é a hospedagem, a manutenção, os backups e o suporte.</p></details>
+  <details><summary>Por que código aberto?</summary><p>Porque saúde mental pede confiança. Com o código aberto (licença AGPL), qualquer pessoa pode verificar o que acontece com os dados.</p></details>
 </section>
 <?php page_foot();

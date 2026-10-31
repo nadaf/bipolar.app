@@ -8,9 +8,10 @@ $st = $pdo->prepare("SELECT user_id FROM oauth_identities WHERE provider = 'dev'
 $st->execute([$sub]);
 $uid = $st->fetchColumn();
 if (!$uid) {
-    $pdo->prepare('INSERT INTO users (name, email) VALUES (?, ?)')->execute(['Pessoa de Teste', $sub . '@example.com']);
+    // V5.1: no modo de teste local o e-mail de exemplo conta como comprovado (como um provedor que confirma o e-mail)
+    $pdo->prepare('INSERT INTO users (name, email, email_verified_at, email_verified_email) VALUES (?, ?, UTC_TIMESTAMP(), ?)')->execute(['Pessoa de Teste', $sub . '@example.com', $sub . '@example.com']);
     $uid = (int)$pdo->lastInsertId();
-    $pdo->prepare("INSERT INTO oauth_identities (user_id, provider, subject) VALUES (?, 'dev', ?)")->execute([$uid, $sub]);
+    identity_insert($pdo, $uid, 'dev', $sub);
 }
 login_user((int)$uid);
 $aba = preg_replace('/[^a-z]/', '', (string)($_GET['aba'] ?? ''));

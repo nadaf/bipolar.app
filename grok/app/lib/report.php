@@ -151,7 +151,7 @@ function markers_report_data(int $uid, string $fromDate, string $toDate, bool $w
         'days' => count($mk),
         'sleep_times_avg' => $sleeps ? round(array_sum($sleeps) / count($sleeps), 1) : null,
         'sun_avg' => $avg('sun_minutes'), 'caffeine_avg' => $avg('caffeine_cups'), 'alcohol_avg' => $avg('alcohol_units'), 'exercise_avg' => $avg('exercise_minutes'),
-        'racing' => $count('racing_thoughts'), 'speech' => $count('fast_speech'), 'spending' => $count('impulsive_spending'), 'irrit' => $count('irritability_day'), 'stress' => $count('stress_level'),
+        'racing' => $count('racing_thoughts'), 'speech' => $count('fast_speech'), 'spending' => $count('impulsive_spending'), 'irrit' => $count('irritability_day'), 'stress' => $count('stress_level'), 'relig_days' => count(array_filter($mk, function ($r) { return ($r['religiosity'] ?? null) !== null; })), 'relig_sens' => $count2('religiosity'), 'relig_high' => count(array_filter($mk, function ($r) { return (int)($r['religiosity'] ?? 0) >= 3; })),
         'dose_rate' => $doses ? (int)round(100 * $taken / $doses) : null,
         'attention' => count(array_filter($ind, function ($x) { return $x['level'] === 'atencao'; })),
         'alert' => count(array_filter($ind, function ($x) { return $x['level'] === 'alerta'; })),
@@ -217,6 +217,8 @@ function markers_report_html(array $m): string {
     if ($can(1) || $can(8)) $h .= $row($can(1) ? 'Dias com pensamentos / fala acelerados' : 'Dias com pensamentos acelerados', $can(1) ? $m['racing'] . ' / ' . $m['speech'] : (string)$m['racing']);
     if ($can(1)) $h .= $row('Dias com gastos impulsivos · irritabilidade', $m['spending'] . ' · ' . $m['irrit']);
     if ($can(4)) $h .= $row('Dias com estresse', (string)$m['stress']);
+    // V5.1: religiosidade (aumento pode acompanhar fases de humor elevado; ver junto do humor)
+    if ($can(128) && ($m['relig_days'] ?? 0) > 0) $h .= $row('Religiosidade — dias sensível ao tema / muito sensível (de ' . plural_br((int)$m['relig_days'], 'dia informado', 'dias informados') . ')', $m['relig_sens'] . ' / ' . $m['relig_high']);
     if (($m['thoughts'] ?? null) !== null && $m['thoughts']['days']) {
         $t = $m['thoughts'];
         $h .= $row('Pensamentos — dias com positivos / negativos (moderado ou mais)', $t['positive'] . ' / ' . $t['negative']);

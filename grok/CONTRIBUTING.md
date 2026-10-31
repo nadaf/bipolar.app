@@ -12,6 +12,18 @@ Obrigado por querer ajudar! Este app é usado por pessoas em momentos delicados,
 6. **Acessibilidade:** WCAG 2.2 AA (o teste com axe precisa continuar com 0 violações).
 7. **Nada de segredos no Git.** Use `app/config.example.php` para documentar opções novas, sempre com valores vazios.
 
+## Migrações com dados (DML) — V5.1
+
+Migrações que mudam ou apagam linhas (`UPDATE`, `DELETE`, `INSERT ... SELECT`) seguem regras extras:
+
+- **Pré-condições** escritas no topo do arquivo: qual migração anterior precisa ter rodado e o que acontece se o banco não estiver como esperado.
+- **Trava antes de apagar:** se houver conflito que a regra não resolve com segurança, a migração deve PARAR com erro (ex.: `#1062 Duplicate entry` numa tabela temporária com chave única) antes de qualquer `DELETE`. Nada é apagado nesse caso.
+- **Pode repetir:** rodar de novo não pode estragar nada (use `WHERE ... IS NULL`, `INSERT IGNORE`, `CREATE TABLE IF NOT EXISTS`). Diga no topo o que fazer com `#1060`/`#1061`.
+- **Conferência:** termine com `SELECT`/`SHOW` que mostrem o resultado esperado, para a pessoa conferir no phpMyAdmin.
+- Regra de escolha documentada em português simples (ex.: qual linha fica quando há repetidos).
+- Se a migração já rodou em produção numa versão antiga, documente na ATUALIZACAO se precisa (ou não) rodar de novo.
+- Teste em `tests/Unit/SchemaCompatTest.php` sobre dados no formato da versão anterior.
+
 ## Fluxo
 
 1. Abra uma issue descrevendo o problema ou a ideia (para falhas de segurança, veja [SECURITY.md](SECURITY.md)).

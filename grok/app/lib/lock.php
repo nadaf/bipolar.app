@@ -49,5 +49,19 @@ function app_locked(array $u): bool
     if ($t > time() - 60 * $s['minutes']) { $_SESSION['app_unlocked'] = time(); return false; }
     return true;
 }
-function lock_mark_unlocked(): void { $_SESSION['sex_unlocked'] = time(); $_SESSION['app_unlocked'] = time(); }
-function lock_now(): void { unset($_SESSION['sex_unlocked'], $_SESSION['app_unlocked']); }
+function lock_mark_unlocked(): void { $_SESSION['sex_unlocked'] = time(); $_SESSION['app_unlocked'] = time(); $_SESSION['stepup_at'] = time(); } // V5.1: PIN/biometria agora também confirmam a identidade por 5 min
+function lock_now(): void { unset($_SESSION['sex_unlocked'], $_SESSION['app_unlocked'], $_SESSION['stepup_at']); }
+/**
+ * V5.1: guarda das páginas HTML com dados (início, relatório, visão do profissional, registro rápido, convite).
+ * Com o app bloqueado, responde SÓ a tela de bloqueio genérica (sem nome, escopo, títulos ou números) e encerra,
+ * antes de qualquer consulta ou cálculo de relatório.
+ * @param array<string,mixed> $u
+ */
+function lock_guard_page(array $u): void
+{
+    if (!app_locked($u)) return;
+    header('Cache-Control: no-store, private');
+    require_once APP_ROOT . '/views/lock.php';
+    view_lock_screen($u);
+    exit;
+}

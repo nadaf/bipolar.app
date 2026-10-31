@@ -53,7 +53,7 @@ final class V2MarkersTest extends IntegrationCase
         db()->exec('DELETE FROM rate_limits');
         $this->assertSame(200, $c->json('POST', '/api/account.php?action=sexpin', ['atual' => '4321', 'pin' => ''])['status']);
         // o PIN não vaza na exportação; os dados sim (são da pessoa)
-        $exp = $c->get('/api/account.php?action=export&format=json')['json'];
+        $exp = $c->export('json')['json'];
         $this->assertArrayNotHasKey('sex_pin_hash', $exp['usuario']);
         $this->assertSame('nota íntima', $exp['sexualidade'][0]['note']);
         // apagar tudo
@@ -138,7 +138,7 @@ final class V2MarkersTest extends IntegrationCase
     {
         $c = $this->user('v2ui');
         $html = $c->get('/')['body'];
-        foreach (['id="form-day"', 'id="early-warning"', 'id="conta-modulos"', 'id="indicators"', 'name="include_sexuality"', 'app.js?v=13', 'app.css?v=13'] as $n) $this->assertStringContainsString($n, $html);
+        foreach (['id="form-day"', 'id="early-warning"', 'id="conta-modulos"', 'id="indicators"', 'name="include_sexuality"', 'app.js?v=15', 'app.css?v=16'] as $n) $this->assertStringContainsString($n, $html);
         $this->assertStringNotContainsString('name="sexualidade" value="1"', $html, 'opção de relatório só com o módulo ligado');
         $c->json('POST', '/api/account.php?action=prefs', ['modules' => ['ciclo' => true]]);
         $html = $c->get('/')['body'];

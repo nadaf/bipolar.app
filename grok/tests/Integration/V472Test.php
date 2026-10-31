@@ -23,7 +23,7 @@ final class V472Test extends IntegrationCase
     {
         $js = $this->js();
         // entryDate.set (usado por Hoje/Editar/Novo registro/salvar/IA) agenda a sincronização de "Meu dia"
-        $this->assertMatchesRegularExpression('/entryDate\.set = \(iso\) => \{ rawSet\(iso\); queueMicrotask\(daySync\); \}/', $js);
+        $this->assertMatchesRegularExpression('/entryDate\.set = \(iso\) => \{ rawSet\(iso\); queueMicrotask\(daySync\);/', $js);
         $this->assertStringContainsString("function daySync() { const d = entryDate.get(); if (d && d !== dayWant) loadDay(); }", $js);
     }
     public function testLoadDayDiscardsStaleResponsesAndNeverShowsAnotherDate(): void
@@ -38,7 +38,8 @@ final class V472Test extends IntegrationCase
     public function testSavingIsBlockedUntilTheChosenDayIsLoaded(): void
     {
         $js = $this->js();
-        $this->assertSame(3, substr_count($js, 'if (!dayReady(d)) return;'), 'Meu dia, Sexualidade e Pensamentos de morte (V4.8)');
+        $this->assertSame(2, substr_count($js, 'if (!dayReady(d)) return;'), 'Sexualidade e Pensamentos de morte (V4.8)');
+        $this->assertSame(1, substr_count($js, 'if (!dayReady(d)) return false;'), 'Meu dia (V5.1: saveDay devolve false)');
         $this->assertStringContainsString('id="day-load-note"', (string)file_get_contents(dirname(__DIR__, 2) . '/app/views/day_panels.php'));
     }
 }

@@ -5,14 +5,17 @@
  * Qualquer id que não seja um compartilhamento ativo deste profissional responde 404 (sem revelar se existe).
  */
 require __DIR__ . '/_boot.php';
-require_once APP_ROOT . '/lib/care.php';
-require_once APP_ROOT . '/lib/report.php';
-require_once APP_ROOT . '/lib/custom_alerts.php';
 header("Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; script-src 'self'; frame-ancestors 'none'; base-uri 'self'");
-header('Cache-Control: no-store');
+header('Cache-Control: no-store, private');
 header('X-Robots-Tag: noindex');
 $u = current_user();
 if (!$u) redirect('/');
+// V5.1: app bloqueado → só a tela de bloqueio genérica, antes de buscar o compartilhamento (nem nome, nem escopo).
+// Depois do desbloqueio a página recarrega e o compartilhamento é validado de novo no servidor (revogado = 404).
+lock_guard_page($u);
+require_once APP_ROOT . '/lib/care.php';
+require_once APP_ROOT . '/lib/report.php';
+require_once APP_ROOT . '/lib/custom_alerts.php';
 $pdo = db();
 $s = care_share_for_professional($pdo, $u, (int)($_GET['c'] ?? 0));
 if (!$s) {

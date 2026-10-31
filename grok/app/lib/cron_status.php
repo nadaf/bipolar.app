@@ -28,7 +28,10 @@ function cron_status_all(string $tz, ?int $now = null): array {
             $row['last_local'] = $d->setTimezone($z)->format('d/m/Y \\à\\s H:i');
             $late = $age > 2 * 86400;
             $row['status'] = $late ? 'atrasada' : ($age > 3 * 3600 * $everyH ? 'demorando' : 'ok');
-            $row['status_label'] = ['ok' => 'em dia', 'demorando' => 'sem rodar há mais de 3 horas', 'atrasada' => 'atrasada: confira as tarefas cron'][$row['status']];
+            // V5.1: começou (batimento 'inicio') e não terminou há mais de 1 hora
+            if (!$late && ($h['fase'] ?? 'fim') === 'inicio' && $age > 3600) $row['status'] = 'travada';
+            $row['status_label'] = ['ok' => 'em dia', 'demorando' => 'sem rodar há mais de 3 horas', 'atrasada' => 'atrasada: confira as tarefas cron',
+                'travada' => 'começou e não terminou: confira o log de erros'][$row['status']];
             $info = $h; unset($info['at']);
             $row['info'] = $info;
         }

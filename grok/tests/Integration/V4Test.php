@@ -21,7 +21,7 @@ final class V4Test extends IntegrationCase
     {
         $email = $tag . '@example.com';
         db()->prepare('INSERT INTO users (name, email, password_hash, email_verified_at) VALUES (?,?,?,UTC_TIMESTAMP())')->execute([$tag, $email, password_hash('senha forte de teste 123', PASSWORD_DEFAULT)]);
-        db()->prepare("INSERT INTO oauth_identities (user_id, provider, subject) VALUES (?, 'email', ?)")->execute([(int)db()->lastInsertId(), $email]);
+        identity_insert(db(), (int)db()->lastInsertId(), 'email', $email);
         $p = $this->prod();
         $r = $p->form('/', '/conta/entrar.php', ['email' => $email, 'senha' => 'senha forte de teste 123']);
         $this->assertSame(302, $r['status'], $r['body']);
@@ -86,7 +86,7 @@ final class V4Test extends IntegrationCase
         TestEnv::runCron('analyze_signals.php');
         $this->assertNotContains('ana@example.com', array_map(function (string $m): string { preg_match('/^To: <([^>]+)>/m', $m, $x); return $x[1] ?? ''; }, TestEnv::mails()));
         // export LGPD inclui alertas
-        $this->assertNotEmpty($c->get('/api/account.php?action=export&format=json')['json']['alertas']);
+        $this->assertNotEmpty($c->export('json')['json']['alertas']);
     }
 
     public function testRecipientAlertOptInIsExplicit(): void

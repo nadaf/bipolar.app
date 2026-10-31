@@ -82,7 +82,7 @@ final class OptInDeletionTest extends IntegrationCase
     public function testRemindersCronSendsOnceInWindow(): void
     {
         $c = $this->user('remind');
-        $c->json('POST', '/api/account.php?action=settings', ['name' => 'Rê', 'email' => 'remind@example.com', 'timezone' => 'America/Cuiaba', 'extreme_alerts' => true]);
+        $this->setEmail($c, 'remind@example.com', ['name' => 'Rê']);
         $now = new DateTime('now', new DateTimeZone('America/Cuiaba'));
         $c->json('POST', '/api/reminders.php', ['time_local' => $now->format('H:i'), 'days' => [(int)$now->format('w')], 'channel' => 'email']);
         $c->json('POST', '/api/reminders.php', ['time_local' => $now->modify('+2 hours')->format('H:i'), 'days' => [0, 1, 2, 3, 4, 5, 6], 'channel' => 'email']);

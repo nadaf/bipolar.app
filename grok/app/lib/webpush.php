@@ -105,20 +105,30 @@ function send_push(array $sub, ?array $payload = null, string $urgency = 'normal
  * @param array<string,mixed> $payload
  */
 function push_to_user(int $uid, array $payload, ?int $onlySubId = null, string $urgency = 'normal'): int {
-    if (!push_configured()) return 0;
+    return push_to_user_ex($uid, $payload, $onlySubId, $urgency)['ok'];
+}
+/**
+ * V5.1: como push_to_user, mas devolve também o status HTTP de cada aparelho (0 = rede/tempo esgotado),
+ * para a fila de envios classificar a falha (passageira, permanente ou desconhecida).
+ * @param array<string,mixed> $payload
+ * @return array{ok:int, codes:list<int>}
+ */
+function push_to_user_ex(int $uid, array $payload, ?int $onlySubId = null, string $urgency = 'normal'): array {
+    $out = ['ok' => 0, 'codes' => []];
+    if (!push_configured()) return $out;
     $pdo = db();
     $st = $pdo->prepare('SELECT id, endpoint, p256dh, auth FROM push_subscriptions WHERE user_id = ?' . ($onlySubId ? ' AND id = ' . (int)$onlySubId : ''));
     $st->execute([$uid]);
-    $ok = 0;
     foreach ($st->fetchAll() as $s) {
         try {
             $code = send_push($s, $payload, $urgency);
-            if ($code >= 200 && $code < 300) { $ok++; $pdo->prepare('UPDATE push_subscriptions SET last_ok_at = UTC_TIMESTAMP() WHERE id = ?')->execute([$s['id']]); }
+            $out['codes'][] = $code;
+            if ($code >= 200 && $code < 300) { $out['ok']++; $pdo->prepare('UPDATE push_subscriptions SET last_ok_at = UTC_TIMESTAMP() WHERE id = ?')->execute([$s['id']]); }
             elseif (in_array($code, [404, 410], true)) $pdo->prepare('DELETE FROM push_subscriptions WHERE id = ?')->execute([$s['id']]);
             else error_log("push: HTTP $code para assinatura {$s['id']}");
-        } catch (Throwable $e) { error_log('push: ' . $e->getMessage()); }
+        } catch (Throwable $e) { $out['codes'][] = 0; error_log('push: ' . $e->getMessage()); }
     }
-    return $ok;
+    return $out;
 }
 
 /**

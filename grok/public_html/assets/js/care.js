@@ -26,6 +26,14 @@
     if (!r.ok) { const e = new Error(d.erro || 'Erro ' + r.status); e.status = r.status; throw e; }
     return d;
   }
+  // V5.1: confirmação final lista exatamente o que o profissional vai ver (diálogo acessível do app.js)
+  async function confirmScope(keys, who, isEdit) {
+    const items = keys.map((k) => (st && st.scopes[k] ? st.scopes[k].label : k));
+    const text = (isEdit ? 'A partir de agora, ' : '') + (who ? who + ' poderá ver' : 'O profissional poderá ver') + ' (só leitura) somente estas categorias. Anotações e textos livres nunca são compartilhados.';
+    const ask = window.BPAskConfirm;
+    if (ask) return ask({ title: isEdit ? 'Confirmar alteração do compartilhamento' : 'Confirmar o que será compartilhado', text, items, ok: isEdit ? 'Confirmar alteração' : 'Confirmar e convidar' });
+    return window.confirm(text + '\n\n' + items.join('\n'));
+  }
   const STATUS = { pendente: 'aguardando aceite', ativo: 'ativo', recusado: 'recusado', revogado: 'encerrado', cancelado: 'cancelado', expirado: 'expirado' };
   let st = null;
   function scopeBoxes(prefix, sel) {
@@ -89,6 +97,7 @@
     const body = { scope: [...card.querySelectorAll('input[name=care_scope]:checked')].map((c) => c.value), data_from: $('care-from').value || null, expires_on: $('care-until').value || null };
     if (byCode) body.code = $('care-code').value; else body.email = $('care-email').value.trim();
     if (!body.scope.length) { say('Escolha pelo menos uma categoria.', 'err'); return; }
+    if (!(await confirmScope(body.scope, byCode ? '' : body.email, false))) return;
     try {
       const r = await call('invite', body);
       if (r.por === 'email') showLink(r, body.email); else { $('care-link-box').classList.add('hidden'); say('Convite enviado para ' + r.profissional + '. Falta ele aceitar.'); }
@@ -102,8 +111,10 @@
   card.addEventListener('submit', async (e) => {
     const f = e.target.closest('.care-edit'); if (!f) return;
     e.preventDefault();
+    const scope = [...f.querySelectorAll('input[name=ed_scope]:checked')].map((c) => c.value);
+    if (scope.length && !(await confirmScope(scope, '', true))) return;
     try {
-      await call('update', { id: +f.dataset.id, scope: [...f.querySelectorAll('input[name=ed_scope]:checked')].map((c) => c.value), data_from: f.elements.data_from.value || null, expires_on: f.elements.expires_on.value || null });
+      await call('update', { id: +f.dataset.id, scope, data_from: f.elements.data_from.value || null, expires_on: f.elements.expires_on.value || null });
       say('Compartilhamento atualizado. Vale a partir de agora.'); load();
     } catch (err) { say(err.message, 'err'); }
   });

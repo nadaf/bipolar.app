@@ -125,4 +125,6 @@ return [
         'max_video_mb' => 100,
         'max_image_mb' => 10,
     ],
+    // V5.2: Google Analytics 4 (opcional, só com consentimento). '' = desligado (padrão). Ex.: 'G-XXXXXXXXXX'. 'off' desliga de vez.
+    'analytics' => ['ga4_id' => ''],
 ];

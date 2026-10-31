@@ -76,7 +76,7 @@ final class V44Test extends IntegrationCase
         $pdo->prepare('INSERT INTO users (name, email, timezone, password_hash, email_verified_at) VALUES (?, ?, ?, ?, UTC_TIMESTAMP())')
             ->execute(['Ana MFA', $email, 'America/Cuiaba', pw_hash(self::PW)]);
         $uid = (int)$pdo->lastInsertId();
-        $pdo->prepare("INSERT INTO oauth_identities (user_id, provider, subject) VALUES (?, 'email', ?)")->execute([$uid, $email]);
+        identity_insert($pdo, $uid, 'email', $email);
         return $uid;
     }
     private function passwordLogin(Http $c, string $email, string $pw = self::PW): array
@@ -139,7 +139,7 @@ final class V44Test extends IntegrationCase
         $this->assertStringNotContainsString(base32_encode($key), $html);
         foreach ($codes as $rc) $this->assertStringNotContainsString($rc, $html);
         // exportação sem o segredo
-        $exp = $c->get('/api/account.php?action=export&format=json')['json']['usuario'];
+        $exp = $c->export('json', ['senha' => self::PW])['json']['usuario'];
         $this->assertArrayNotHasKey('mfa_totp_secret_enc', $exp);
         $this->assertTrue($exp['verificacao_duas_etapas']);
 

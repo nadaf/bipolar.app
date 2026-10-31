@@ -65,6 +65,7 @@
     }
     $('#confirm-dlg-title').textContent = o.title || (o.danger ? 'Confirmar exclusão' : 'Confirmar');
     $('#confirm-dlg-body').innerHTML = '<p>' + esc(o.text || '') + '</p>' + (o.items ? '<ul>' + o.items.map((i) => '<li>' + esc(i) + '</li>').join('') + '</ul>' : '');
+    $('#confirm-dlg-cancel').textContent = o.cancel || 'Cancelar';
     const ok = $('#confirm-dlg-ok'); ok.textContent = o.ok || 'Confirmar'; ok.className = 'btn ' + (o.danger ? 'btn-danger' : 'btn-primary');
     const back = document.activeElement;
     return new Promise((resolve) => {
@@ -94,6 +95,27 @@
       inp.focus();
     });
   }
+  // V5.1: exportação por POST + CSRF, com confirmação de identidade e token de uso único
+  document.addEventListener('click', async (ev) => {
+    const b = ev.target.closest('[data-export]'); if (!b) return;
+    const fmt = b.dataset.export;
+    const ok = await askConfirm({ title: 'Baixar seus dados', text: 'O arquivo contém dados íntimos (sexualidade, substâncias, pensamentos de morte e anotações, se você registrou). Guarde em local seguro e não envie a ninguém sem querer.', ok: 'Continuar' });
+    if (!ok) return;
+    let r = null, extra = {};
+    for (let i = 0; i < 2 && !r; i++) {
+      try { r = await api('/api/account.php?action=export_prepare', { method: 'POST', json: extra }); } catch (err) {
+        const m = (err.data && err.data.metodos) || [];
+        if (err.status !== 403 || i > 0 || !(m.includes('senha') || m.includes('pin'))) { toast(err.message, 'err'); return; }
+        const usePw = m.includes('senha');
+        const v = await askSecret({ title: 'Confirme que é você', text: err.message, label: usePw ? 'Senha atual' : 'PIN' });
+        if (!v) return;
+        extra = usePw ? { senha: v } : { pin: v };
+      }
+    }
+    const f = $('#export-form'); f.elements.token.value = r.token; f.elements.format.value = fmt; f.submit(); f.elements.token.value = '';
+    toast('Download iniciado. ' + (r.aviso || ''), 'warn');
+  });
+  window.BPAskConfirm = askConfirm; // V5.1: usado pela confirmação final do compartilhamento (care.js)
   const cap = (t) => (t ? t.charAt(0).toUpperCase() + t.slice(1) : t);
   const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many);
   function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
@@ -102,7 +124,7 @@
     if (opts.json !== undefined) { o.headers['Content-Type'] = 'application/json'; o.body = JSON.stringify(opts.json); }
     if (opts.form) o.body = opts.form;
     let res;
-    try { res = await fetch(path, o); } catch { throw Object.assign(new Error('Sem conexão com a internet. Tente de novo quando a conexão voltar.'), { offline: true, status: 0 }); } // V4.8: mensagem em português
+    try { res = await fetch(path, o); } catch { throw Object.assign(new Error(o.method === 'POST' && path.indexOf('/api/day.php') === 0 ? 'Não enviado: sem conexão. Por privacidade, estes dados não ficam guardados no aparelho. O formulário continua preenchido; salve de novo quando a conexão voltar.' : 'Sem conexão com a internet. Tente de novo quando a conexão voltar.'), { offline: true, status: 0 }); } // V5.1: seções íntimas nunca vão para a fila offline // V4.8: mensagem em português
     let data = {};
     try { data = await res.json(); } catch { /* vazio */ }
     if (res.status === 423 && data.bloqueado_app) { location.reload(); }
@@ -228,7 +250,7 @@
   const entryDate = dateField('entry-date');
   // V4.7.2: toda troca de data feita pelo app (Hoje/Editar/Novo registro/salvar/IA) também recarrega "Meu dia".
   // Antes só o calendário e o campo de texto avisavam; os outros caminhos deixavam no bloco os dados da data anterior.
-  { const rawSet = entryDate.set; entryDate.set = (iso) => { rawSet(iso); queueMicrotask(daySync); }; }
+  { const rawSet = entryDate.set; entryDate.set = (iso) => { rawSet(iso); queueMicrotask(daySync); queueMicrotask(() => { if (typeof updateRegIndicator === 'function') updateRegIndicator(); }); }; }
   const rFrom = dateField('r-from'), rTo = dateField('r-to');
 
   /* ---------- Abas (padrão ARIA tabs) ---------- */
@@ -243,6 +265,7 @@
     if (focus) tab.focus();
     const id = tab.id.replace('tab-', '');
     history.replaceState(null, '', '?aba=' + id);
+    document.dispatchEvent(new CustomEvent('bp:screen', { detail: id })); // V5.2: page_view virtual (analytics.js, só com consentimento)
     if (id === 'historico') loadHistory();
     if (id === 'relatorios') loadRecipients();
     if (id === 'lembretes') loadReminders();
@@ -273,13 +296,44 @@
   // Um registro existente nunca entra em edição sozinho: aparece em leitura com o botão Editar.
   // O período/data marcados no formulário e o registro em edição são sempre conferidos antes de salvar.
   function curSlot() { return { d: entryDate.get(), p: (form.querySelector('input[name=period]:checked') || {}).value }; }
-  function setPeriod(p) { const r = $('#p-' + p); if (r) r.checked = true; if (typeof fillPeriodFields === 'function') fillPeriodFields(); }
+  function setPeriod(p) { const r = $('#p-' + p); if (r) r.checked = true; if (typeof fillPeriodFields === 'function') fillPeriodFields(); updateRegIndicator(); }
+  // V5.1: sessão de registro — data e período ficam travados até a pessoa mudar à mão. O relógio nunca troca sozinho.
+  const reg = { p: null, d: null, clock: null, asked: null };
+  function brDate(iso) { const [, m, d] = String(iso || '').split('-'); return d && m ? d + '/' + m : ''; }
+  function regLabel() {
+    const s = curSlot(); if (!s.p) return '';
+    const t = todayISO(); const y = new Date(Date.parse(t + 'T12:00:00Z') - 864e5).toISOString().slice(0, 10);
+    const rel = s.d === t ? 'de hoje' : s.d === y ? 'de ontem' : 'do dia';
+    return B.periods[s.p] + ' ' + rel + ' (' + brDate(s.d) + ')';
+  }
+  function updateRegIndicator() {
+    const el = document.getElementById('reg-indicator'); if (!el) return;
+    const s = curSlot(); if (s.p) { reg.p = s.p; reg.d = s.d; }
+    el.querySelector('.reg-text').textContent = 'Registrando: ' + regLabel();
+  }
+  form.addEventListener('change', (e) => { if (e.target.name === 'period' || e.target.name === 'entry_date') { reg.p = curSlot().p; reg.d = curSlot().d; reg.asked = null; updateRegIndicator(); } });
+  async function checkClockPeriod() {
+    const now = defaultPeriod();
+    if (reg.clock === null) { reg.clock = now; return; }
+    if (now === reg.clock) return;
+    reg.clock = now;
+    const s = curSlot();
+    if (!s.p || s.p === now || s.d !== todayISO() || reg.asked === now || document.hidden) return;
+    reg.asked = now;
+    const sw = await askConfirm({ title: 'Mudou o período do dia', text: 'Pelo relógio, agora já é ' + B.periods[now] + '. Você está registrando ' + regLabel() + '. Quer continuar nesse período ou passar para ' + B.periods[now] + '?', ok: 'Passar para ' + B.periods[now], cancel: 'Continuar em ' + B.periods[s.p] });
+    if (sw) { setPeriod(now); reg.p = now; loadSlot(); if (typeof loadDay === 'function') loadDay(); announce('Agora registrando ' + regLabel() + '.'); }
+  }
+  { const rc = document.getElementById('reg-change'); if (rc) rc.addEventListener('click', (e) => { e.preventDefault(); const r = $('input[name=period]:checked') || $('input[name=period]'); r.scrollIntoView({ block: 'center' }); r.focus(); }); }
+  reg.clock = defaultPeriod();
+  setInterval(checkClockPeriod, 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkClockPeriod(); });
   // V4.3: keepDate mantém a data escolhida depois de salvar um dia passado (antes voltava para hoje)
   function resetForm(preferFree = false, keepDate = null, lastPeriod = null) {
     $('#entry-date').max = todayISO();
-    const d = keepDate && keepDate <= todayISO() ? keepDate : todayISO();
+    const d = keepDate && keepDate <= todayISO() ? keepDate : (reg.d && reg.d <= todayISO() ? reg.d : todayISO());
     entryDate.set(d);
-    if (d !== todayISO() && lastPeriod) {
+    if (reg.p && (lastPeriod || reg.d === d)) { setPeriod(lastPeriod || reg.p); preferFree = false; } // V5.1: continua no período escolhido
+    else if (d !== todayISO() && lastPeriod) {
       const i = PERIOD_ORDER.indexOf(lastPeriod);
       setPeriod(i >= 0 && i < PERIOD_ORDER.length - 1 ? PERIOD_ORDER[i + 1] : lastPeriod);
     } else setPeriod(defaultPeriod());
@@ -360,7 +414,8 @@
   }
   $('#entry-date').addEventListener('datechange', () => loadSlot());
   $$('input[name=period]').forEach((r) => r.addEventListener('change', () => { fillPeriodFields(); loadSlot(); }));
-  $('#btn-new-entry').addEventListener('click', () => { resetForm(); $('#entry-date-br').focus(); });
+  $('#btn-new-entry').addEventListener('click', () => { reg.p = null; reg.d = null; resetForm(); // V5.1: novo registro = nova sessão (hoje, período do relógio)
+    $('#entry-date-br').focus(); });
   function focusForm() {
     form.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
     const m = form.querySelector('input[name=mood]:checked') || form.querySelector('input[name=mood]');
@@ -392,36 +447,53 @@
       tags: fd.get('tags') || '', note: fd.get('note') || '',
     };
   }
-  // Fila offline (localStorage)
+  // Fila offline (localStorage). V5.1: cada item tem dono (conta + sessão), client_uuid e estado pending/synced/failed.
+  // Itens de outro dono nunca são enviados nem mostrados; somem ao sair ou trocar de conta.
   const Q_KEY = 'bp-queue';
-  const queue = () => { try { return JSON.parse(localStorage.getItem(Q_KEY)) || []; } catch { return []; } };
-  const saveQueue = (q) => localStorage.setItem(Q_KEY, JSON.stringify(q));
+  const Q_OWNER = String(B.qowner || '');
+  const rawQueue = () => { try { const q = JSON.parse(localStorage.getItem(Q_KEY)); return Array.isArray(q) ? q : []; } catch { return []; } };
+  const saveQueue = (q) => { try { if (q.length) localStorage.setItem(Q_KEY, JSON.stringify(q)); else localStorage.removeItem(Q_KEY); } catch { /* sem armazenamento */ } };
+  { const all = rawQueue(); const mine = all.filter((x) => x && x.queue_owner === Q_OWNER && x.state !== 'synced'); if (mine.length !== all.length) saveQueue(mine); } // outro dono ou já enviado: descarta
+  const queue = () => rawQueue().filter((x) => x.queue_owner === Q_OWNER && x.state === 'pending');
+  let flushing = false;
   async function flushQueue() {
-    const q = queue(); if (!q.length || !navigator.onLine) return;
-    const rest = [];
-    for (const item of q) {
-      try { const it = Object.assign({}, item); delete it.version; await api('/api/entries.php', { method: 'POST', json: it }); } catch (e) { if (!e.status || e.status >= 500) rest.push(item); }
-    }
-    saveQueue(rest);
-    if (q.length !== rest.length) { toast(plural(q.length - rest.length, 'registro offline sincronizado', 'registros offline sincronizados') + '.'); loadToday(); }
+    if (flushing || !navigator.onLine) return;
+    const q = rawQueue(); if (!q.length) return;
+    flushing = true;
+    let sent = 0, failed = 0;
+    try {
+      for (const item of q) {
+        if (item.queue_owner !== Q_OWNER || item.state !== 'pending') continue;
+        try {
+          const it = Object.assign({}, item); delete it.version; delete it.state;
+          await api('/api/entries.php', { method: 'POST', json: it });
+          item.state = 'synced'; sent++;
+        } catch (e) { if (e.status && e.status < 500) { item.state = 'failed'; failed++; } }
+      }
+      saveQueue(rawQueue().length ? q.filter((x) => x.state === 'pending' && x.queue_owner === Q_OWNER) : []);
+    } finally { flushing = false; }
+    if (sent) { toast(plural(sent, 'registro offline enviado', 'registros offline enviados') + '.'); loadToday(); }
+    if (failed) toast(plural(failed, 'registro guardado offline não pôde ser enviado', 'registros guardados offline não puderam ser enviados') + '. Confira e registre de novo.', 'err');
   }
+  window.BPClearQueue = () => { try { localStorage.removeItem(Q_KEY); } catch { /* ok */ } };
   function updateOnline() { $('#offline-banner').classList.toggle('hidden', navigator.onLine); if (navigator.onLine) flushQueue(); }
   addEventListener('online', updateOnline); addEventListener('offline', updateOnline);
   if (navigator.serviceWorker) navigator.serviceWorker.addEventListener('message', (e) => { if (e.data === 'sync-entries') flushQueue(); });
 
-  form.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    if (!entryDate.validate()) { $('#entry-date-br').focus(); return toast($('#entry-date-err').textContent, 'err'); }
+  form.addEventListener('submit', (e) => { e.preventDefault(); saveEntry(); });
+  // V5.1: salvar o registro de humor devolve true (salvo), 'offline' (guardado no aparelho) ou false (não salvo)
+  async function saveEntry(opts = {}) {
+    if (!entryDate.validate()) { $('#entry-date-br').focus(); toast($('#entry-date-err').textContent, 'err'); return false; }
     const p = formPayload();
     if (editing && (editing.period !== p.period || editing.entry_date !== p.entry_date)) {
       // estado inconsistente: nunca salva por cima de outro período
       toast('O período mudou durante a edição. Confira os dados e salve de novo.', 'err');
-      return loadSlot();
+      loadSlot(); return false;
     }
     if (editing && editing.id) p.id = +editing.id;
     if (editing && editing.version != null) p.version = +editing.version; // V4.3.1
-    if (p.mood === null) { $('.mood-options input').focus(); announce('Escolha um nível de humor.'); return toast('Escolha um nível de humor.', 'err'); }
-    if (saving) return; // V4.2: um salvamento por vez (toque duplo ou Enter repetido)
+    if (p.mood === null) { if (opts.quiet) return null; $('.mood-options input').focus(); announce('Escolha um nível de humor.'); toast('Escolha um nível de humor.', 'err'); return false; }
+    if (saving) return false; // V4.2: um salvamento por vez (toque duplo ou Enter repetido)
     saving = true;
     slotReq++; // descarta buscas de período ainda em andamento: não podem mais trocar o formulário
     const btn = form.querySelector('[type=submit]'); btn.disabled = true; btn.setAttribute('aria-busy', 'true');
@@ -438,18 +510,22 @@
       await loadToday();
       await resetForm(true, p.entry_date, p.period);
       afterDataSave(r);
+      document.dispatchEvent(new CustomEvent("bp:entry-saved")); // V5.2: funil first_record (sem dados)
+      return true;
     } catch (err) {
       if (err.offline || !err.status) {
         // fila offline: sem versão (é reenviada depois; mantém o comportamento anterior, sem 409 de versão)
-        const qp = Object.assign({}, p); delete qp.version;
-        const q = queue().filter((x) => !(x.entry_date === p.entry_date && x.period === p.period)); q.push(qp); saveQueue(q);
+        const qp = Object.assign({}, p, { queue_owner: Q_OWNER, state: 'pending' }); delete qp.version;
+        const q = rawQueue().filter((x) => x.queue_owner === Q_OWNER && !(x.entry_date === p.entry_date && x.period === p.period)); q.push(qp); saveQueue(q);
         if (pending.length) toast('Salvo no aparelho. Áudio/vídeo não pode ser guardado offline; grave novamente quando estiver online.', 'warn');
-        else toast('Sem conexão: registro guardado no aparelho e será enviado depois.', 'warn');
+        else toast('Sem conexão: registro guardado neste aparelho, ainda não enviado. Ele será enviado quando a conexão voltar, se você continuar nesta conta.', 'warn');
         try { (await navigator.serviceWorker.ready).sync.register('sync-entries'); } catch { /* opcional */ }
         resetForm(false, p.entry_date, p.period); loadToday();
+        return 'offline';
       } else if (isVersionConflict(err)) { toast(err.message, 'err'); offerReload(err); } else if (err.status === 409) { toast(err.message, 'err'); loadSlot(); } else toast(err.message || 'Não foi possível salvar. Tente de novo.', 'err');
     } finally { saving = false; btn.disabled = false; btn.removeAttribute('aria-busy'); }
-  });
+    return false;
+  }
   let saving = false;
   // V4.2: o registro recém-salvo aparece em "Hoje" na hora, mesmo que a lista chegue do servidor antes da gravação terminar
   const justSaved = {};
@@ -604,12 +680,15 @@
     }).sort((a, b) => a.cx - b.cx);
     if (pts.length) {
       el('path', { d: pts.map((p, i) => (i ? 'L' : 'M') + p.cx.toFixed(1) + ' ' + p.cy.toFixed(1)).join(' '), class: 'line' }, svg);
+      // V5.1: religiosidade sensível ao tema (nível 2–3) aparece como ✦ no topo, alinhado ao humor do mesmo período
+      pts.filter((p) => p.e.pm_religiosity != null && +p.e.pm_religiosity >= 2).forEach((p) => { const t = el('text', { x: p.cx, y: padT + 10, 'text-anchor': 'middle', class: 'axis relig-mark' }, svg); t.textContent = +p.e.pm_religiosity >= 3 ? '✦✦' : '✦'; el('title', {}, t).textContent = fmtBR(p.e.entry_date) + ' ' + B.periods[p.e.period] + ': religiosidade ' + REL_LV[+p.e.pm_religiosity]; });
       pts.forEach((p) => { const c = el('circle', { cx: p.cx, cy: p.cy, r: days > 90 ? 2.5 : 4.5, class: 'dot lvl' + (+p.e.mood + 3) }, svg); el('title', {}, c).textContent = fmtBR(p.e.entry_date) + ' ' + B.periods[p.e.period] + ': ' + LV[+p.e.mood].label; });
     } else {
       const t = el('text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', class: 'axis' }, svg); t.textContent = 'Sem registros neste período';
     }
     const avg = entries.length ? (entries.reduce((s, e) => s + +e.mood, 0) / entries.length).toFixed(1) : null;
-    box.setAttribute('aria-label', 'Gráfico de humor dos últimos ' + days + ' dias: ' + entries.length + ' registros' + (avg !== null ? ', média ' + fmtNum(avg, 1) : '') + '. Veja a tabela abaixo para os dados completos.');
+    const relN = entries.filter((e) => e.pm_religiosity != null && +e.pm_religiosity >= 2).length;
+    box.setAttribute('aria-label', 'Gráfico de humor dos últimos ' + days + ' dias: ' + entries.length + ' registros' + (avg !== null ? ', média ' + fmtNum(avg, 1) : '') + (relN ? '; ' + relN + ' períodos com religiosidade sensível ao tema (✦)' : '') + '. Veja a tabela abaixo para os dados completos.');
     box.scrollLeft = box.scrollWidth; // mostra o dia de hoje (fim do gráfico)
   }
   const MONTHS = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -645,6 +724,7 @@
   // V4.7: estresse e alimentação do mesmo período, no Histórico
   const FOOD_LV = ['nenhum', 'pouco', 'moderado', 'muito'], STRESS_LV = ['não', 'leve', 'moderado', 'intenso'], TH_LV = ['nenhum', 'leve', 'moderado', 'intenso'];
   const NIC = { vape_pod: 'vape/pod', palha: 'cigarro de palha', charuto_cachimbo: 'charuto/cachimbo', narguile: 'narguilé', adesivo_chiclete: 'adesivo/chiclete' };
+  const REL_LV = ['Nenhuma', 'Normal', 'Sensível ao tema', 'Muito sensível ao tema'];
   function periodExtras(e) {
     const p = [];
     if (e.pm_stress != null) p.push('Estresse: ' + STRESS_LV[+e.pm_stress]);
@@ -652,6 +732,7 @@
     if (e.pm_sweets != null) p.push('Doces: ' + FOOD_LV[+e.pm_sweets]);
     if (e.pm_processed != null) p.push('Ultraprocessados: ' + FOOD_LV[+e.pm_processed]);
     if (+e.pm_binge === 1) p.push('comeu fora de hora');
+    if (e.pm_religiosity != null) p.push('Religiosidade: ' + REL_LV[+e.pm_religiosity]); // V5.1
     // V4.8: pensamentos do período e nicotina do dia
     const th = [['pm_th_positive', 'positivos'], ['pm_th_negative', 'negativos'], ['pm_th_racing', 'acelerados'], ['pm_th_grandiose', 'grandiosidade'], ['pm_th_rumination', 'ruminação/culpa'], ['pm_th_death', 'de morte']]
       .filter(([k]) => e[k] != null && +e[k] > 0).map(([k, l]) => l + ' ' + TH_LV[+e[k]]);
@@ -745,17 +826,48 @@
     if (!custom) $('#rm-time').value = $('input[name=preset]:checked').value; else $('#rm-time').focus();
   }));
   const CH = B.vapid ? { push: 'notificação', email: 'e-mail', ambos: 'notificação e e-mail' } : { push: 'e-mail (push indisponível)', email: 'e-mail', ambos: 'e-mail (push indisponível)' };
+  // V5.1: grade semanal (colunas Dom–Sáb, linhas = horários). Cada célula é um botão com aria-pressed.
+  const WD3 = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
   async function loadReminders() {
     const ul = $('#reminders');
     try {
       const { reminders } = await api('/api/reminders.php');
-      ul.innerHTML = reminders.length ? reminders.map((r) => '<li><div><strong>' + esc(r.time_local) + '</strong> · ' + r.days.split(',').map((d) => WD[+d].slice(0, 3)).join(', ') + ' · ' + CH[r.channel] + '</div><button type="button" class="btn btn-ghost btn-sm" data-del-rm="' + r.id + '" aria-label="Remover lembrete das ' + esc(r.time_local) + '">Remover</button></li>').join('') : '<li class="muted">Nenhum lembrete.</li>';
-    } catch { ul.innerHTML = '<li class="muted">Não foi possível carregar.</li>'; }
+      if (!reminders.length) { ul.innerHTML = '<p class="muted">Nenhum horário ainda. Use “Adicionar horário” abaixo.</p>'; refreshPushStatus(); return; }
+      ul.innerHTML = '<p class="rm-legend"><span><strong>✓</strong> = lembrete ligado nesse dia</span><span><strong>–</strong> = desligado</span></p>'
+        + '<div class="rm-grid-wrap"><table class="rm-grid"><caption class="sr-only">Lembretes por horário e dia da semana. Toque num dia para ligar ou desligar.</caption><thead><tr><th scope="col">Horário</th>'
+        + WD3.map((d, k) => '<th scope="col"><abbr title="' + esc(WD[k]) + '">' + d + '</abbr></th>').join('') + '<th scope="col"><span class="sr-only">Ações</span></th></tr></thead><tbody>'
+        + reminders.map((r) => {
+          const t = esc(String(r.time_local).slice(0, 5)); const on = r.days.split(',').map(Number);
+          return '<tr data-rm="' + r.id + '"><th scope="row">' + t + '<br><span class="small muted">' + esc(CH[r.channel]) + '</span></th>'
+            + WD3.map((d, k) => { const p = on.includes(k); return '<td><button type="button" class="rm-cell" data-day="' + k + '" aria-pressed="' + p + '" aria-label="' + esc(WD[k]) + ' às ' + t + '"><span aria-hidden="true">' + (p ? '✓' : '–') + '</span></button></td>'; }).join('')
+            + '<td class="rm-row-actions"><button type="button" class="btn btn-ghost btn-sm" data-del-rm="' + r.id + '" aria-label="Remover o horário das ' + t + '">✕<span class="sr-only"> Remover</span></button></td></tr>';
+        }).join('') + '</tbody></table></div>';
+    } catch { ul.innerHTML = '<p class="muted">Não foi possível carregar.</p>'; }
     refreshPushStatus();
   }
   $('#reminders').addEventListener('click', async (e) => {
-    const id = e.target.dataset.delRm; if (!id) return;
-    try { await api('/api/reminders.php?id=' + id, { method: 'DELETE' }); toast('Lembrete removido.'); } catch (err) { toast(err.message, 'err'); } loadReminders();
+    const cell = e.target.closest('.rm-cell');
+    if (cell) {
+      const tr = cell.closest('tr'); const was = cell.getAttribute('aria-pressed') === 'true';
+      const days = $$('.rm-cell', tr).filter((c) => (c === cell ? !was : c.getAttribute('aria-pressed') === 'true')).map((c) => +c.dataset.day);
+      cell.disabled = true;
+      try {
+        await api('/api/reminders.php', { method: 'PATCH', json: { id: +tr.dataset.rm, days } });
+        cell.setAttribute('aria-pressed', String(!was)); cell.firstChild.textContent = was ? '–' : '✓';
+        announce(cell.getAttribute('aria-label') + (was ? ': desligado.' : ': ligado.'));
+      } catch (err) { toast(err.message, 'err'); }
+      cell.disabled = false; cell.focus();
+      return;
+    }
+    const del = e.target.closest('[data-del-rm]'); if (!del) return;
+    const id = del.dataset.delRm;
+    try { await api('/api/reminders.php?id=' + id, { method: 'DELETE' }); toast('Horário removido.'); } catch (err) { toast(err.message, 'err'); } loadReminders();
+  });
+  // setas movem entre as células da grade
+  $('#reminders').addEventListener('keydown', (e) => {
+    const c = e.target.closest('.rm-cell'); if (!c) return;
+    const cells = $$('.rm-cell', $('#reminders')); const i = cells.indexOf(c); const step = { ArrowRight: 1, ArrowLeft: -1, ArrowDown: 7, ArrowUp: -7 }[e.key];
+    if (step && cells[i + step]) { e.preventDefault(); cells[i + step].focus(); }
   });
   $('#form-reminder').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -764,7 +876,7 @@
     if (!validTime($('#rm-time').value)) { toast('Informe o horário no formato 24 horas, por exemplo 21:00.', 'err'); $('#rm-time').classList.remove('hidden'); $('#rm-time').focus(); return; }
     try {
       await api('/api/reminders.php', { method: 'POST', json: { time_local: $('#rm-time').value, days, channel: $('#rm-channel').value } });
-      toast('Lembrete adicionado.'); loadReminders();
+      toast('Horário adicionado.'); loadReminders();
       if (B.vapid && $('#rm-channel').value !== 'email') enablePush(true);
     } catch (err) { toast(err.message, 'err'); }
   });
@@ -822,7 +934,7 @@
     e.preventDefault();
     if ($('#del-confirm').value !== 'EXCLUIR') { toast('Digite EXCLUIR para confirmar.', 'err'); $('#del-confirm').focus(); return; }
     if (!(await askConfirm({ text: 'Tem certeza? Todos os seus dados serão apagados para sempre.', ok: 'Apagar', danger: true }))) return;
-    try { await api('/api/account.php?action=delete', { method: 'POST', json: { confirm: 'EXCLUIR' } }); localStorage.removeItem(Q_KEY); if (window.caches) (await caches.keys()).forEach((k) => caches.delete(k)); location.href = '/'; } catch (err) { toast(err.message, 'err'); }
+    try { await api('/api/account.php?action=delete', { method: 'POST', json: { confirm: 'EXCLUIR' } }); window.BPClearQueue(); if (window.caches) (await caches.keys()).forEach((k) => caches.delete(k)); location.href = '/'; } catch (err) { toast(err.message, 'err'); }
   });
 
 
@@ -847,7 +959,7 @@
     const p = curPeriod(), d = entryDate.get();
     $$('.day-period-name').forEach((x) => { x.textContent = B.periods[p] || '—'; });
     const row = dayPeriodRows.date === d ? (dayPeriodRows.rows.find((x) => x.period === p) || {}) : {};
-    setRadio(dayForm, 'stress_level', row.stress_level); setRadio(dayForm, 'food_sweets', row.food_sweets); setRadio(dayForm, 'food_processed', row.food_processed);
+    setRadio(dayForm, 'stress_level', row.stress_level); setRadio(dayForm, 'religiosity', row.religiosity); setRadio(dayForm, 'food_sweets', row.food_sweets); setRadio(dayForm, 'food_processed', row.food_processed);
     if (dayForm.elements.stress_note) dayForm.elements.stress_note.value = row.stress_note == null ? '' : row.stress_note;
     if (dayForm.elements.food_binge) dayForm.elements.food_binge.checked = +row.food_binge === 1;
     ['th_positive', 'th_negative', 'th_racing', 'th_grandiose', 'th_rumination'].forEach((k) => setRadio(dayForm, k, row[k]));
@@ -919,10 +1031,11 @@
     toast('Os dados de ' + fmtBR(d) + ' ainda não foram carregados. Aguarde um instante e salve de novo.', 'err');
     loadDay(); return false;
   }
-  dayForm.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const d = entryDate.get(); if (!d) return toast('Escolha a data no topo do formulário.', 'err');
-    if (!dayReady(d)) return;
+  dayForm.addEventListener('submit', (e) => { e.preventDefault(); saveDay(); });
+  // V5.1: salva o "Meu dia" (todos os blocos visíveis) na data/período do registro em andamento. true = salvo.
+  async function saveDay() {
+    const d = entryDate.get(); if (!d) { toast('Escolha a data no topo do formulário.', 'err'); return false; }
+    if (!dayReady(d)) return false;
     const p = { entry_date: d, period: curPeriod() };
     $$('[data-mod]', dayForm).forEach((sec) => {
       if (sec.hidden) return;
@@ -935,9 +1048,43 @@
     });
     if (!$('[data-mod=medicacao]', dayForm).hidden) { p.doses = {}; $$('input[name=dose]', dayForm).forEach((c) => { p.doses[c.value] = c.checked ? 1 : 0; }); }
     if (!$('[data-mod=sinais]', dayForm).hidden) p.signs = $$('input[name=sign]:checked', dayForm).map((c) => +c.value);
-    for (const k of ['bed_time', 'wake_time']) if (p[k] != null && !validTime(p[k])) { toast('Horário inválido. Use 24 horas, por exemplo 23:30.', 'err'); dayForm.elements[k].focus(); return; }
-    try { const r = await api('/api/day.php', { method: 'POST', json: p }); toast('Seu dia foi salvo (' + B.periods[p.period] + ').'); announce('Marcadores do dia salvos. Pensamentos, estresse e alimentação ficaram na ' + B.periods[p.period] + '.'); loadDay(); afterDataSave(r); } catch (err) { toast(err.message, 'err'); }
+    for (const k of ['bed_time', 'wake_time']) if (p[k] != null && !validTime(p[k])) { toast('Horário inválido. Use 24 horas, por exemplo 23:30.', 'err'); dayForm.elements[k].focus(); return false; }
+    try { const r = await api('/api/day.php', { method: 'POST', json: p }); toast('Seu dia foi salvo (' + B.periods[p.period] + ').'); announce('Marcadores do dia salvos. Pensamentos, estresse e alimentação ficaram na ' + B.periods[p.period] + '.'); dayDirty = false; loadDay(); afterDataSave(r); return true; } catch (err) { toast(err.message, 'err'); return false; }
+  }
+  // V5.1: "Salvar e continuar" em cada bloco e "Salvar tudo" no fim (mesma data e período)
+  let dayDirty = false;
+  dayForm.addEventListener('input', () => { dayDirty = true; });
+  dayForm.addEventListener('change', () => { dayDirty = true; });
+  function blockLabel(sec) { const sm = sec.querySelector('summary'); return sm ? sm.textContent.replace(/[^\p{L}\p{N} ,/()-]/gu, '').trim() : 'Bloco'; }
+  function goNextBlock(from) {
+    const blocks = $$('[data-mod]', dayForm).filter((b) => !b.hidden);
+    const i = from ? blocks.indexOf(from) : -1;
+    const next = blocks[i + 1];
+    if (next) { if (next.tagName === 'DETAILS') next.open = true; const sm = next.querySelector('summary') || next; sm.scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' }); sm.focus(); announce('Próximo: ' + blockLabel(next) + '.'); }
+    else { const b = $('#btn-save-all'); if (b) { b.scrollIntoView({ block: 'center' }); b.focus(); } }
+  }
+  $$('[data-mod]', dayForm).forEach((sec) => {
+    const box = document.createElement('div'); box.className = 'form-actions block-actions';
+    box.innerHTML = '<button type="button" class="btn btn-sm save-continue">Salvar e continuar</button>';
+    sec.appendChild(box);
+    box.firstChild.setAttribute('aria-label', 'Salvar e continuar: ' + blockLabel(sec));
+    box.firstChild.dataset.ga = 'salvar_e_continuar'; box.firstChild.dataset.gaBloco = sec.dataset.mod; // V5.2: só o nome do bloco (privados viram "privado")
+    box.firstChild.addEventListener('click', async () => { if (await saveDay()) goNextBlock(sec); });
   });
+  { const eb = $('#btn-save-entry-next'); if (eb) eb.addEventListener('click', async () => { const r = await saveEntry(); if (r) { const first = $$('[data-mod]', dayForm).find((b) => !b.hidden); if (first && !dayForm.classList.contains('hidden')) { if (first.tagName === 'DETAILS') first.open = true; const sm = first.querySelector('summary') || first; sm.scrollIntoView({ block: 'start' }); sm.focus(); } } }); }
+  { const all = $('#btn-save-all'); if (all) all.addEventListener('click', async () => {
+    all.disabled = true; all.setAttribute('aria-busy', 'true');
+    const out = $('#save-all-summary'); const ok = [], fail = [], skip = [];
+    try {
+      const touchedEntry = form.querySelector('input[name=mood]:checked');
+      if (touchedEntry) { const r = await saveEntry({ quiet: true }); if (r === true) ok.push('Humor e registro do período'); else if (r === 'offline') ok.push('Humor (guardado no aparelho, ainda não enviado)'); else fail.push('Humor e registro do período'); }
+      else skip.push('Humor (nenhum nível escolhido)');
+      if (!dayForm.classList.contains('hidden')) { if (dayDirty) { if (await saveDay()) ok.push('Meu dia (todos os blocos preenchidos)'); else fail.push('Meu dia'); } else skip.push('Meu dia (sem mudanças)'); }
+    } finally { all.disabled = false; all.removeAttribute('aria-busy'); }
+    const li = (a) => a.map((x) => '<li>' + esc(x) + '</li>').join('');
+    out.innerHTML = '<h3>Resumo — ' + esc(regLabel()) + '</h3>' + (ok.length ? '<p><strong>Salvo:</strong></p><ul>' + li(ok) + '</ul>' : '') + (fail.length ? '<p><strong>Não foi salvo:</strong></p><ul>' + li(fail) + '</ul><p>Confira os avisos e tente de novo.</p>' : '') + (skip.length ? '<p class="muted">Sem nada para salvar: ' + esc(skip.join('; ')) + '.</p>' : '');
+    out.classList.remove('hidden'); out.className = 'notice save-summary' + (fail.length ? ' err' : ''); out.focus();
+  }); }
   function syncBlur() { $('#sex-body').inert = sexForm.classList.contains('blurred'); }
   function onlineToggle() { $('#sx-online-f').classList.toggle('hidden', !$('input[name=activities][value=online]', sexForm).checked); }
   $$('input[name=activities]', sexForm).forEach((c) => c.addEventListener('change', () => {

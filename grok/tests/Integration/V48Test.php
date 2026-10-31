@@ -172,11 +172,11 @@ final class V48Test extends IntegrationCase
         $this->assertNull($md['death']);
         $this->assertSame(8.0, (float)$md['cigarettes_avg']);
         $this->assertSame(1, $md['nicotine_other_days']);
-        $csv = $c->get('/api/account.php?action=export&format=csv')['body'];
+        $csv = $c->export('csv')['body'];
         $this->assertStringContainsString('pens_grandiosidade', $csv);
         $this->assertStringContainsString('cigarros_dia', $csv);
         $this->assertStringContainsString('Vape / pod', $csv);
-        $json = json_decode($c->get('/api/account.php?action=export&format=json')['body'], true);
+        $json = json_decode($c->export('json')['body'], true);
         $this->assertSame(8, (int)$json['marcadores_diarios'][0]['cigarettes']);
         $this->assertSame(3, (int)$json['marcadores_por_periodo'][0]['th_grandiose']);
         $this->assertArrayHasKey('compartilhamentos_profissionais', $json);
@@ -212,7 +212,7 @@ final class V48Test extends IntegrationCase
         $this->assertStringContainsString('name="cigarettes"', $html);
         $this->assertStringContainsString('name="nicotine_other"', $html);
         $this->assertStringContainsString('id="care-card"', $html);
-        $this->assertStringContainsString('/assets/js/care.js?v=1', $html);
+        $this->assertStringContainsString('/assets/js/care.js?v=2', $html);
         $mods = array_fill_keys(array_keys(DAY_MODULES), true);
         $mods['pensamentos'] = false;
         $c->json('POST', '/api/account.php?action=prefs', ['modules' => $mods]);
@@ -221,9 +221,9 @@ final class V48Test extends IntegrationCase
         $this->assertStringContainsString('Duplicate column', $mig);
         $this->assertStringNotContainsStringIgnoringCase('phpmyadmin', $mig);
         foreach (preg_split('/\n/', $mig) as $line) if (str_starts_with($line, '--')) $this->assertStringNotContainsString(';', $line);
-        $this->assertSame('0.5.0-beta', trim((string)file_get_contents(dirname(__DIR__, 2) . '/VERSION')));
+        $this->assertSame('0.5.3-beta', trim((string)file_get_contents(dirname(__DIR__, 2) . '/VERSION')));
         $sw = (string)file_get_contents(dirname(__DIR__, 2) . '/public_html/sw.js');
-        $this->assertStringContainsString("'bp-v15'", $sw);
-        $this->assertStringContainsString('/assets/js/care.js?v=1', $sw);
+        $this->assertStringContainsString("'bp-v18'", $sw);
+        $this->assertStringContainsString('/assets/js/care.js?v=2', $sw);
     }
 }

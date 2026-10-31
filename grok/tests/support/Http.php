@@ -54,6 +54,18 @@ final class Http
         $fields = ['file' => new CURLFile($file, $type, $name)] + $extra;
         return $this->request('POST', $p, $fields, $csrf && $this->csrf ? ['X-CSRF-Token' => $this->csrf] : []);
     }
+    /**
+     * V5.1: exportação = POST export_prepare (confirma identidade, recebe token de uso único) + POST export.
+     * @param array<string,mixed> $stepup ex.: ['senha' => '...']
+     * @return array{status:int,headers:array<string,list<string>>,body:string,json:mixed}
+     */
+    public function export(string $format, array $stepup = []): array
+    {
+        $p = $this->json('POST', '/api/account.php?action=export_prepare', (object)$stepup);
+        if ($p['status'] !== 200) return $p;
+        return $this->request('POST', '/api/account.php?action=export', http_build_query(['token' => $p['json']['token'], 'format' => $format]),
+            ['Content-Type' => 'application/x-www-form-urlencoded', 'X-CSRF-Token' => (string)$this->csrf]);
+    }
     /** Login de desenvolvimento como usuário $u e captura do token CSRF. */
     public function login(string $u): self
     {
@@ -65,7 +77,7 @@ final class Http
     public function refreshCsrf(): void
     {
         $page = $this->get('/')['body'];
-        if (!preg_match('#<script id="boot" type="application/json">(.*?)</script>#s', $page, $m)) throw new RuntimeException('boot JSON ausente');
+        if (!preg_match('#<script id="boot" type="application/json">(.*?)</script>#s', $page, $m)) throw new RuntimeException('boot JSON ausente: ' . substr(strip_tags($page), 0, 600));
         $this->csrf = json_decode($m[1], true)['csrf'];
     }
     /** Busca o token CSRF do formulário em $page e envia POST urlencoded para $action. */

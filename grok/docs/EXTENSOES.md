@@ -14,7 +14,7 @@ Um módulo instalado em `app/ext/` pode:
 | Função | O que o módulo fornece |
 |---|---|
 | `ext_has('recurso')` | `return ['features' => ['recurso' => true]]` em `app/ext/module.php` |
-| `ext_page('nome')` | `app/ext/pages/nome.php` — usado hoje por `profissionais` e `comecar` |
+| `ext_page('nome')` | `app/ext/pages/nome.php` — nenhuma página pública usa hoje |
 | `ext_partial('nome', [...])` | `app/ext/partials/nome.php` — usado hoje por `privacidade-contatos` |
 
 Os nomes aceitos são só letras minúsculas, números e hífen. Para desligar um módulo instalado sem apagar arquivos:

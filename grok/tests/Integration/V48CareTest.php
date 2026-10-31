@@ -197,6 +197,9 @@ final class V48CareTest extends IntegrationCase
         $this->assertSame([], care_pending_for(db(), $nu));
         db()->prepare('UPDATE users SET email_verified_at = UTC_TIMESTAMP() WHERE id = ?')->execute([$nu['id']]);
         $nu['email_verified_at'] = gmdate('Y-m-d H:i:s');
+        $this->assertSame([], care_pending_for(db(), $nu), 'V5.1: só a data não basta, precisa do endereço comprovado');
+        db()->prepare('UPDATE users SET email_verified_email = ? WHERE id = ?')->execute([$email, $nu['id']]);
+        $nu['email_verified_email'] = $email;
         $this->assertCount(1, care_pending_for(db(), $nu));
         // outra conta (logada) não consegue usar o link
         $intruder = $this->pro('cpro5i');
@@ -240,8 +243,9 @@ final class V48CareTest extends IntegrationCase
         $this->assertSame(422, $p->json('POST', '/api/care.php?action=invite', ['email' => 'x', 'scope' => ['humor']])['status']);
         $this->assertSame(422, $p->json('POST', '/api/care.php?action=invite', ['email' => 'ok-v48@example.com', 'scope' => []])['status']);
         $this->assertSame(403, $this->user('cpat6n')->json('POST', '/api/care.php?action=code', [])['status'], 'só profissional gera código');
-        $this->assertSame(CARE_SCOPE_DEFAULT, CARE_SCOPE['humor'][0] | CARE_SCOPE['sono'][0] | CARE_SCOPE['estresse_alimentacao'][0] | CARE_SCOPE['pensamentos'][0]);
-        foreach (['substancias', 'sexualidade', 'pensamentos_morte'] as $k) $this->assertFalse(CARE_SCOPE[$k][2], "$k desligado por padrão");
+        // V5.1: Pensamentos deixou de vir marcado por padrão (é sensível)
+        $this->assertSame(CARE_SCOPE_DEFAULT, CARE_SCOPE['humor'][0] | CARE_SCOPE['sono'][0] | CARE_SCOPE['estresse_alimentacao'][0]);
+        foreach (['pensamentos', 'substancias', 'sexualidade', 'pensamentos_morte'] as $k) $this->assertFalse(CARE_SCOPE[$k][2], "$k desligado por padrão");
     }
 
     public function testPrivacyTermsAndNoAdmin(): void

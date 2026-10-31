@@ -14,6 +14,15 @@ const PASSWORD_MAX = 200;
 function pw_algo() { return defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT; }
 function pw_hash(string $pw): string { return password_hash($pw, pw_algo()); }
 function normalize_email(string $e): string { return mb_strtolower(trim($e)); }
+/**
+ * V5.1: hash determinístico da identidade de login (provedor + identificador), usado no índice único
+ * oauth_identities.subject_hash (cabe no limite de 767 bytes de índice do MySQL 5.7 antigo). Igual a SHA2(CONCAT(provider, '|', subject), 256).
+ */
+function identity_hash(string $provider, string $subject): string { return hash('sha256', $provider . '|' . $subject); }
+/** V5.1: grava uma identidade de login (sempre com o hash). */
+function identity_insert(PDO $pdo, int $uid, string $provider, string $subject): void {
+    $pdo->prepare('INSERT INTO oauth_identities (user_id, provider, subject, subject_hash) VALUES (?, ?, ?, ?)')->execute([$uid, $provider, $subject, identity_hash($provider, $subject)]);
+}
 function valid_email(string $e): bool { return strlen($e) <= 190 && filter_var($e, FILTER_VALIDATE_EMAIL) !== false && !preg_match('/[\r\n]/', $e); }
 
 /** @return string|null mensagem de erro (pt-BR) ou null se a senha é aceitável */
@@ -104,7 +113,7 @@ function signup_email(string $name, string $email, string $pw): array {
         $pdo->prepare('INSERT INTO users (name, email, timezone, password_hash, email_verified_at) VALUES (?, ?, ?, ?, ?)')
             ->execute([mb_substr(trim($name), 0, 150), $email, cfg('default_timezone', 'America/Cuiaba'), $hash, $verified]);
         $uid = (int)$pdo->lastInsertId();
-        $pdo->prepare("INSERT INTO oauth_identities (user_id, provider, subject) VALUES (?, 'email', ?)")->execute([$uid, $email]);
+        identity_insert($pdo, $uid, 'email', $email);
         $pdo->commit();
     } catch (PDOException $e) {
         $pdo->rollBack();
@@ -153,4 +162,92 @@ function request_password_reset(string $email): void {
 /** Define nova senha e invalida todas as sessões existentes do usuário. */
 function set_password(int $uid, string $pw): void {
     db()->prepare('UPDATE users SET password_hash = ?, session_epoch = session_epoch + 1 WHERE id = ?')->execute([pw_hash($pw), $uid]);
+}
+
+/* ---------- V5.1: troca de e-mail em duas etapas ---------- */
+const EMAIL_CHANGE_TTL_HOURS = 24;
+
+/** @param array<string,mixed> $u */
+function has_email_identity(array $u): bool {
+    $st = db()->prepare("SELECT COUNT(*) FROM oauth_identities WHERE user_id = ? AND provider = 'email'");
+    $st->execute([$u['id']]);
+    return (int)$st->fetchColumn() > 0;
+}
+
+/**
+ * Pede a troca (ou só a confirmação, se $new for o e-mail atual). Nada muda em users.email até o clique no link.
+ * Guarda pending_email + token de uso único (só o hash), invalida pedidos anteriores e avisa o endereço antigo.
+ * @param array<string,mixed> $u
+ * @return bool e-mail de confirmação enviado
+ */
+function email_change_request(array $u, string $new): bool {
+    require_once APP_ROOT . '/lib/smtp.php';
+    $pdo = db();
+    $new = normalize_email($new);
+    $old = normalize_email((string)($u['email'] ?? ''));
+    $same = $new === $old;
+    $pdo->prepare("UPDATE auth_tokens SET used_at = UTC_TIMESTAMP() WHERE user_id = ? AND purpose = 'email_change' AND used_at IS NULL")->execute([$u['id']]);
+    $raw = b64url(random_bytes(32));
+    $pdo->prepare("INSERT INTO auth_tokens (user_id, purpose, token_hash, payload, expires_at) VALUES (?, 'email_change', ?, ?, UTC_TIMESTAMP() + INTERVAL ? SECOND)")
+        ->execute([$u['id'], hash('sha256', $raw), $new, EMAIL_CHANGE_TTL_HOURS * 3600]);
+    $pdo->prepare('UPDATE users SET pending_email = ?, pending_email_at = ? WHERE id = ?')->execute([$same ? null : $new, $same ? null : gmdate('Y-m-d H:i:s'), $u['id']]);
+    $link = app_link('/conta/confirmar-email.php?t=' . $raw);
+    $ok = send_mail($new, $same ? 'Confirme seu e-mail' : 'Confirme seu novo e-mail', email_layout($same ? 'Confirme seu e-mail' : 'Confirme seu novo e-mail',
+        '<p>' . ($same ? 'Para confirmar que este e-mail é seu no Bipolar — Diário de Humor, clique no botão:' : 'Recebemos um pedido para usar este endereço na sua conta do Bipolar — Diário de Humor. O e-mail só muda depois que você confirmar:') . '</p>'
+        . '<p><a href="' . e($link) . '" style="display:inline-block;background:#2f6f73;color:#fff;padding:12px 20px;border-radius:10px;text-decoration:none">Confirmar e-mail</a></p>'
+        . '<p style="font-size:13px;color:#50606c">O link vale por ' . EMAIL_CHANGE_TTL_HOURS . ' horas e só pode ser usado uma vez. Se você não pediu isso, ignore este e-mail.</p>'), '', 'troca_email');
+    if (!$same && $old !== '' && valid_email($old)) {
+        send_mail($old, 'Pedido de troca de e-mail', email_layout('Pedido de troca de e-mail',
+            '<p>Alguém (talvez você) pediu para trocar o e-mail da sua conta no Bipolar para <strong>' . e(mask_email($new)) . '</strong>.</p>'
+            . '<p>Nada muda até o novo endereço ser confirmado. Se não foi você, entre no app, cancele em <strong>Conta → Preferências</strong> e troque sua senha.</p>'), '', 'troca_email_aviso');
+    }
+    return $ok;
+}
+
+/**
+ * Cancela um pedido de troca pendente.
+ * @param array<string,mixed> $u
+ */
+function email_change_cancel(array $u): void {
+    db()->prepare("UPDATE auth_tokens SET used_at = UTC_TIMESTAMP() WHERE user_id = ? AND purpose = 'email_change' AND used_at IS NULL")->execute([$u['id']]);
+    db()->prepare('UPDATE users SET pending_email = NULL, pending_email_at = NULL WHERE id = ?')->execute([$u['id']]);
+}
+
+/**
+ * Confirma pelo link (uso único, no prazo). Numa transação: users.email + email_verified_at + email comprovado
+ * e a identidade de login por e-mail (provider = 'email'). Trocar o endereço encerra TODAS as sessões abertas da conta.
+ * @return array{ok:bool,uid:int,changed:bool,erro:string}
+ */
+function email_change_confirm(string $raw): array {
+    $fail = function (string $m): array { return ['ok' => false, 'uid' => 0, 'changed' => false, 'erro' => $m]; };
+    if (!preg_match('/^[A-Za-z0-9_-]{40,64}$/', $raw)) return $fail('Link inválido ou expirado.');
+    $pdo = db();
+    $pdo->beginTransaction();
+    try {
+        $st = $pdo->prepare("SELECT * FROM auth_tokens WHERE token_hash = ? AND purpose = 'email_change' FOR UPDATE");
+        $st->execute([hash('sha256', $raw)]);
+        $t = $st->fetch();
+        if (!$t || $t['used_at'] !== null || strtotime((string)$t['expires_at'] . ' UTC') <= time()) { $pdo->rollBack(); return $fail('Link inválido ou expirado. Peça a troca de novo em Conta.'); }
+        $uid = (int)$t['user_id'];
+        $new = normalize_email((string)$t['payload']);
+        $st = $pdo->prepare('SELECT * FROM users WHERE id = ? FOR UPDATE');
+        $st->execute([$uid]);
+        $u = $st->fetch();
+        $cur = normalize_email((string)($u['email'] ?? ''));
+        if (!$u || !valid_email($new) || ($new !== normalize_email((string)($u['pending_email'] ?? '')) && $new !== $cur)) { $pdo->rollBack(); return $fail('Este link foi substituído por um pedido mais recente.'); }
+        $pdo->prepare('UPDATE auth_tokens SET used_at = UTC_TIMESTAMP() WHERE id = ? AND used_at IS NULL')->execute([$t['id']]);
+        $st = $pdo->prepare("SELECT COUNT(*) FROM oauth_identities WHERE provider = 'email' AND subject = ? AND user_id <> ?");
+        $st->execute([$new, $uid]);
+        if ((int)$st->fetchColumn() > 0) { $pdo->commit(); return $fail('Este e-mail já é usado por outra conta. Escolha outro endereço.'); }
+        $changed = $new !== $cur;
+        $pdo->prepare('UPDATE users SET email = ?, email_verified_at = UTC_TIMESTAMP(), email_verified_email = ?, pending_email = NULL, pending_email_at = NULL'
+            . ($changed ? ', session_epoch = session_epoch + 1' : '') . ' WHERE id = ?')->execute([$new, $new, $uid]);
+        $pdo->prepare("UPDATE oauth_identities SET subject = ?, subject_hash = ? WHERE user_id = ? AND provider = 'email'")->execute([$new, identity_hash('email', $new), $uid]);
+        $pdo->commit();
+        return ['ok' => true, 'uid' => $uid, 'changed' => $changed, 'erro' => ''];
+    } catch (PDOException $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        if ($e->getCode() === '23000') return $fail('Este e-mail já é usado por outra conta. Escolha outro endereço.');
+        throw $e;
+    }
 }

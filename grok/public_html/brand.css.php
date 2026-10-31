@@ -8,4 +8,5 @@ header('Cache-Control: public, max-age=3600');
 header('X-Content-Type-Options: nosniff');
 $c = function_exists('brand_color') ? brand_color() : null;
 if ($c === null) { echo "/* cor padrão */\n"; exit; }
-echo ":root:not([data-theme=dark]) { --primary: $c; }\n";
+// V5.1: só no tema claro (antes valia também no escuro do sistema, sem data-theme, e deixava o contraste errado)
+echo ":root[data-theme=light] { --primary: $c; }\n@media (prefers-color-scheme: light) { :root:not([data-theme=dark]) { --primary: $c; } }\n";

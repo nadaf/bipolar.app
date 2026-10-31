@@ -442,3 +442,40 @@ body.marketing details summary { cursor: pointer; font-weight: 600; min-height: 
 .care-scope { display: grid; gap: .25rem; }
 .care-code { font-family: ui-monospace, monospace; font-size: 1.3rem; letter-spacing: .15em; }
 .pro-badge { display: inline-block; font-size: .8rem; padding: .1rem .5rem; border-radius: 999px; border: 1px solid var(--border); }
+/* V5.1: sessão de registro (data e período travados) */
+.reg-indicator { position: sticky; top: 0; z-index: 30; display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; background: var(--primary-soft); color: var(--text); border: 2px solid var(--primary); border-radius: 12px; padding: .55rem .9rem; margin: 0 0 1rem; box-shadow: var(--shadow); }
+.reg-indicator a { color: var(--text); min-height: 24px; display: inline-flex; align-items: center; }
+.block-actions { margin-top: .6rem; }
+.block-actions .btn, #btn-save-all, #btn-save-entry-next { min-height: 44px; }
+.save-summary:focus { outline: 3px solid var(--focus); outline-offset: 2px; }
+.save-summary.err { border-left: 5px solid var(--danger); }
+.save-summary ul { margin: .3rem 0 .6rem 1.2rem; }
+/* V5.1: grade semanal de lembretes */
+.rm-grid-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.rm-grid { border-collapse: separate; border-spacing: 4px; width: 100%; min-width: 0; }
+.rm-grid th { font-weight: 600; font-size: .85rem; text-align: center; padding: .2rem; }
+.rm-grid th[scope=row] { text-align: left; white-space: nowrap; }
+.rm-grid td { text-align: center; padding: 0; }
+.rm-cell { min-width: 40px; min-height: 44px; width: 100%; border-radius: 10px; border: 2px solid var(--border); background: var(--surface); color: var(--muted); font-weight: 700; cursor: pointer; }
+.rm-cell[aria-pressed=true] { background: var(--primary); border-color: var(--primary); color: var(--primary-ink); }
+.rm-cell:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+.rm-row-actions { display: flex; gap: .3rem; justify-content: flex-end; }
+.rm-row-actions .btn { min-height: 44px; min-width: 44px; }
+.rm-legend { display: flex; gap: 1rem; flex-wrap: wrap; font-size: .85rem; margin: .4rem 0; }
+@media (max-width: 420px) { .rm-grid { border-spacing: 2px; } .rm-cell { min-width: 34px; font-size: .8rem; } .rm-grid th { font-size: .75rem; } }
+
+/* V5.2.1 — aviso de consentimento (estatísticas). Estilizado pelo ID (#consent-banner) e pela classe própria .ga-consent:
+   a classe antiga ".consent" já era usada no checkbox LGPD do cadastro e virava uma caixa flutuante que "não sumia". */
+#consent-banner, .ga-consent { position: fixed; z-index: 60; left: 50%; bottom: max(1rem, env(safe-area-inset-bottom)); transform: translateX(-50%); width: min(40rem, calc(100% - 1.5rem)); max-height: calc(100vh - 2rem); overflow-y: auto; background: var(--surface); color: var(--text); border: 2px solid var(--primary); border-radius: 12px; padding: 1rem 1.25rem; box-shadow: 0 8px 30px rgba(0,0,0,.25); }
+#consent-banner[hidden], #consent-banner.is-hidden, .ga-consent[hidden], .ga-consent.is-hidden { display: none !important; }
+#consent-banner h2 { font-size: 1.1rem; margin: 0 0 .5rem; }
+#consent-banner p { margin: 0 0 .75rem; }
+#consent-banner .ga-consent-actions, #consent-banner .consent-actions { display: flex; gap: .75rem; flex-wrap: wrap; }
+#consent-banner .btn { min-height: 44px; min-width: 7rem; }
+/* Enquanto o aviso está aberto, a página ganha espaço embaixo para nada ficar escondido atrás dele (ex.: botão Entrar). */
+html.ga-consent-open body { padding-bottom: calc(var(--consent-h, 16rem) + 2rem); }
+/* Telas largas: canto inferior direito, fora da coluna central (não cobre o botão Entrar nem o formulário). */
+@media (min-width: 1100px) { #consent-banner { left: auto; right: 1rem; transform: none; width: 22rem; } #consent-banner .btn { min-width: 0; flex: 1; } }
+@media (max-width: 640px) { html.ga-consent-open body.app { padding-bottom: calc(var(--consent-h, 16rem) + 6rem + env(safe-area-inset-bottom)); } body.app #consent-banner { bottom: calc(5rem + env(safe-area-inset-bottom)); max-height: calc(100vh - 7rem); } }
+.linklike { background: none; border: 0; padding: .25rem 0; min-height: 24px; color: inherit; text-decoration: underline; font: inherit; cursor: pointer; }
+.linklike:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }

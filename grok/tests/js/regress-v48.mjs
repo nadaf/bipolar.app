@@ -107,7 +107,7 @@ try {
   await page.keyboard.press('Escape'); await sleep(300);
   const after = await page.evaluate(() => ({ open: document.getElementById('support-panel').open, focus: document.activeElement?.closest('#form-death') !== null }));
   ok(!after.open && after.focus, 'Esc fecha e o foco volta ao formulário');
-  ok(await page.evaluate(() => /Sem conexão/.test(document.body.textContent) && !/Failed to fetch/.test(document.body.textContent)), 'sem rede: aviso em português (não salva, painel já foi mostrado)');
+  ok(await page.evaluate(() => /[Ss]em conexão/.test(document.body.textContent) && !/Failed to fetch/.test(document.body.textContent)), 'sem rede: aviso em português (não salva, painel já foi mostrado)');
   await page.setOfflineMode(false); await sleep(1500);
   // nível 0 não abre
   await page.evaluate(() => { document.querySelector('label[for="d-thd-0"]').click(); document.getElementById('form-death').requestSubmit(); }); await sleep(500);
@@ -118,7 +118,9 @@ try {
   await page.goto(`${base}/?aba=conta`, { waitUntil: 'networkidle0' });
   await page.evaluate(() => document.getElementById('care-card').scrollIntoView());
   await page.type('#care-email', `v48pro${run}@example.com`);
-  await page.evaluate(() => document.getElementById('form-care-invite').requestSubmit()); await sleep(1200);
+  await page.evaluate(() => document.getElementById('form-care-invite').requestSubmit()); await sleep(500);
+  // V5.1: confirmação com a lista de categorias antes de convidar
+  ok(await page.evaluate(() => { const d = document.getElementById('confirm-dlg'); if (!d || !d.open) return false; document.getElementById('confirm-dlg-ok').click(); return true; }), 'confirma a lista de categorias (V5.1)'); await sleep(1200);
   const lb = await page.evaluate(() => ({ shown: !document.getElementById('care-link-box').classList.contains('hidden'), link: document.getElementById('care-link').value, wa: document.getElementById('care-wa').getAttribute('href'), list: document.getElementById('care-shares').textContent }));
   ok(lb.shown && /convite-profissional\.php\?t=/.test(lb.link) && /^https:\/\/wa\.me\/\?text=/.test(lb.wa), 'link de convite + WhatsApp ' + lb.link.slice(0, 60));
   ok(/aguardando aceite/i.test(lb.list) && /Cancelar convite/.test(lb.list), 'convite pendente aparece na lista');

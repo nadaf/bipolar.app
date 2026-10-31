@@ -11,7 +11,7 @@ final class QaFixesTest extends IntegrationCase
         $pdo->prepare('INSERT INTO users (name, email, timezone, password_hash, email_verified_at) VALUES (?,?,?,?,UTC_TIMESTAMP())')
             ->execute(['Prod Teste', $email, 'America/Cuiaba', pw_hash(self::PW)]);
         $uid = (int)$pdo->lastInsertId();
-        $pdo->prepare("INSERT INTO oauth_identities (user_id, provider, subject) VALUES (?, 'email', ?)")->execute([$uid, $email]);
+        identity_insert($pdo, $uid, 'email', $email);
         $c = $this->prod();
         $r = $c->form('/', '/conta/entrar.php', ['email' => $email, 'senha' => self::PW]);
         $this->assertSame(302, $r['status']);
@@ -108,7 +108,7 @@ final class QaFixesTest extends IntegrationCase
         $c = $this->user('qacsv');
         $this->entry($c, ['entry_date' => '2026-10-02', 'period' => 'manha', 'mood' => -1, 'sleep_hours' => 6.5, 'note' => 'a; b']);
         $this->entry($c, ['entry_date' => '2026-10-02', 'period' => 'noite', 'mood' => 0, 'sleep_hours' => 7]);
-        $csv = $c->get('/api/account.php?action=export&format=csv')['body'];
+        $csv = $c->export('csv')['body'];
         $this->assertStringStartsWith("\xEF\xBB\xBF", $csv);
         $lines = explode("\n", trim(substr($csv, 3)));
         $this->assertStringStartsWith('data;período;humor;', $lines[0]);
@@ -116,7 +116,7 @@ final class QaFixesTest extends IntegrationCase
         $this->assertStringContainsString(';6,5;', $lines[1]);
         $this->assertStringContainsString(';7,0;', $lines[2]);
         $this->assertStringContainsString('"a; b"', $lines[1], 'texto com ; fica entre aspas');
-        $this->assertSame(26, count(str_getcsv($lines[1], ';', '"', '\\'))); // V4.7: + estresse, acontecimento, doces, ultraprocessados, comeu_fora_de_hora; V4.8: + 6 pensamentos, café, cigarros, outra nicotina
+        $this->assertSame(27, count(str_getcsv($lines[1], ';', '"', '\\'))); // V4.7: + estresse, acontecimento, doces, ultraprocessados, comeu_fora_de_hora; V4.8: + 6 pensamentos, café, cigarros, outra nicotina; V5.1: + religiosidade
         $rep = $c->get('/relatorio.php?de=2026-10-01&ate=2026-10-03')['body'];
         $this->assertStringContainsString('7,0 h', $rep, 'V4.1: sono médio por noite (maior valor do dia = 7,0), igual ao Histórico');
         $this->assertStringContainsString('−0,50', $rep, 'humor médio com vírgula');

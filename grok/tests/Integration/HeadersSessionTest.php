@@ -36,11 +36,11 @@ final class HeadersSessionTest extends IntegrationCase
         $this->assertStringContainsStringIgnoringCase('HttpOnly', $cookie);
         $this->assertStringContainsStringIgnoringCase('SameSite=Lax', $cookie);
         $this->assertStringContainsString('path=/', $cookie);
-        // atrás de proxy HTTPS (como no cPanel com SSL)
+        // V5.1: X-Forwarded-Proto de origem não confiável (sem 'trusted_proxies') não liga o cookie "secure" nem o HSTS
         $r = $this->dev()->get('/', ['X-Forwarded-Proto' => 'https']);
         $cookie = (string)$c->header($r, 'Set-Cookie');
-        $this->assertStringContainsStringIgnoringCase('; secure', $cookie);
-        $this->assertStringContainsString('max-age=31536000', (string)$c->header($r, 'Strict-Transport-Security'));
+        $this->assertStringNotContainsStringIgnoringCase('; secure', $cookie);
+        $this->assertNull($c->header($r, 'Strict-Transport-Security'));
     }
     public function testSessionIdRegeneratedOnLogin(): void
     {

@@ -1,6 +1,7 @@
 /* Service worker — Bipolar */
-const VERSION = 'bp-v15';
-const SHELL = ['/', '/offline.html', '/assets/css/app.css?v=13', '/assets/js/app.js?v=13', '/assets/js/passkey.js?v=4', '/assets/js/mfa.js?v=2', '/assets/js/care.js?v=1', '/assets/js/quick.js?v=2', '/assets/js/pwa.js?v=1', '/assets/js/theme.js?v=1',
+const VERSION = 'bp-v18';
+// V5.1: só a casca genérica (sem HTML de quem está logado)
+const SHELL = ['/offline.html', '/assets/css/app.css?v=16', '/assets/js/app.js?v=15', '/assets/js/passkey.js?v=4', '/assets/js/mfa.js?v=2', '/assets/js/care.js?v=2', '/assets/js/quick.js?v=3', '/assets/js/pwa.js?v=3', '/assets/js/theme.js?v=2',
   '/assets/icons/logo.svg', '/assets/icons/icon-192.png', '/manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -15,15 +16,12 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET' || url.origin !== location.origin) return;
   if (url.pathname.startsWith('/api/') || url.pathname.startsWith('/auth/')) return; // nunca cachear dados privados
   if (req.mode === 'navigate') {
-    // Rede primeiro; página inicial em cache se offline
-    e.respondWith(fetch(req).then((res) => {
-      if (url.pathname === '/' && res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put('/', copy)); }
-      return res;
-    }).catch(() => caches.match('/').then((r) => r || caches.match('/offline.html'))));
+    // V5.1: rede sempre; páginas autenticadas nunca vão para o cache. Sem rede, a tela offline genérica (com CVV 188 e SAMU 192).
+    e.respondWith(fetch(req).catch(() => caches.match('/offline.html')));
     return;
   }
   e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {
-    if (res.ok && url.pathname.startsWith('/assets/')) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
+    if (res.ok && url.pathname.startsWith('/assets/') && !/no-store|private/.test(res.headers.get('Cache-Control') || '')) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(req, copy)); }
     return res;
   })));
 });

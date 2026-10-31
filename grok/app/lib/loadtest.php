@@ -43,7 +43,7 @@ function loadtest_seed(int $count, string $password, int $days = 30, ?string $do
         $pdo->prepare('INSERT INTO users (name, email, timezone, extreme_alerts, password_hash, email_verified_at) VALUES (?, ?, ?, 0, ?, UTC_TIMESTAMP())')
             ->execute([sprintf('Teste de carga %03d', $i), $email, $tz, $hash]);
         $uid = (int)$pdo->lastInsertId();
-        $pdo->prepare("INSERT INTO oauth_identities (user_id, provider, subject) VALUES (?, 'email', ?)")->execute([$uid, $email]);
+        identity_insert($pdo, $uid, 'email', $email);
         if ($days > 0) {
             $rows = []; $vals = [];
             $today = new DateTime('now', new DateTimeZone($tz));

@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS users (
   is_professional TINYINT(1) NOT NULL DEFAULT 0,
   professional_kind VARCHAR(20) NULL,
   professional_reg VARCHAR(40) NULL,
+  pending_email VARCHAR(190) NULL,
+  pending_email_at DATETIME NULL,
+  email_verified_email VARCHAR(190) NULL,
   PRIMARY KEY (id),
   KEY idx_email (email)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -36,9 +39,11 @@ CREATE TABLE IF NOT EXISTS oauth_identities (
   user_id INT UNSIGNED NOT NULL,
   provider VARCHAR(20) NOT NULL,
   subject VARCHAR(190) NOT NULL,
+  subject_hash CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
-  UNIQUE KEY uq_provider_subject (provider, subject),
+  UNIQUE KEY uq_oi_subject_hash (subject_hash),
+  KEY idx_oi_provider_subject (provider, subject(150)),
   KEY idx_user (user_id),
   CONSTRAINT fk_oi_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -126,9 +131,11 @@ CREATE TABLE IF NOT EXISTS reminders (
   channel ENUM('push','email','ambos') NOT NULL DEFAULT 'push',
   active TINYINT(1) NOT NULL DEFAULT 1,
   last_sent_local_date DATE NULL,
+  next_due_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   KEY idx_user (user_id),
+  KEY idx_rm_due (active, next_due_at),
   CONSTRAINT fk_rm_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -152,8 +159,9 @@ CREATE TABLE IF NOT EXISTS push_subscriptions (
 CREATE TABLE IF NOT EXISTS auth_tokens (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
   user_id INT UNSIGNED NOT NULL,
-  purpose ENUM('verify','reset') NOT NULL,
+  purpose ENUM('verify','reset','email_change','export') NOT NULL,
   token_hash CHAR(64) NOT NULL,
+  payload VARCHAR(190) NULL,
   expires_at DATETIME NOT NULL,
   used_at DATETIME NULL,
   created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -194,6 +202,7 @@ CREATE TABLE IF NOT EXISTS daily_markers (
   th_death TINYINT NULL,
   cigarettes SMALLINT UNSIGNED NULL,
   nicotine_other VARCHAR(20) NULL,
+  religiosity TINYINT NULL,
   doses_json TEXT NULL,
   signs_json TEXT NULL,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -356,6 +365,7 @@ CREATE TABLE IF NOT EXISTS period_markers (
   th_grandiose TINYINT NULL,
   th_rumination TINYINT NULL,
   th_death TINYINT NULL,
+  religiosity TINYINT NULL,
   migrated TINYINT(1) NOT NULL DEFAULT 0,
   updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
@@ -414,4 +424,43 @@ CREATE TABLE IF NOT EXISTS care_access_log (
   PRIMARY KEY (id),
   KEY idx_cal_patient (patient_id, created_at),
   CONSTRAINT fk_cal_patient FOREIGN KEY (patient_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- V5.1: fila de envios (lembretes, adiamentos e relatorios) com reserva, confirmacao e novas tentativas
+CREATE TABLE IF NOT EXISTS outbox (
+  id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  kind VARCHAR(12) NOT NULL,
+  user_id INT UNSIGNED NOT NULL,
+  ref_id INT UNSIGNED NOT NULL,
+  dedupe_key CHAR(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  state VARCHAR(10) NOT NULL DEFAULT 'ready',
+  attempts TINYINT UNSIGNED NOT NULL DEFAULT 0,
+  available_at DATETIME NOT NULL,
+  expires_at DATETIME NULL,
+  due_at DATETIME NOT NULL,
+  local_date DATE NULL,
+  ref_value VARCHAR(40) NULL,
+  lease_token CHAR(32) CHARACTER SET ascii COLLATE ascii_bin NULL,
+  lease_until DATETIME NULL,
+  last_error_code VARCHAR(40) NULL,
+  sent_at DATETIME NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (id),
+  UNIQUE KEY uq_outbox_dedupe (dedupe_key),
+  KEY idx_outbox_pick (state, available_at),
+  KEY idx_outbox_lease (lease_token),
+  KEY idx_outbox_user (user_id),
+  CONSTRAINT fk_outbox_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- V5.1: cada envio da fila offline (client_uuid) grava uma unica vez
+CREATE TABLE IF NOT EXISTS entry_client_ids (
+  user_id INT UNSIGNED NOT NULL,
+  client_uuid CHAR(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL,
+  entry_id INT UNSIGNED NULL,
+  created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (user_id, client_uuid),
+  KEY idx_eci_created (created_at),
+  CONSTRAINT fk_eci_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
