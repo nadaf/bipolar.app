@@ -18,10 +18,10 @@ class AlertSetting extends Model
 {
     use BelongsToTenant;
 
-    protected $fillable = ['patient_id', 'mood_low', 'mood_high', 'energy_low', 'energy_high'];
+    protected $fillable = ['patient_id', 'mood_low', 'mood_high', 'energy_low', 'energy_high', 'reminders'];
 
     protected function casts(): array
     {
-        return ['mood_low' => 'integer', 'mood_high' => 'integer', 'energy_low' => 'integer', 'energy_high' => 'integer'];
+        return ['mood_low' => 'integer', 'mood_high' => 'integer', 'energy_low' => 'integer', 'energy_high' => 'integer', 'reminders' => 'array'];
     }
 }

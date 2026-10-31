@@ -57,3 +57,17 @@ create table `alert_settings` (`id` bigint unsigned not null auto_increment prim
 alter table `alert_settings` add unique `uq_alert_patient`(`tenant_id`, `patient_id`);
 alter table `alert_settings` add constraint `fk_as_membership` foreign key (`tenant_id`, `patient_id`) references `memberships` (`tenant_id`, `user_id`) on delete cascade;
 INSERT INTO migrations (migration, batch) VALUES ('2026_11_01_000200_hosts_tokens_alerts', 1);
+create table `day_blocks` (`id` bigint unsigned not null auto_increment primary key, `tenant_id` bigint unsigned not null, `patient_id` bigint unsigned not null, `entry_date` date not null, `period` varchar(5) not null, `block` varchar(20) not null, `data` text not null, `version` int unsigned not null default '1', `created_at` timestamp null, `updated_at` timestamp null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
+alter table `day_blocks` add unique `uq_db_tenant_patient_day_block`(`tenant_id`, `patient_id`, `entry_date`, `period`, `block`);
+alter table `day_blocks` add index `ix_db_tenant_patient_day`(`tenant_id`, `patient_id`, `entry_date`);
+alter table `day_blocks` add constraint `fk_db_tenant` foreign key (`tenant_id`) references `tenants` (`id`) on delete cascade;
+alter table `day_blocks` add constraint `fk_db_membership` foreign key (`tenant_id`, `patient_id`) references `memberships` (`tenant_id`, `user_id`) on delete cascade;
+alter table `users` add `theme` varchar(10) not null default 'sistema' after `timezone`;
+alter table `users` add `modules` varchar(200) null after `theme`;
+alter table `users` add `pin_hash` varchar(255) null after `modules`;
+alter table `users` add `pending_email` varchar(190) null after `pin_hash`;
+alter table `users` add `email_change_hash` char(64) null after `pending_email`;
+alter table `users` add `email_change_expires_at` timestamp null after `email_change_hash`;
+alter table `alert_settings` add `reminders` text null after `energy_high`;
+alter table `mood_entries` modify `mood` tinyint null;
+INSERT INTO migrations (migration, batch) VALUES ('2026_11_02_000100_day_blocks_prefs_reminders', 1);

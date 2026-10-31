@@ -95,6 +95,6 @@ it('FK composta impede paciente que nao e membro do tenant', function () {
 it('tela web: outro paciente nao ve registro alheio', function () {
     $vitima = patient();
     asTenant(tenantOf($vitima), fn () => MoodEntry::create(['patient_id' => $vitima->id] + entryPayload(['note' => 'nota-da-vitima'])));
-    $this->actingAs(patient())->get('/hoje?data='.entryPayload()['entry_date'].'&periodo=tarde')
+    $this->actingAs(patient())->get('/registrar?data='.entryPayload()['entry_date'].'&periodo=tarde')
         ->assertOk()->assertDontSee('nota-da-vitima');
 });

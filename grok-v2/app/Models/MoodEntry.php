@@ -16,7 +16,7 @@ use Illuminate\Support\Carbon;
  * @property int $version
  * @property Carbon $entry_date
  * @property Period $period
- * @property int $mood
+ * @property int|null $mood
  * @property int|null $energy
  * @property int|null $anxiety
  * @property int|null $irritability

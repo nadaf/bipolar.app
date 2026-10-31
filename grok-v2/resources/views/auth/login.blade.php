@@ -1,7 +1,9 @@
 @extends('layouts.app')
 @section('title', 'Entrar — Bipolar')
 @section('content')
-<h1 class="text-2xl font-semibold mb-4">Entrar</h1>
+<div class="mx-auto max-w-md">
+<h1 class="text-2xl font-semibold mb-1">Entrar</h1>
+<p class="hint mb-4">Seu diário de humor, só seu. Você decide o que compartilhar.</p>
 <form method="post" action="/entrar" class="space-y-4 card" novalidate>
   @csrf
   <div>
@@ -16,4 +18,8 @@
   </div>
   <button class="btn-primary w-full">Entrar</button>
 </form>
+@if(\Illuminate\Support\Facades\Route::has('signup') && app(\App\Tenancy\HostTenant::class)->tenantId === null)
+<p class="mt-4 text-center">Ainda não tem conta? <a href="{{ route('signup') }}">Criar conta</a></p>
+@endif
+</div>
 @endsection

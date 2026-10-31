@@ -40,7 +40,7 @@ arch('sem funcoes de debug')
     ->not->toBeUsed();
 
 arch('modelos tenant usam o trait')
-    ->expect(['App\Models\MoodEntry', 'App\Models\CareGrant', 'App\Models\AuditLog', 'App\Models\AlertSetting'])
+    ->expect(['App\Models\MoodEntry', 'App\Models\CareGrant', 'App\Models\AuditLog', 'App\Models\AlertSetting', 'App\Models\DayBlock'])
     ->toUseTrait(BelongsToTenant::class);
 
 it('toda tabela real com tenant_id tem model com BelongsToTenant', function () {

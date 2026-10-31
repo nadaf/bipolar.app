@@ -18,7 +18,7 @@ class MoodEntryRequest extends FormRequest
         return [
             'entry_date' => ['required', 'date_format:Y-m-d'],
             'period' => ['required', Rule::enum(Period::class)],
-            'mood' => ['required', 'integer', 'between:-3,3'],
+            'mood' => ['nullable', 'required_without_all:energy,anxiety,irritability,sleep_hours,medication_taken,note', 'integer', 'between:-3,3'],
             'energy' => ['nullable', 'integer', 'between:-3,3'],
             'anxiety' => ['nullable', 'integer', 'between:0,3'],
             'irritability' => ['nullable', 'integer', 'between:0,3'],

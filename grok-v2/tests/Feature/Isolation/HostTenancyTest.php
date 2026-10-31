@@ -65,9 +65,9 @@ it('sessao web aberta num host nao vale em outro host', function () {
     $bia = patient();
     Tenant::whereKey(tenantOf($bia))->update(['slug' => 'bia']);
     $this->post('http://'.BASE.'/entrar', ['email' => $ana->email, 'password' => 'senha-muito-boa-1'])->assertRedirect();
-    $this->get('http://'.BASE.'/hoje')->assertOk();
+    $this->get('http://'.BASE.'/registrar')->assertOk();
     // mesma sessao (o teste reaproveita) levada para outro host => 404
-    $this->get(onHost('bia', '/hoje'))->assertNotFound();
+    $this->get(onHost('bia', '/registrar'))->assertNotFound();
 });
 
 it('login web em subdominio sem vinculo falha com mensagem generica', function () {

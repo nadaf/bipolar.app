@@ -1,7 +1,8 @@
 // Service worker: so arquivos estaticos versionados. NUNCA cachear /api ou paginas com dados do paciente.
+// splash/ (telas de abertura iOS) fica fora do precache: o iOS so le na instalacao.
 module.exports = {
   globDirectory: 'public/',
-  globPatterns: ['build/assets/*.{js,css,woff2,svg,png}', 'icons/*.png', 'manifest.webmanifest', 'offline.html'],
+  globPatterns: ['build/assets/*.{js,css,woff2,svg,png}', 'icons/*.{png,svg}', 'favicon.{ico,svg}', 'apple-touch-icon.png', 'manifest.webmanifest', 'offline.html'],
   swDest: 'public/sw.js',
   sourcemap: false,
   inlineWorkboxRuntime: true,

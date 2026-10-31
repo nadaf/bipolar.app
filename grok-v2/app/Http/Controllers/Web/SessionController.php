@@ -3,11 +3,15 @@
 namespace App\Http\Controllers\Web;
 
 use App\Domain\Account\IssueToken;
+use App\Domain\Account\RegisterPatient;
+use App\Domain\Account\RegisterSoloProfessional;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Tenancy\HostTenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
 class SessionController extends Controller
@@ -30,7 +34,7 @@ class SessionController extends Controller
         $request->session()->regenerate();
         $request->session()->put('tenant_id', $m->tenant_id);
 
-        return redirect()->intended('/hoje');
+        return redirect()->intended('/');
     }
 
     public function logout(Request $request)
@@ -40,5 +44,33 @@ class SessionController extends Controller
         $request->session()->regenerateToken();
 
         return redirect('/entrar');
+    }
+
+    public function signupForm(HostTenant $host)
+    {
+        abort_if($host->tenantId !== null, 404);
+
+        return view('auth.signup');
+    }
+
+    /** Cadastro aberto so no host principal (em clinica o ingresso e por convite). */
+    public function signup(Request $request, RegisterPatient $patient, RegisterSoloProfessional $solo, IssueToken $issue, HostTenant $host)
+    {
+        abort_if($host->tenantId !== null, 404);
+        $v = $request->validate([
+            'name' => ['required', 'string', 'min:2', 'max:150'],
+            'email' => ['required', 'email:rfc', 'max:190', 'unique:users,email'],
+            'password' => ['required', 'confirmed', Password::min(10)],
+            'account_type' => ['required', 'in:patient,professional'],
+        ], ['email.unique' => 'Já existe uma conta com esse e-mail. Tente entrar.']);
+        $user = $v['account_type'] === 'professional'
+            ? $solo($v['name'], $v['email'], $v['password'], null)
+            : $patient($v['name'], $v['email'], $v['password']);
+        $m = $issue->tenantFor($user);
+        Auth::login($user);
+        $request->session()->regenerate();
+        $request->session()->put('tenant_id', $m->tenant_id);
+
+        return redirect('/')->with('ok', 'Conta criada. Bem-vindo(a)!');
     }
 }

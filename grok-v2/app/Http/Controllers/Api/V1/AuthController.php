@@ -60,9 +60,7 @@ class AuthController extends Controller
 
     public function me(Request $request)
     {
-        $u = $request->user();
-
-        return ['id' => $u->id, 'name' => $u->name, 'email' => $u->email, 'timezone' => $u->timezone, 'mfa_enabled' => $u->mfa_enabled_at !== null];
+        return AccountController::present($request->user());
     }
 
     public function mfaStub()

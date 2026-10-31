@@ -42,9 +42,9 @@ it('limiares sao isolados por paciente/tenant', function () {
 it('tela de alertas: acessivel e salva via HTMX', function () {
     $p = patient();
     $this->post('/entrar', ['email' => $p->email, 'password' => 'senha-muito-boa-1']);
-    $this->get('/ajustes/alertas')->assertOk()->assertSee('Sinal baixo a partir de')->assertSee('<label for="energy_high"', false);
-    $this->withHeader('HX-Request', 'true')->post('/ajustes/alertas', ['mood_low' => -3, 'mood_high' => 3, 'energy_low' => -2, 'energy_high' => 2])
-        ->assertOk()->assertSee('Alertas salvos');
+    $this->get('/alertas')->assertOk()->assertSee('Sinal baixo a partir de')->assertSee('<label for="energy_high"', false);
+    $this->withHeader('HX-Request', 'true')->post('/alertas', ['mood_low' => -3, 'mood_high' => 3, 'energy_low' => -2, 'energy_high' => 2])
+        ->assertOk()->assertSee('Limiares salvos');
 });
 
 it('registro antigo (sem limite de dias) e aceito; periodo futuro nao', function () {

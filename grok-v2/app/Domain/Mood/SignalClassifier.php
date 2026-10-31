@@ -31,7 +31,7 @@ final class SignalClassifier
         return $v >= $high ? self::MANIC : self::NEUTRAL;
     }
 
-    public static function classify(int $mood, ?int $energy, ?AlertThresholds $t = null): string
+    public static function classify(?int $mood, ?int $energy, ?AlertThresholds $t = null): string
     {
         $t ??= new AlertThresholds;
         $signals = array_unique(array_filter(
