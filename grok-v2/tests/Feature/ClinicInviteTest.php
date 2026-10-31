@@ -57,7 +57,7 @@ it('pessoa sem conta aceita criando a conta; entra ja na clinica como profission
     $token = sendInvite($this, $c, clinicAdmin($c), 'novo@pro.test');
     $this->get(inviteHost($c).'/convite-clinica/'.$token)->assertOk()->assertSee('Crie sua conta')->assertSee($c->name);
     $this->post(inviteHost($c).'/convite-clinica/'.$token, ['name' => 'Dra. Nova', 'password' => 'curta', 'password_confirmation' => 'curta'])->assertSessionHasErrors('password');
-    $this->post(inviteHost($c).'/convite-clinica/'.$token, ['name' => 'Dra. Nova', 'password' => 'senha-muito-boa-9', 'password_confirmation' => 'senha-muito-boa-9'])->assertRedirect('/');
+    $this->post(inviteHost($c).'/convite-clinica/'.$token, ['name' => 'Dra. Nova', 'password' => 'senha-muito-boa-1', 'password_confirmation' => 'senha-muito-boa-1'])->assertRedirect('/');
     $u = User::where('email', 'novo@pro.test')->firstOrFail();
     $this->assertAuthenticatedAs($u);
     expect(Membership::where('user_id', $u->id)->pluck('role', 'tenant_id')->all())->toBe([$c->id => 'professional']);
@@ -125,11 +125,11 @@ it('API: convite, aceite com outro e-mail falha, cadastro pelo token devolve tok
     $intruso = patient();
     $this->withToken(tokenFor($intruso))->postJson($h.'/api/v1/clinic-invites/'.$token.'/accept')->assertNotFound();
     $this->app['auth']->forgetGuards();
-    $t = $this->postJson($h.'/api/v1/clinic-invites/'.$token.'/register', ['name' => 'Dr. API', 'password' => 'senha-muito-boa-2', 'device_name' => 'cel'])
+    $t = $this->postJson($h.'/api/v1/clinic-invites/'.$token.'/register', ['name' => 'Dr. API', 'password' => 'senha-muito-boa-1', 'device_name' => 'cel'])
         ->assertCreated()->json('token');
     $this->app['auth']->forgetGuards();
     $this->withToken($t)->getJson($h.'/api/v1/care/patients')->assertOk();
-    $this->postJson($h.'/api/v1/clinic-invites/'.$token.'/register', ['name' => 'X', 'password' => 'senha-muito-boa-2', 'device_name' => 'cel'])->assertNotFound();
+    $this->postJson($h.'/api/v1/clinic-invites/'.$token.'/register', ['name' => 'X', 'password' => 'senha-muito-boa-1', 'device_name' => 'cel'])->assertNotFound();
 });
 
 it('membro atual nao recebe convite', function () {
