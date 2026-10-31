@@ -50,6 +50,10 @@
 <body>
 {{-- abertura: so no app instalado e so na 1a carga da sessao (theme-init.js marca); decorativa --}}
 <div id="abertura" aria-hidden="true"><img src="/favicon.svg" alt="" width="96" height="96"><span>Bipolar</span></div>
+<div id="sw-nova-versao" class="warn fixed inset-x-2 top-2 z-50 flex flex-wrap items-center justify-between gap-2 sm:inset-x-auto sm:end-4 sm:max-w-md" role="status" hidden>
+  <span>Há uma versão nova do app.</span>
+  <button type="button" class="btn-primary" data-sw-atualizar>Atualizar</button>
+</div>
 <a href="#conteudo" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:rounded focus:bg-white focus:p-3 focus:text-slate-900">Pular para o conteúdo</a>
 <div class="{{ $nav ? 'shell' : '' }}">
   @if($nav)

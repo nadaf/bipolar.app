@@ -42,16 +42,16 @@
   <p class="hint mb-3">Marque em quais dias e períodos quer ser lembrado(a). Cada quadrado é um lembrete.</p>
   <form method="post" action="{{ route('alerts.reminders') }}" class="card space-y-5">
     @csrf
-    <div class="overflow-x-auto">
+    <p class="warn" role="note"><strong>Em teste:</strong> sua escolha fica salva, mas o app ainda <strong>não envia</strong> lembretes. Avisaremos aqui quando o envio estiver ligado.</p>
     <table class="grid-rem">
       <caption class="sr-only">Grade de lembretes por dia da semana e período</caption>
-      <thead><tr><th scope="col"><span class="sr-only">Período</span></th>
-        @foreach(\App\Domain\Reminders\ReminderService::WEEKDAYS as $wi => $w)<th scope="col" class="text-sm"><abbr title="{{ \App\Domain\Reminders\ReminderService::WEEKDAYS_LONG[$wi] }}">{{ $w }}</abbr></th>@endforeach
+      <thead><tr><th scope="col"><span class="sr-only">Dia</span></th>
+        @foreach($periods as $p)<th scope="col" class="text-sm">{{ $p->label() }}</th>@endforeach
       </tr></thead>
       <tbody>
-      @foreach($periods as $p)
-        <tr><th scope="row" class="text-sm text-left pe-2">{{ $p->label() }}</th>
-        @foreach(\App\Domain\Reminders\ReminderService::WEEKDAYS_LONG as $wi => $wl)
+      @foreach(\App\Domain\Reminders\ReminderService::WEEKDAYS_LONG as $wi => $wl)
+        <tr><th scope="row" class="text-sm text-left pe-2">{{ $wl }}</th>
+        @foreach($periods as $p)
           <td><label class="rem-cell"><input type="checkbox" class="sr-only" name="cel[{{ $wi }}-{{ $p->value }}]" value="1" @checked(isset($cells[$wi.'-'.$p->value]))>
             <span class="sr-only">{{ $wl }}, {{ mb_strtolower($p->label()) }}</span><span class="on" aria-hidden="true">✓</span><span class="off" aria-hidden="true">–</span></label></td>
         @endforeach
@@ -59,7 +59,6 @@
       @endforeach
       </tbody>
     </table>
-    </div>
     <fieldset>
       <legend class="label">Horário de cada período</legend>
       <div class="flex flex-wrap gap-3">
@@ -74,7 +73,7 @@
       <select id="canal" name="canal" class="input sm:w-72">
         @foreach(\App\Domain\Reminders\ReminderService::CHANNELS as $ck => $cl)<option value="{{ $ck }}" @selected($channel === $ck)>{{ $cl }}</option>@endforeach
       </select>
-      <p class="hint mt-1">Beta: a grade fica salva; o envio dos lembretes ainda está sendo ligado.</p>
+      <p class="hint mt-1">Vale quando o envio for ligado; por enquanto nenhum aviso é enviado.</p>
     </div>
     <button class="btn-primary w-full sm:w-auto">Salvar lembretes</button>
   </form>

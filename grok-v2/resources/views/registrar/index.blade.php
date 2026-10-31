@@ -33,7 +33,7 @@
           <form method="get" action="{{ route('diary.today') }}" class="mt-2 flex flex-wrap items-end gap-2">
             <div>
               <label for="data" class="label">Dia</label>
-              <input id="data" type="date" name="data" max="{{ $today }}" value="{{ $date }}" class="input" required>
+              <input id="data" type="date" lang="pt-BR" name="data" max="{{ $today }}" value="{{ $date }}" class="input" required>
             </div>
             <div>
               <label for="periodo" class="label">Período</label>

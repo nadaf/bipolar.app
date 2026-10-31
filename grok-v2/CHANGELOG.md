@@ -13,6 +13,13 @@
 - Blocos sensíveis exigem desbloqueio de 10 minutos; recursos de outra pessoa respondem 404.
 - Testes: CSP por tela e isolamento (Pest); axe 0 serious/critical em 412px e 1280px, claro e escuro.
 
+### Revisão de usabilidade (31/10/2026)
+- Alertas: grade de lembretes com dias nas linhas (cabe em 375px) e aviso honesto de que o envio ainda não está ligado.
+- Clínica: remover profissional pede confirmação em diálogo acessível (Esc, foco volta ao botão); explica que o paciente é quem convida pelo Compartilhar.
+- PWA: aviso "Há uma versão nova" com botão Atualizar (Workbox SKIP_WAITING) e seção "Instalar o app" em Conta (botão nativo + instruções iOS/Android).
+- Títulos de aba neutros (sem nome do paciente nem data); familiar vê "Como ajudar" junto aos sinais, com CVV 188 e SAMU 192.
+- Campos de data com `lang="pt-BR"`; teste de navegador roda o Chrome em pt-BR (`--lang` + `LANGUAGE=pt_BR`).
+
 ### Marca
 - Ícones a partir do logo oficial (medidor de humor, redesenhado em SVG fiel ao PNG publicado): favicon.ico 16/32/48 e favicon.svg com modo escuro, apple-touch-icon, PWA 192/512 (any e maskable), monocromático e selo de notificação.
 - Abertura: cores no manifesto (Android), telas de abertura do iOS para iPhone e iPad, e abertura breve dentro do app instalado (só CSS, respeita redução de movimento).

@@ -9,7 +9,17 @@
     @if($loop->first)<ul class="divide-y divide-slate-200 dark:divide-slate-700">@endif
     <li class="py-2 flex flex-wrap items-center justify-between gap-2">
       <span><span class="font-medium block">{{ $p->name }}</span><span class="text-sm">{{ $p->email }}</span></span>
-      <form method="post" action="{{ route('clinic.remove', $p->id) }}">@csrf<button class="btn-secondary" aria-label="Remover {{ $p->name }}">Remover</button></form>
+      <form method="post" action="{{ route('clinic.remove', $p->id) }}" x-data="confirmarEnvio" x-on:submit="pedir">@csrf
+        <button class="btn-secondary" aria-label="Remover {{ $p->name }}" x-ref="gatilho">Remover</button>
+        <dialog x-ref="dlg" class="card m-auto max-w-sm" aria-labelledby="rm-t-{{ $p->id }}" aria-describedby="rm-d-{{ $p->id }}" x-on:close="voltar">
+          <h3 id="rm-t-{{ $p->id }}" class="font-semibold">Remover {{ $p->name }} da clínica?</h3>
+          <p id="rm-d-{{ $p->id }}" class="hint mt-1">A pessoa deixa de aparecer na clínica. A conta dela e os acessos que os pacientes deram continuam; dá para vincular de novo depois.</p>
+          <div class="mt-4 flex flex-wrap gap-2">
+            <button type="button" class="btn-danger" x-on:click="confirmar">Remover</button>
+            <button type="button" class="btn-secondary" x-on:click="cancelar" autofocus>Cancelar</button>
+          </div>
+        </dialog>
+      </form>
     </li>
     @if($loop->last)</ul>@endif
   @empty
@@ -26,5 +36,14 @@
     <button class="btn-primary">Vincular</button>
   </form>
   <p class="hint mt-2">A pessoa precisa ter criado conta antes. Convite por e-mail: em breve.</p>
+</section>
+<section class="card mt-4" aria-labelledby="pac-t">
+  <h2 id="pac-t" class="font-semibold mb-1">E os pacientes?</h2>
+  <p class="hint">Quem vincula é o próprio paciente, para proteger a privacidade dele: a clínica não adiciona pacientes nem vê registros.</p>
+  <ol class="mt-2 list-decimal ps-5 space-y-1 text-sm">
+    <li>O paciente cria a conta dele no Bipolar.</li>
+    <li>No app, ele abre <strong>Compartilhar</strong>, escolhe o tipo de profissional e o que quer mostrar, e cria o convite.</li>
+    <li>Ele envia o link ao profissional, que entra com a conta vinculada a esta clínica e aceita.</li>
+  </ol>
 </section>
 @endsection

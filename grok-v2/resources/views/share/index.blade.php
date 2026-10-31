@@ -29,8 +29,8 @@
       <select id="kind" name="grantee_kind" class="input sm:w-80">@foreach($kinds as $k => $l)<option value="{{ $k }}" @selected(old('grantee_kind') === $k)>{{ $l }}</option>@endforeach</select></div>
     @include('share._scopes', ['checked' => old('scope', ['humor', 'sono', 'estresse_alimentacao'])])
     <div class="grid gap-3 sm:grid-cols-2">
-      <div><label for="data_from" class="label">Mostrar registros a partir de <span class="font-normal">(opcional)</span></label><input id="data_from" type="date" name="data_from" class="input" value="{{ old('data_from') }}"></div>
-      <div><label for="expires_at" class="label">Acesso válido até <span class="font-normal">(opcional)</span></label><input id="expires_at" type="date" name="expires_at" class="input" value="{{ old('expires_at') }}" min="{{ now()->addDay()->toDateString() }}"></div>
+      <div><label for="data_from" class="label">Mostrar registros a partir de <span class="font-normal">(opcional)</span></label><input id="data_from" type="date" lang="pt-BR" name="data_from" class="input" value="{{ old('data_from') }}"></div>
+      <div><label for="expires_at" class="label">Acesso válido até <span class="font-normal">(opcional)</span></label><input id="expires_at" type="date" lang="pt-BR" name="expires_at" class="input" value="{{ old('expires_at') }}" min="{{ now()->addDay()->toDateString() }}"></div>
     </div>
     <button class="btn-primary">Criar convite</button>
     <p class="hint">Você recebe um link para enviar como preferir. Ele vale por 7 dias e só funciona uma vez.</p>

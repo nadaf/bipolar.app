@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', 'Dia '.$title.' — Bipolar')
+@section('title', 'Dia do histórico — Bipolar')
 @section('content')
 @php use App\Domain\Mood\Scales; @endphp
 <p><a href="{{ route('history', ['mes' => substr($date, 0, 7)]) }}">‹ Voltar ao calendário</a></p>

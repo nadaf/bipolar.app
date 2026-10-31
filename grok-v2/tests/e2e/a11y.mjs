@@ -15,7 +15,8 @@ fs.mkdirSync(OUT, { recursive: true });
 const browser = await puppeteer.launch({
   executablePath: process.env.CHROME || '/usr/bin/google-chrome',
   protocolTimeout: 60000,
-  args: ['--no-sandbox', '--host-resolver-rules=MAP *.bipolar.test 127.0.0.1:8123, MAP bipolar.test 127.0.0.1:8123'],
+  env: { ...process.env, LANGUAGE: 'pt_BR', LANG: 'pt_BR.UTF-8' }, // datas nativas em dd/mm/aaaa
+  args: ['--no-sandbox', '--lang=pt-BR', '--host-resolver-rules=MAP *.bipolar.test 127.0.0.1:8123, MAP bipolar.test 127.0.0.1:8123'],
 });
 const problems = [];
 const report = [];

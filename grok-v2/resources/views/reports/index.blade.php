@@ -1,5 +1,5 @@
 @extends('layouts.app')
-@section('title', ($readOnly ? 'Relatório de '.$who : 'Relatórios').' — Bipolar')
+@section('title', ($readOnly ? 'Relatório' : 'Relatórios').' — Bipolar')
 @section('content')
 @php
   use App\Domain\Mood\Scales;
@@ -29,8 +29,8 @@
     </div>
   </fieldset>
   <div class="mt-3 flex flex-wrap items-end gap-3">
-    <div><label for="de" class="label">De</label><input id="de" type="date" name="de" value="{{ $r['from'] }}" class="input"></div>
-    <div><label for="ate" class="label">Até</label><input id="ate" type="date" name="ate" value="{{ $r['to'] }}" class="input"></div>
+    <div><label for="de" class="label">De</label><input id="de" type="date" lang="pt-BR" name="de" value="{{ $r['from'] }}" class="input"></div>
+    <div><label for="ate" class="label">Até</label><input id="ate" type="date" lang="pt-BR" name="ate" value="{{ $r['to'] }}" class="input"></div>
     <button class="btn-primary">Aplicar</button>
   </div>
   <p class="hint mt-2">As datas valem quando “Personalizado” está marcado (até 1 ano).</p>
@@ -70,6 +70,18 @@
       <li class="stat"><span class="badge {{ $c }}"><span aria-hidden="true">{{ $s }}</span>&nbsp;{{ $l }}</span><p class="text-xl font-semibold mt-1">{{ $r['signals'][$k] }}</p></li>
     @endforeach
   </ul>
+  @if($readOnly && ($grantKind ?? null) === 'familiar')
+  <div class="info mt-3" role="note">
+    <h3 class="font-semibold">Como ajudar</h3>
+    <p class="mt-1">Um sinal não é um diagnóstico nem motivo de pânico: é um convite para conversar.</p>
+    <ul class="mt-1 list-disc ps-5 space-y-1">
+      <li>Pergunte como a pessoa está, sem julgar e sem cobrar registros.</li>
+      <li>Combine com ela o que fazer quando os sinais aparecerem e, se ela quiser, ajude a falar com quem a acompanha.</li>
+      <li>Sono muito curto, muita energia ou tristeza intensa por vários dias merecem atenção do profissional.</li>
+    </ul>
+    <p class="mt-1">Se houver risco: CVV <a class="underline font-semibold" href="tel:188">188</a> (24h, gratuito) · SAMU <a class="underline font-semibold" href="tel:192">192</a>.</p>
+  </div>
+  @endif
 </section>
 
 <section class="mt-4" aria-labelledby="dias-t">

@@ -7,6 +7,7 @@ module.exports = {
   sourcemap: false,
   inlineWorkboxRuntime: true,
   cleanupOutdatedCaches: true,
+  skipWaiting: false, // a nova versao espera o botao "Atualizar" (mensagem SKIP_WAITING)
   navigateFallback: '/offline.html',
   navigateFallbackDenylist: [/^\/api\//, /^\/instalar/],
   runtimeCaching: [

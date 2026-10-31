@@ -230,9 +230,60 @@ Alpine.data('confirmaPalavra', () => ({
   get bloqueado() { return !this.ok; },
 }));
 
+// Formulario com confirmacao: sem JS envia direto; com JS abre <dialog> modal (Esc fecha, foco volta ao gatilho).
+Alpine.data('confirmarEnvio', () => ({
+  ok: false,
+  pedir(e) {
+    if (this.ok) return;
+    e.preventDefault();
+    this.$refs.dlg.showModal();
+  },
+  confirmar() { this.ok = true; this.$refs.dlg.close(); this.$el.closest('form').requestSubmit(); },
+  cancelar() { this.$refs.dlg.close(); },
+  voltar() { if (!this.ok) this.$refs.gatilho.focus(); },
+}));
+
 window.Alpine = Alpine;
 Alpine.start();
 
+// PWA: aviso de versao nova (SW em espera) com botao "Atualizar" (Workbox ouve SKIP_WAITING).
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  navigator.serviceWorker.register('/sw.js', { scope: '/' });
+  const aviso = document.getElementById('sw-nova-versao');
+  const mostrar = (sw) => {
+    if (!aviso || !sw) return;
+    aviso.hidden = false;
+    aviso.querySelector('[data-sw-atualizar]').addEventListener('click', () => sw.postMessage({ type: 'SKIP_WAITING' }), { once: true });
+  };
+  navigator.serviceWorker.register('/sw.js', { scope: '/' }).then((reg) => {
+    if (reg.waiting && navigator.serviceWorker.controller) mostrar(reg.waiting);
+    reg.addEventListener('updatefound', () => {
+      const novo = reg.installing;
+      novo?.addEventListener('statechange', () => { if (novo.state === 'installed' && navigator.serviceWorker.controller) mostrar(novo); });
+    });
+  }).catch(() => {});
+  let recarregou = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => { if (!recarregou) { recarregou = true; window.location.reload(); } });
+}
+
+// PWA: instalar (beforeinstallprompt no Android/desktop; instrucoes manuais no iOS).
+{
+  const btn = document.querySelector('[data-pwa-instalar]');
+  const feito = document.querySelector('[data-pwa-instalado]');
+  const manual = document.querySelector('[data-pwa-manual]');
+  const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+  if (standalone && feito) { feito.hidden = false; if (manual) manual.hidden = true; }
+  let adiado = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    adiado = e;
+    if (btn) btn.hidden = false;
+  });
+  btn?.addEventListener('click', async () => {
+    if (!adiado) return;
+    adiado.prompt();
+    await adiado.userChoice.catch(() => null);
+    adiado = null;
+    btn.hidden = true;
+  });
+  window.addEventListener('appinstalled', () => { if (btn) btn.hidden = true; if (feito) feito.hidden = false; });
 }

@@ -53,6 +53,16 @@
 </section>
 @endif
 
+<section id="instalar" class="card mt-4" aria-labelledby="inst-t">
+  <h2 id="inst-t" class="font-semibold mb-1">Instalar o app</h2>
+  <p class="hint">Instalado, o Bipolar abre como um aplicativo, em tela cheia, e o registro feito sem internet é enviado quando a rede voltar.</p>
+  <p class="ok mt-2" data-pwa-instalado hidden>O app já está instalado neste aparelho.</p>
+  <button type="button" class="btn-primary mt-3" data-pwa-instalar hidden>Instalar no aparelho</button>
+  <div class="mt-3 text-sm" data-pwa-manual>
+    <p><strong>iPhone ou iPad (Safari):</strong> toque em Compartilhar <span aria-hidden="true">(□↑)</span> e depois em <strong>Adicionar à Tela de Início</strong>.</p>
+    <p class="mt-1"><strong>Android (Chrome):</strong> abra o menu <span aria-hidden="true">⋮</span> e toque em <strong>Instalar app</strong> ou <strong>Adicionar à tela inicial</strong>.</p>
+  </div>
+</section>
 <section id="seguranca" class="card mt-4" aria-labelledby="seg-t">
   <h2 id="seg-t" class="font-semibold mb-3">Segurança</h2>
   <p class="mb-2">Desbloqueio de blocos privados: <strong>{{ $unlocked ? 'ativo nesta sessão (10 min)' : 'bloqueado' }}</strong>.</p>

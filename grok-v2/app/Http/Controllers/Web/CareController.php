@@ -29,7 +29,7 @@ class CareController extends Controller
         abort_if($r === null, 404);
 
         return view('reports.index', ['r' => $r, 'preset' => in_array($preset, ['7', '30', '90', 'personalizado'], true) ? $preset : '30',
-            'who' => $r['patient_name'], 'readOnly' => true,
+            'who' => $r['patient_name'], 'readOnly' => true, 'grantKind' => $r['grant']->grantee_kind,
             'granted' => array_map(fn ($n) => CareGrantService::SCOPE_LABELS[$n], CareGrantService::names($r['grant']->scope_mask))]);
     }
 

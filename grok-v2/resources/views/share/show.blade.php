@@ -25,7 +25,7 @@
     @csrf
     @include('share._scopes', ['checked' => $current])
     <div><label for="expires_at" class="label">Acesso válido até</label>
-      <input id="expires_at" type="date" name="expires_at" class="input sm:w-60" value="{{ $g->expires_at?->toDateString() }}" min="{{ now()->addDay()->toDateString() }}"></div>
+      <input id="expires_at" type="date" lang="pt-BR" name="expires_at" class="input sm:w-60" value="{{ $g->expires_at?->toDateString() }}" min="{{ now()->addDay()->toDateString() }}"></div>
     <button class="btn-primary">Salvar permissões</button>
   </form>
   <form method="post" action="{{ route('share.revoke', $g->id) }}" class="mt-6 border-t border-slate-200 dark:border-slate-700 pt-4">
