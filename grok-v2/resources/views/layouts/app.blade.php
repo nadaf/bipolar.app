@@ -26,7 +26,7 @@
 @if($u)<meta name="owner" content="{{ hash('sha256', $u->id.'|'.config('app.key')) }}">@endif
 {{-- htmx: sem estilos inline (CSP), sem eval; 409/422/423 trocam o fragmento (mensagem acessivel) --}}
 <meta name="htmx-config" content='{"includeIndicatorStyles":false,"allowEval":false,"allowScriptTags":false,"selfRequestsOnly":true,"responseHandling":[{"code":"204","swap":false},{"code":"[23]..","swap":true},{"code":"409","swap":true,"error":false},{"code":"422","swap":true,"error":false},{"code":"423","swap":true,"error":false},{"code":"[45]..","swap":false,"error":true}]}'>
-<meta name="theme-color" content="#3b4f9a" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#294767" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#020617" media="(prefers-color-scheme: dark)">
 <meta name="description" content="Diário de humor para pessoas com transtorno bipolar: registro por período, histórico e relatório para o profissional.">
 <link rel="manifest" href="/manifest.webmanifest">
