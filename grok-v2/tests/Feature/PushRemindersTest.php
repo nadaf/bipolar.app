@@ -32,7 +32,10 @@ class FakePushSender implements PushSender
 
 function subPayload(string $tag = 'a'): array
 {
-    return ['endpoint' => "https://push.example.test/{$tag}", 'keys' => ['p256dh' => 'BNcRdreALRFXTkOOUHK1EtK2wtaz5Ry4YfYCA_0QTpQtUbVlUls0VJXg7A8u-Ts1XbjhazAkj7I99e8QcYP7DkM', 'auth' => 'tBHItJI5svbpez7KI4CCXg']];
+    // chaves de inscricao ficticias geradas na hora (nada de string com cara de segredo no repositorio)
+    $b64 = fn (string $raw): string => rtrim(strtr(base64_encode($raw), '+/', '-_'), '=');
+
+    return ['endpoint' => "https://push.example.test/{$tag}", 'keys' => ['p256dh' => $b64("\x04".str_repeat("\x11", 64)), 'auth' => $b64(str_repeat("\x22", 16))]];
 }
 
 function fakeSender(): FakePushSender
