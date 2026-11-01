@@ -1,3 +1,9 @@
+## [2.0.10] - 2026-11-01
+- /migrar-dados: botão "Copiar tudo de novo (não precisa de chave)": passa de novo pelo banco antigo (só leitura) e regrava, com a APP_KEY atual, as anotações e marcadores que sumiram ou não abrem. Não duplica e não mexe no que abre normalmente.
+- OLD_JUNTAR_CONTAS (opcional, e-mails separados por vírgula): junta os dados da 0.5 numa conta do 2.0 que já existia com o mesmo e-mail.
+- OLD_APP_KEY aceita a chave com ou sem "base64:". Quadro "Situação" na página.
+- Auto-update: confere o .env antes de mexer em qualquer coisa; se estiver inválido, avisa a linha e o nome (nunca o valor) e não atualiza.
+
 ## [2.0.9] - 2026-11-01
 
 - Reinstala o pacote completo por cima de uma instalacao misturada (atualizacao interrompida). Sem ponte.

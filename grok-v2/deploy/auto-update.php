@@ -23,6 +23,7 @@
  */
 
 declare(strict_types=1);
+use Dotenv\Parser\Parser;
 use Illuminate\Contracts\Console\Kernel;
 
 if (PHP_SAPI !== 'cli') {
@@ -96,7 +97,7 @@ final class BipolarAutoUpdate
             }
             $e = error_get_last();
             $e = ($e && in_array($e['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) ? $e : null;
-            $this->say('PARADA INESPERADA durante a atualizacao'.($e ? ': '.$e['message'].' ('.basename((string) $e['file']).':'.$e['line'].')' : '').'. Desfazendo.');
+            $this->say('PARADA INESPERADA durante a atualizacao'.($e ? ': '.$e['message'].' ('.basename((string) $e['file']).':'.$e['line'].')' : ' (sem erro do PHP: o Laravel encerrou; confira o .env)').'. Desfazendo.');
             $this->recover();
         });
 
@@ -274,6 +275,11 @@ final class BipolarAutoUpdate
         if (! is_file("$new/bipolar/vendor/autoload.php") || ! is_file("$new/$webName/index.php")) {
             $this->rmTree($work);
             throw new RuntimeException("zip sem bipolar/ ou $webName/. Nada alterado.");
+        }
+
+        if (($bad = $this->envProblem("$new/bipolar/vendor")) !== null) {
+            $this->rmTree($work);
+            throw new RuntimeException($bad.' O site nao liga assim. Corrija o .env (valor entre aspas simples). Nada alterado.');
         }
 
         $this->busy = true;
@@ -508,6 +514,49 @@ final class BipolarAutoUpdate
                 @chmod($f->getPathname(), $f->isDir() ? 0755 : 0644);
             }
         }
+    }
+
+    /**
+     * Le o .env com o mesmo leitor do Laravel (do pacote novo). Se nao der, diz a linha e o nome, nunca o valor.
+     * (Com .env invalido o Laravel encerra o PHP sem erro: site 500 vazio e atualizacao "parada inesperada".)
+     */
+    private function envProblem(string $vendor): ?string
+    {
+        $map = ['Dotenv\\' => '/vlucas/phpdotenv/src/', 'PhpOption\\' => '/phpoption/phpoption/src/PhpOption/', 'GrahamCampbell\\ResultType\\' => '/graham-campbell/result-type/src/'];
+        spl_autoload_register(function (string $c) use ($map, $vendor) {
+            foreach ($map as $ns => $dir) {
+                if (str_starts_with($c, $ns) && is_file($f = $vendor.$dir.str_replace('\\', '/', substr($c, strlen($ns))).'.php')) {
+                    require $f;
+
+                    return;
+                }
+            }
+        });
+        if (! class_exists('Dotenv\\Parser\\Parser')) {
+            return null; // pacote sem o leitor: nao da para conferir
+        }
+        $text = (string) @file_get_contents($this->app.'/.env');
+        $parser = new Parser;
+        try {
+            $parser->parse($text);
+
+            return null;
+        } catch (Throwable) {
+        }
+        foreach (preg_split('/\r\n|\n|\r/', $text) ?: [] as $i => $line) {
+            if (trim($line) === '' || str_starts_with(ltrim($line), '#')) {
+                continue;
+            }
+            try {
+                $parser->parse($line);
+            } catch (Throwable) {
+                $name = preg_match('/^\s*(?:export\s+)?([A-Za-z0-9_.]+)\s*=/', $line, $m) ? $m[1] : '(sem NOME=)';
+
+                return '.env invalido na linha '.($i + 1).' ('.$name.').';
+            }
+        }
+
+        return '.env invalido (valor com aspas que nao fecham?).';
     }
 
     /** So para o teste (smoke): simula a hospedagem matando o processo. */

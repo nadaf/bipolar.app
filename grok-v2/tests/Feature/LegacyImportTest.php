@@ -359,3 +359,42 @@ it('APP_KEY malformada: /migrar-dados explica e nao da 500', function () {
     $this->get('/migrar-dados?token='.LEGACY_TOKEN)->assertOk()->assertSee('APP_KEY= do .env parece errada')->assertDontSee('chave-sem-prefixo');
     $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertStatus(409)->assertSee('Nada foi feito');
 });
+
+it('copiar tudo de novo: sem chave nenhuma, traz de volta anotacoes e marcadores que nao abrem; idempotente', function () {
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN])->assertOk()->assertSee('Pronto!');
+    $blocks = DB::table('day_blocks')->count();
+    scrambleWithOtherKey();
+    config(['bipolar.old_app_key' => null]);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertOk(); // limpa (situacao do Ronaldo)
+    expect(DB::table('mood_entries')->whereNotNull('note')->count())->toBe(0);
+    $before = legacyChecksum();
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'recopiar'])->assertOk()->assertSee('Pronto!')->assertDontSee('anotacao ficticia');
+    expect(legacyChecksum())->toBe($before);
+    $uid = (int) DB::table('legacy_links')->where('kind', 'users')->where('legacy_id', 10)->value('new_id');
+    $tid = (int) DB::table('day_blocks')->where('patient_id', $uid)->value('tenant_id');
+    app(TenantContext::class)->run($tid, function () use ($uid) {
+        expect(MoodEntry::where('patient_id', $uid)->orderBy('id')->first()->note)->toBe('anotacao ficticia 0');
+        expect(DayBlock::where('patient_id', $uid)->get()->every(fn ($b) => $b->data !== []))->toBeTrue();
+    });
+    expect(DB::table('day_blocks')->count())->toBe($blocks)->and(DB::table('mood_entries')->count())->toBe(4);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'recopiar'])->assertOk();
+    expect(DB::table('mood_entries')->count())->toBe(4)->and(DB::table('day_blocks')->count())->toBe($blocks);
+});
+
+it('conta do 2.0 com o mesmo e-mail: so junta se o e-mail estiver em OLD_JUNTAR_CONTAS', function () {
+    $ana = User::factory()->create(['email' => 'ana@exemplo.test']);
+    runImport();
+    expect(DB::table('mood_entries')->where('patient_id', $ana->id)->count())->toBe(0);
+    config(['bipolar.old_merge_emails' => " 'Ana@Exemplo.test' "]);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'recopiar'])->assertOk()->assertSee('Pronto!');
+    expect(DB::table('mood_entries')->where('patient_id', $ana->id)->count())->toBe(4)
+        ->and(DB::table('day_blocks')->where('patient_id', $ana->id)->count())->toBeGreaterThan(0);
+});
+
+it('OLD_APP_KEY colada sem base64: tambem funciona', function () {
+    app(LegacyImporter::class)->run(60);
+    $key = scrambleWithOtherKey();
+    config(['bipolar.old_app_key' => substr($key, 7)]);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertOk()->assertSee('consertados com a chave antiga');
+    expect(DB::table('mood_entries')->whereNotNull('note')->count())->toBe(4);
+});

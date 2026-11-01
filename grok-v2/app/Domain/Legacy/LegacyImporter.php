@@ -48,6 +48,9 @@ final class LegacyImporter
 
     private int $skipped = 0;
 
+    /** "Copiar tudo de novo": passa de novo por tudo e regrava do banco antigo o que nao abre com a chave atual. */
+    private bool $refresh = false;
+
     public function __construct(private LegacyReader $old) {}
 
     /** Tabelas de controle existem no banco 2.0 (migration rodada pelo atualizador)? */
@@ -63,6 +66,7 @@ final class LegacyImporter
      */
     public function run(float $seconds = 20.0): array
     {
+        $this->refresh = $this->refreshing();
         $deadline = microtime(true) + $seconds;
         $first = true; // cada chamada anda pelo menos um lote (sempre progride)
         foreach (array_keys(self::STEPS) as $step) {
@@ -84,8 +88,38 @@ final class LegacyImporter
                 break;
             }
         }
+        $r = $this->report();
+        if ($this->refresh && $r['done']) {
+            DB::table('legacy_import_progress')->where('step', 'recopiar')->update(['done' => true, 'updated_at' => now()]);
+        }
 
-        return $this->report();
+        return $r;
+    }
+
+    /** Comeca "copiar tudo de novo" (se nao houver um em andamento). Nao apaga nada. */
+    public function startRefresh(): void
+    {
+        if ($this->refreshing()) {
+            return;
+        }
+        DB::table('legacy_import_progress')->updateOrInsert(['step' => 'recopiar'], ['last_id' => 0, 'done' => false, 'updated_at' => now()]);
+        DB::table('legacy_import_progress')->whereIn('step', array_keys(self::STEPS))
+            ->update(['last_id' => 0, 'done' => false, 'copied' => 0, 'skipped' => 0, 'notes' => null, 'updated_at' => now()]);
+    }
+
+    public function refreshing(): bool
+    {
+        $p = DB::table('legacy_import_progress')->where('step', 'recopiar')->first();
+
+        return $p !== null && ! $p->done;
+    }
+
+    /** E-mails que o administrador autorizou juntar a uma conta do 2.0 ja existente (OLD_JUNTAR_CONTAS). */
+    private function mergeAllowed(string $email): bool
+    {
+        $list = array_map(fn ($e) => strtolower(trim($e, " \t\n\r\"'")), explode(',', (string) config('bipolar.old_merge_emails')));
+
+        return $email !== '' && in_array($email, $list, true);
     }
 
     /** @return array{done: bool, steps: list<array{step: string, label: string, done: bool, copied: int, skipped: int, notes: array<string, int>}>} */
@@ -133,7 +167,12 @@ final class LegacyImporter
         $rows = $this->old->select("SELECT * FROM `{$table}` WHERE id > ? ORDER BY id LIMIT ".self::BATCH, [$after]);
         foreach ($rows as $r) {
             $after = (int) $r->id;
-            if ($this->linked($step, $after) !== false) {
+            $l = $this->linked($step, $after);
+            if ($l !== false) {
+                if ($this->refresh && method_exists($this, 'refresh'.ucfirst($step))) {
+                    DB::transaction(fn () => $this->{'refresh'.ucfirst($step)}($r, $l));
+                }
+
                 continue; // ja copiado numa rodada anterior
             }
             DB::transaction(fn () => $this->{'import'.ucfirst($step)}($r));
@@ -192,7 +231,7 @@ final class LegacyImporter
         }
         if (DB::table('users')->where('email', $email)->exists()) {
             $this->link('users', (int) $r->id, null);
-            $this->skip('e-mail já tinha conta no 2.0: conta e dados não copiados');
+            $this->refreshUsers($r, null);
 
             return;
         }
@@ -239,6 +278,73 @@ final class LegacyImporter
         $this->copied++;
     }
 
+    /** Conta ja ligada: nada. Sem conta: se o e-mail existe no 2.0 e foi autorizado em OLD_JUNTAR_CONTAS, junta. */
+    private function refreshUsers(object $r, ?int $linked): void
+    {
+        if ($linked !== null) {
+            return;
+        }
+        $email = strtolower(trim((string) $r->email));
+        $u = $email === '' ? null : DB::table('users')->where('email', $email)->first(['id', 'legacy_id']);
+        if ($u === null) {
+            return;
+        }
+        if (! $this->mergeAllowed($email)) {
+            $this->skip('e-mail já tinha conta no 2.0: dados não copiados (para juntar, coloque o e-mail em OLD_JUNTAR_CONTAS)');
+
+            return;
+        }
+        $now = now();
+        $tid = DB::table('memberships')->join('tenants', 'tenants.id', '=', 'memberships.tenant_id')
+            ->where('memberships.user_id', $u->id)->where('memberships.role', Membership::PATIENT)
+            ->where('tenants.kind', Tenant::PERSONAL)->value('memberships.tenant_id');
+        if ($tid === null) {
+            $tid = DB::table('tenants')->insertGetId(['kind' => Tenant::PERSONAL, 'name' => 'Pessoal', 'created_at' => $now, 'updated_at' => $now]);
+            DB::table('memberships')->insert(['tenant_id' => $tid, 'user_id' => $u->id, 'role' => Membership::PATIENT, 'created_at' => $now, 'updated_at' => $now]);
+        }
+        DB::table('alert_settings')->insertOrIgnore(['tenant_id' => $tid, 'patient_id' => $u->id, 'mood_low' => -2, 'mood_high' => 2,
+            'energy_low' => -2, 'energy_high' => 2, 'created_at' => $now, 'updated_at' => $now]);
+        if ($u->legacy_id === null) {
+            DB::table('users')->where('id', $u->id)->update(['legacy_id' => (int) $r->id]);
+        }
+        DB::table('legacy_links')->where('kind', 'users')->where('legacy_id', (int) $r->id)->update(['new_id' => $u->id]);
+        $this->note('conta do 2.0 com o mesmo e-mail: dados da 0.5 juntados nela (OLD_JUNTAR_CONTAS)');
+        $this->copied++;
+    }
+
+    /** Registro ja copiado: se sumiu ou a anotacao nao abre com a chave atual, traz de novo do banco antigo. */
+    private function refreshEntries(object $r, ?int $linked): void
+    {
+        $row = $linked === null ? null : DB::table('mood_entries')->where('id', $linked)->first(['id', 'note']);
+        if ($row === null) {
+            DB::table('legacy_links')->where('kind', 'entries')->where('legacy_id', (int) $r->id)->delete();
+            $this->importEntries($r);
+
+            return;
+        }
+        $note = trim((string) $r->note);
+        if ($note !== '' && ($row->note === null || DataKeys::current((string) $row->note) === null)) {
+            DB::table('mood_entries')->where('id', $row->id)->update(['note' => DataKeys::seal(mb_substr($note, 0, 5000))]);
+            $this->note('anotações trazidas de novo do banco antigo');
+            $this->copied++;
+        }
+    }
+
+    private function refreshDaily(object $r): void
+    {
+        $this->importDaily($r);
+    }
+
+    private function refreshPeriod(object $r): void
+    {
+        $this->importPeriod($r);
+    }
+
+    private function refreshSexuality(object $r): void
+    {
+        $this->importSexuality($r);
+    }
+
     private function importEntries(object $r): void
     {
         $o = $this->owner((int) $r->user_id);
@@ -282,6 +388,18 @@ final class LegacyImporter
             if ($data === []) {
                 continue;
             }
+            if ($this->refresh) {
+                $key = ['tenant_id' => $tid, 'patient_id' => $uid, 'entry_date' => $date, 'period' => $period, 'block' => $block];
+                $cur = DB::table('day_blocks')->where($key)->value('data');
+                if ($cur !== null && DataKeys::current((string) $cur) !== null) {
+                    continue; // abre com a chave atual: fica como esta (pode ter sido editado no 2.0)
+                }
+                if ($cur !== null) {
+                    $n += DB::table('day_blocks')->where($key)->update(['data' => DataKeys::seal((string) json_encode($data)), 'updated_at' => now()]);
+
+                    continue;
+                }
+            }
             $n += DB::table('day_blocks')->insertOrIgnore([
                 'tenant_id' => $tid, 'patient_id' => $uid, 'entry_date' => $date, 'period' => $period, 'block' => $block,
                 'data' => DataKeys::seal((string) json_encode($data)), 'version' => 1,
@@ -295,6 +413,9 @@ final class LegacyImporter
     private function dayRow(string $kind, object $r, callable $build): void
     {
         $o = $this->owner((int) $r->user_id);
+        if ($o === null && $this->refresh && $this->linked($kind, (int) $r->id) !== false) {
+            return;
+        }
         if ($o === null) {
             $this->link($kind, (int) $r->id, null);
             $this->skip('dono do registro não foi copiado');
@@ -304,6 +425,14 @@ final class LegacyImporter
         [$uid, $tid] = $o;
         [$period, $blocks] = $build($r);
         $n = $this->blocks($tid, $uid, (string) $r->entry_date, $period, $blocks, $r->updated_at ?? null);
+        if ($this->refresh && $this->linked($kind, (int) $r->id) !== false) {
+            if ($n > 0) {
+                $this->note('marcadores trazidos de novo do banco antigo');
+                $this->copied++;
+            }
+
+            return;
+        }
         $this->link($kind, (int) $r->id, null);
         if ($n === 0) {
             $this->skip('linha sem nenhum valor preenchido');

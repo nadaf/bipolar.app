@@ -8,6 +8,15 @@
 @if($message)<p role="status"><strong>{{ $message }}</strong></p>@endif
 @if(! $message && $appKeyProblem)<p role="alert"><strong>{{ $appKeyProblem }}</strong></p>@endif
 @if(! $message && $oldKeyProblem)<p role="alert"><strong>{{ $oldKeyProblem }}</strong></p>@endif
+@if(! $message)
+<h2>Situação</h2>
+<ul>
+  <li>Banco antigo (linhas OLD_DB_ no .env): {{ $noOld ? 'não configurado' : 'configurado' }}</li>
+  <li>Chave atual (APP_KEY): {{ $appKeyProblem ? 'com problema (veja o aviso)' : 'ok' }}</li>
+  <li>Chave antiga (OLD_APP_KEY, opcional): {{ $oldKeyProblem ? 'com problema (veja o aviso)' : 'ok ou não usada' }}</li>
+  @if($refreshing)<li><strong>Cópia de novo em andamento: clique em "Continuar a cópia de novo".</strong></li>@endif
+</ul>
+@endif
 @if($error)<p role="alert"><strong>{{ $error }}</strong></p>@endif
 @if($report)
   <h2>{{ $report['done'] ? 'Pronto! Tudo foi copiado.' : 'Ainda falta uma parte: clique em "Continuar".' }}</h2>
@@ -40,7 +49,11 @@
   <form method="post" action="/migrar-dados">
     <label for="token">Código (o mesmo do INSTALLER_TOKEN no .env)</label><br>
     <input id="token" name="token" type="password" required autocomplete="off" size="50" value="{{ $token }}">
-    @unless($noOld)<button name="acao" value="copiar">{{ $report && ! $report['done'] ? 'Continuar' : 'Copiar dados da versão antiga' }}</button>@endunless
+    @unless($noOld)
+      @if($refreshing)<button name="acao" value="recopiar">Continuar a cópia de novo</button>
+      @else<button name="acao" value="copiar">{{ $report && ! $report['done'] ? 'Continuar' : 'Copiar dados da versão antiga' }}</button>
+      <button name="acao" value="recopiar">Copiar tudo de novo (não precisa de chave)</button>@endif
+    @endunless
     <button name="acao" value="consertar">Consertar dados</button>
     @if($repair && $repair['native'])<button name="acao" value="limpar">Limpar os {{ $repair['native'] }} que não abrem</button>@endif
   </form>

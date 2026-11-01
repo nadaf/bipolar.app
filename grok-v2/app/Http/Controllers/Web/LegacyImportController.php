@@ -39,7 +39,7 @@ class LegacyImportController extends Controller
         }
 
         return ['message' => $message, 'error' => null, 'report' => null, 'notCopied' => [], 'repair' => null,
-            'noOld' => ! LegacyReader::configured(), 'appKeyProblem' => DataKeys::appKeyProblem(), 'oldKeyProblem' => DataKeys::oldKeyProblem(),
+            'noOld' => ! LegacyReader::configured(), 'refreshing' => LegacyImporter::ready() && app(LegacyImporter::class)->refreshing(), 'appKeyProblem' => DataKeys::appKeyProblem(), 'oldKeyProblem' => DataKeys::oldKeyProblem(),
             'token' => $tokenOk ? (string) $request->query('token', '') : ''];
     }
 
@@ -102,7 +102,8 @@ class LegacyImportController extends Controller
             }
             $v['token'] = (string) $request->input('token');
             $acao = (string) $request->input('acao', 'copiar');
-            if ($v['appKeyProblem'] !== null || $v['oldKeyProblem'] !== null) {
+            $keyBlock = $acao === 'recopiar' ? $v['appKeyProblem'] : ($v['appKeyProblem'] ?? $v['oldKeyProblem']);
+            if ($keyBlock !== null) {
                 $v['error'] = 'Nada foi feito: arrume primeiro o aviso sobre a chave acima.';
                 $v['report'] = $importer->report();
                 $v['repair'] = $repair->report();
@@ -128,6 +129,9 @@ class LegacyImportController extends Controller
                 return [$v, 409];
             }
             $start = microtime(true);
+            if ($acao === 'recopiar') {
+                $importer->startRefresh(); // nao recomeca se ja estiver em andamento
+            }
             $wasDone = $importer->report()['done'];
             $v['report'] = $importer->run(20.0);
             if ($v['report']['done']) {

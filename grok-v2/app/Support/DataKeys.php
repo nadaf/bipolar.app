@@ -25,6 +25,10 @@ final class DataKeys
 
             return is_string($b) ? $b : null;
         }
+        // colada sem o "base64:" (44 caracteres que viram 32 bytes)
+        if (strlen($k) !== 32 && ($b = base64_decode($k, true)) !== false && strlen($b) === 32) {
+            return $b;
+        }
 
         return $k;
     }
