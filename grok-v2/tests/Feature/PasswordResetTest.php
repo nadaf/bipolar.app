@@ -46,8 +46,9 @@ it('so o hash do token fica no banco; link assinado, uso unico, troca a senha e 
     $token = $m[1];
     $row = DB::table('password_resets')->first();
     expect($row->token_hash)->toBe(hash('sha256', $token))->and(DB::table('password_resets')->where('token_hash', $token)->exists())->toBeFalse();
-    // link sem signature => 403
-    $this->get('/redefinir-senha/'.$token)->assertForbidden();
+    // link sem signature ou adulterado => 410 com tela em pt-BR (sem formulario)
+    $this->get('/redefinir-senha/'.$token)->assertStatus(410)->assertSee('Pedir link novo')->assertDontSee('Salvar senha nova');
+    $this->get(str_replace('signature=', 'signature=0', $url))->assertStatus(410)->assertDontSee('Invalid signature');
     $this->get($url)->assertOk()->assertSee('Criar senha nova');
     $this->post('/redefinir-senha', ['token' => $token, 'password' => 'senha-muito-boa-1', 'password_confirmation' => 'senha-muito-boa-1'])
         ->assertRedirect('/entrar');

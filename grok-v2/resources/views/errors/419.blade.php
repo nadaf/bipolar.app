@@ -1,0 +1,5 @@
+@extends('errors.minimal')
+@section('title', 'Sua sessão expirou')
+@section('message', 'Por segurança, a página ficou aberta tempo demais. Volte, recarregue a página e envie de novo — o que não foi salvo precisa ser preenchido outra vez.')
+@section('action', 'Entrar de novo')
+@section('href', '/entrar')

@@ -56,3 +56,9 @@ it('conta tem instalacao do PWA com instrucoes para iOS e Android (A4) e o layou
 it('campos de data declaram pt-BR (A9)', function () {
     $this->actingAs(patient())->get('/relatorios')->assertOk()->assertSee('type="date" lang="pt-BR"', false);
 });
+
+it('mostra paginas de erro em pt-BR com caminho de volta e ajuda em crise', function () {
+    $this->get('/nao-existe-'.uniqid())->assertNotFound()
+        ->assertSee('Página não encontrada')->assertSee('Ir para o início')->assertSee('CVV 188')
+        ->assertDontSee('Not Found');
+});

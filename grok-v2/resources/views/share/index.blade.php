@@ -10,7 +10,7 @@
     @php $st = \App\Domain\Care\CareGrantService::status($g); @endphp
     @if($loop->first)<ul class="space-y-2">@endif
     <li><a href="{{ route('share.show', $g->id) }}" class="card flex items-center justify-between gap-3 no-underline text-inherit hover:border-blue-800">
-      <span><span class="font-semibold block">{{ $names[$g->grantee_user_id] ?? 'Convite #'.$g->id }}</span>
+      <span><span class="font-semibold block">{{ $names[$g->grantee_user_id] ?? 'Convite de '.$g->created_at?->format('d/m/Y') }}</span>
         <span class="text-sm">{{ $kinds[$g->grantee_kind] ?? $g->grantee_kind }} · {{ count(\App\Domain\Care\CareGrantService::names($g->scope_mask)) }} categoria(s)@if($g->expires_at) · até {{ $g->expires_at->format('d/m/Y') }}@endif</span></span>
       <span class="badge {{ ['ativo' => 'badge-ok', 'pendente' => 'badge-warn'][$st] ?? 'badge-muted' }}">{{ \App\Domain\Care\CareGrantService::STATUS_LABELS[$st] }}</span>
     </a></li>

@@ -21,7 +21,7 @@ Route::get('/entrar', [SessionController::class, 'form'])->name('login');
 Route::post('/entrar', [SessionController::class, 'login'])->middleware('throttle:auth');
 Route::get('/esqueci-senha', [PasswordResetController::class, 'form'])->middleware('guest')->name('password.forgot');
 Route::post('/esqueci-senha', [PasswordResetController::class, 'send'])->middleware(['guest', 'throttle:password-reset'])->name('password.forgot.send');
-Route::get('/redefinir-senha/{token}', [PasswordResetController::class, 'edit'])->middleware(['guest', 'signed', 'throttle:30,1'])->name('password.reset');
+Route::get('/redefinir-senha/{token}', [PasswordResetController::class, 'edit'])->middleware(['guest', 'throttle:30,1'])->name('password.reset');
 Route::post('/redefinir-senha', [PasswordResetController::class, 'update'])->middleware(['guest', 'throttle:auth'])->name('password.update');
 Route::get('/criar-conta', [SessionController::class, 'signupForm'])->middleware('guest')->name('signup');
 Route::post('/criar-conta', [SessionController::class, 'signup'])->middleware(['guest', 'throttle:auth']);

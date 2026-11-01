@@ -97,7 +97,7 @@
   .cal-day { @apply flex flex-col items-center justify-start gap-0.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 min-h-14 py-1 no-underline text-slate-900 dark:text-slate-100; }
   .cal-day[aria-current='date'] { @apply border-2 border-blue-800 dark:border-blue-300; }
   .cal-day.vazio { @apply bg-transparent border-transparent; }
-  .cal-day.futuro { @apply opacity-50; }
+  .cal-day.futuro { @apply bg-slate-50 dark:bg-slate-800 text-slate-600 dark:text-slate-400; }
   .dots { @apply flex gap-px text-[0.6rem] leading-none; }
   .dot { @apply inline-flex size-3.5 items-center justify-center rounded-sm font-bold; }
   .dot-none { @apply text-slate-500 dark:text-slate-400; }

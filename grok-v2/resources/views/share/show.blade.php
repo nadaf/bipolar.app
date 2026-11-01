@@ -3,7 +3,7 @@
 @section('content')
 @php use App\Domain\Care\CareGrantService as S; @endphp
 <p><a href="{{ route('share') }}">‹ Compartilhar</a></p>
-<h1 class="text-xl font-semibold mt-2">{{ $name ?? 'Convite #'.$g->id }} <span class="badge {{ ['ativo' => 'badge-ok', 'pendente' => 'badge-warn'][$status] ?? 'badge-muted' }} align-middle">{{ S::STATUS_LABELS[$status] }}</span></h1>
+<h1 class="text-xl font-semibold mt-2">{{ $name ?? 'Convite de '.$g->created_at?->format('d/m/Y') }} <span class="badge {{ ['ativo' => 'badge-ok', 'pendente' => 'badge-warn'][$status] ?? 'badge-muted' }} align-middle">{{ S::STATUS_LABELS[$status] }}</span></h1>
 <p class="hint">{{ $kinds[$g->grantee_kind] ?? $g->grantee_kind }}@if($g->data_from) · registros desde {{ \Carbon\Carbon::parse($g->data_from)->format('d/m/Y') }}@endif @if($g->expires_at) · válido até {{ $g->expires_at->format('d/m/Y') }}@endif</p>
 
 @if($link)

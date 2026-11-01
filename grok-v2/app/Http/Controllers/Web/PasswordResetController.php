@@ -30,7 +30,8 @@ class PasswordResetController extends Controller
 
     public function edit(Request $request, PasswordReset $reset, string $token)
     {
-        $valid = $reset->find($token, $request->getHost()) !== null;
+        // link assinado conferido aqui (e nao no middleware) para link vencido/adulterado cair na tela em pt-BR
+        $valid = $request->hasValidSignature() && $reset->find($token, $request->getHost()) !== null;
 
         return response()->view('auth.reset', ['token' => $token, 'valid' => $valid], $valid ? 200 : 410);
     }

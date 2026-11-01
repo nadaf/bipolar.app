@@ -19,9 +19,11 @@
   </div>
   <button class="btn-primary w-full">Salvar senha nova</button>
 </form>
+<p class="mt-4 text-center"><a href="{{ route('login') }}">Voltar para Entrar</a></p>
 @else
 <p class="warn" role="alert">Este link expirou ou já foi usado. Peça um link novo.</p>
-<p class="mt-4"><a href="{{ route('password.forgot') }}">Pedir link novo</a></p>
+<p class="mt-4"><a class="btn-primary inline-flex" href="{{ route('password.forgot') }}">Pedir link novo</a></p>
+<p class="mt-4"><a href="{{ route('login') }}">Voltar para Entrar</a></p>
 @endif
 </div>
 @endsection
