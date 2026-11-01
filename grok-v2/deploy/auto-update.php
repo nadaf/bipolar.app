@@ -469,6 +469,9 @@ final class BipolarAutoUpdate
 
             return false;
         }
+        // permissoes padrao (suPHP da 500 com pasta 777/arquivo gravavel por grupo)
+        $this->fixPerms($sa);
+        $this->fixPerms($sw);
         // preparar a pasta nova: .env, .htaccess customizado; storage vem da atual
         $this->rmTree($sa.'/storage');
         if (! @copy($this->app.'/.env', $sa.'/.env')) {
@@ -493,6 +496,18 @@ final class BipolarAutoUpdate
         $this->mustRename($sw, $this->web);
 
         return true;
+    }
+
+    private function fixPerms(string $dir): void
+    {
+        @chmod($dir, 0755);
+        $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::SELF_FIRST);
+        foreach ($it as $f) {
+            /** @var SplFileInfo $f */
+            if (! $f->isLink()) {
+                @chmod($f->getPathname(), $f->isDir() ? 0755 : 0644);
+            }
+        }
     }
 
     /** So para o teste (smoke): simula a hospedagem matando o processo. */

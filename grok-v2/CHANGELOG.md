@@ -1,3 +1,8 @@
+## [2.0.9] - 2026-11-01
+
+- Reinstala o pacote completo por cima de uma instalacao misturada (atualizacao interrompida). Sem ponte.
+- Auto-update: acerta permissoes (pastas 755, arquivos 644) e limpa o cache antes de ligar o site.
+
 ## [2.0.7] - 2026-11-01
 - Atualização automática à prova de processo morto: cada etapa é anotada antes de começar (`storage/app/auto-update-estado.json`); se a hospedagem matar o processo, a próxima execução (ou o `register_shutdown_function`) volta a versão anterior e tira da manutenção. Erros fatais vão para o `auto-update.log`.
 - Troca por renomear pastas (`.bipolar-novo` → `bipolar`, anterior em `.bipolar-anterior`), quase instantânea, em vez de copiar arquivo por arquivo; cópia arquivo a arquivo só se renomear não funcionar.
