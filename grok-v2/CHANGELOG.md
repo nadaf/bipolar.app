@@ -1,3 +1,8 @@
+## [2.0.5] - 2026-11-01
+- Correção: tela do paciente dava erro 500 (`The MAC is invalid`) quando um dado cifrado não abria com a `APP_KEY` atual (dados copiados da 0.5 cifrados com outra chave). Campos cifrados (anotações, marcadores do dia, segredo e códigos da verificação em duas etapas) agora usam um cast tolerante: valor ilegível vira vazio e só um aviso sem conteúdo vai para o log.
+- Importador confere que cada valor cifrado abre com a chave atual antes de gravar.
+- `/migrar-dados`: botão "Consertar dados copiados" (idempotente). Com `OLD_APP_KEY` (APP_KEY antiga do 2.0) no `.env`, recifra com a chave atual; sem ela, limpa o que não abre e mostra quantos. "Copiar dados" de novo também roda o conserto.
+
 ## [2.0.4] - 2026-11-01
 - Trazer dados do Bipolar 0.5: página `/migrar-dados` (com o `INSTALLER_TOKEN`) e `php artisan bipolar:import-legacy`. Banco antigo só lido (conexão `legado`, usuário só SELECT, sessão READ ONLY), em lotes, pode repetir sem duplicar, mostra só contagens. Nunca roda sozinho. Ver `docs/MIGRATION-FROM-0.5.md` e o LEIA-ME.
 - Login aceita as senhas da 0.5 (bcrypt e Argon2id) e regrava em bcrypt no primeiro acesso.

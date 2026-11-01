@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\SafeEncrypted;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -44,8 +45,8 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'mfa_enabled_at' => 'datetime',
-            'mfa_totp_secret' => 'encrypted',
-            'mfa_recovery_codes' => 'encrypted:array',
+            'mfa_totp_secret' => SafeEncrypted::class,
+            'mfa_recovery_codes' => SafeEncrypted::class.':array',
             'mfa_last_step' => 'integer',
             'password' => 'hashed',
             'email_change_expires_at' => 'datetime',

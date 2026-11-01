@@ -20,13 +20,23 @@
     <h2>Não existe no 2.0 (fica só no banco antigo)</h2>
     <ul>@foreach($notCopied as $what => $n)<li>{{ $what }}: {{ $n }}</li>@endforeach</ul>
   @endif
+  @if($repair)
+    <h2>Conferência dos dados copiados{{ $repair['done'] ? '' : ' (em andamento: clique em "Consertar dados copiados" de novo)' }}</h2>
+    <ul>
+      <li>{{ $repair['ok'] }} itens abrem normalmente</li>
+      <li>{{ $repair['fixed'] }} consertados com a chave antiga (OLD_APP_KEY)</li>
+      @if($repair['cleared'])<li><strong>{{ $repair['cleared'] }} anotações/marcadores não puderam ser lidos sem a chave antiga e foram limpos</strong> (ainda estão no banco antigo; copie de novo para trazer)</li>@endif
+    </ul>
+  @endif
   @if($report['done'])<p>Agora entre com uma conta antiga para conferir e depois apague as linhas OLD_DB_ do .env.</p>@endif
 @endif
 @if(! $message)
+  @if($noOld)<p role="status"><strong>Faltam as linhas OLD_DB_ no arquivo .env (dados do banco antigo). Sem elas dá para usar só "Consertar dados copiados". Veja o LEIA-ME.</strong></p>@endif
   <form method="post" action="/migrar-dados">
     <label for="token">Código (o mesmo do INSTALLER_TOKEN no .env)</label><br>
     <input id="token" name="token" type="password" required autocomplete="off" size="50" value="{{ $token }}">
-    <button>{{ $report && ! $report['done'] ? 'Continuar' : 'Copiar dados da versão antiga' }}</button>
+    @unless($noOld)<button name="acao" value="copiar">{{ $report && ! $report['done'] ? 'Continuar' : 'Copiar dados da versão antiga' }}</button>@endunless
+    <button name="acao" value="consertar">Consertar dados copiados</button>
   </form>
 @endif
 </main></body></html>

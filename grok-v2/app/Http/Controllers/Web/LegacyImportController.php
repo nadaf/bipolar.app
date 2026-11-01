@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Web;
 
 use App\Domain\Legacy\LegacyImporter;
 use App\Domain\Legacy\LegacyReader;
+use App\Domain\Legacy\LegacyRepair;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 
@@ -29,13 +30,12 @@ class LegacyImportController extends Controller
         $message = null;
         if (! $tokenOk) {
             $message = 'A página está desligada. Para usar, coloque no .env a linha INSTALLER_TOKEN= com um código de 32 letras/números ou mais.';
-        } elseif (! LegacyReader::configured()) {
-            $message = 'Faltam as linhas OLD_DB_ no arquivo .env (dados do banco antigo). Veja o passo a passo no LEIA-ME. Nada foi feito.';
         } elseif (! LegacyImporter::ready()) {
             $message = 'O banco do 2.0 ainda não foi atualizado para esta versão. Aguarde a atualização automática ou abra /atualizar. Nada foi feito.';
         }
 
-        return ['message' => $message, 'error' => null, 'report' => null, 'notCopied' => [],
+        return ['message' => $message, 'error' => null, 'report' => null, 'notCopied' => [], 'repair' => null,
+            'noOld' => ! LegacyReader::configured(),
             'token' => $tokenOk ? (string) $request->query('token', '') : ''];
     }
 
@@ -44,12 +44,13 @@ class LegacyImportController extends Controller
         $v = $this->base($request);
         if ($v['message'] === null && hash_equals($this->token(), (string) $request->query('token'))) {
             $v['report'] = $importer->report(); // so leitura do 2.0, mostra progresso de rodadas anteriores
+            $v['repair'] = app(LegacyRepair::class)->report();
         }
 
         return response()->view('legacy-import', $v)->header('Referrer-Policy', 'no-referrer');
     }
 
-    public function run(Request $request, LegacyReader $old, LegacyImporter $importer)
+    public function run(Request $request, LegacyReader $old, LegacyImporter $importer, LegacyRepair $repair)
     {
         $v = $this->base($request);
         $v['token'] = '';
@@ -63,16 +64,40 @@ class LegacyImportController extends Controller
             return response()->view('legacy-import', $v, 403);
         }
         $v['token'] = (string) $request->input('token');
+        @set_time_limit(90);
+        if ($request->input('acao') === 'consertar') {
+            try {
+                $repair->restartIfDone();
+                $v['repair'] = $repair->run(20.0);
+            } catch (\Throwable $e) {
+                report($e);
+                $v['error'] = 'O conserto parou por um erro. Clique de novo; se repetir, me mande o arquivo storage/logs/laravel.log.';
+                $v['repair'] = $repair->report();
+            }
+            $v['report'] = $importer->report();
+
+            return response()->view('legacy-import', $v);
+        }
+        if ($v['noOld']) {
+            $v['error'] = 'Faltam as linhas OLD_DB_ no arquivo .env (dados do banco antigo). Veja o passo a passo no LEIA-ME. Nada foi copiado.';
+
+            return response()->view('legacy-import', $v, 409);
+        }
         if ($problem = $old->problem()) {
             $v['error'] = $problem;
 
             return response()->view('legacy-import', $v, 409);
         }
-        @set_time_limit(90);
         try {
+            $start = microtime(true);
+            $wasDone = $importer->report()['done'];
             $v['report'] = $importer->run(20.0);
             if ($v['report']['done']) {
                 $v['notCopied'] = $importer->notCopied();
+                if ($wasDone) {
+                    $repair->restartIfDone(); // "Copiar" de novo tambem confere/conserta o que ja foi copiado
+                }
+                $v['repair'] = $repair->run(max(1.0, 20.0 - (microtime(true) - $start)));
             }
         } catch (\Throwable $e) {
             report($e);

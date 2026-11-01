@@ -3,6 +3,8 @@
 return [
     // Instalador web de uso unico. Vazio/curto => desligado.
     'installer_token' => env('INSTALLER_TOKEN'),
+    // Chave(s) APP_KEY antiga(s) do 2.0, so para consertar dados cifrados com ela (separe por virgula).
+    'old_app_key' => env('OLD_APP_KEY'),
     // Edicao: 'community' (publico) ou 'saas' (quando o pacote privado estiver instalado).
     'edition' => env('BIPOLAR_EDITION', 'community'),
     // Dominio base dos subdominios <slug>.bipolar.app.br. O host do APP_URL tambem conta como principal.

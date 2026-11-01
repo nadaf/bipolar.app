@@ -46,3 +46,7 @@ Na 0.5 a energia era intensidade 0..3 (rótulos: nenhuma, leve, moderada, intens
 Conversão (`Scales::ENERGY_FROM_LEGACY`): `0 → −2 (Baixa)`, `1 → 0 (Normal)`, `2 → +1 (Um pouco alta)`, `3 → +2 (Alta)`.
 O valor original fica em `mood_entries.energy_legacy` para auditoria e para refazer a conversão se a regra mudar.
 Valor fora de 0..3 → energia vazia (contado nos avisos).
+
+## Erro "The MAC is invalid" depois de copiar (2.0.4 → 2.0.5)
+
+A 0.5 guarda anotações e marcadores em texto puro (só a chave de IA e o segredo de 2FA eram cifrados, com `secret_key` de `app/config.php`, e não são copiados). O 2.0 cifra esses dados com a `APP_KEY`. Se a `APP_KEY` em uso na tela for diferente da usada na cópia, o valor não abre. Desde a 2.0.5: a tela não quebra (cast `App\Casts\SafeEncrypted`), e `/migrar-dados` → "Consertar dados copiados" recifra com `OLD_APP_KEY` (a APP_KEY antiga do 2.0, `base64:...`, pode ter várias separadas por vírgula) ou limpa o que não abre; depois é só "Copiar dados" de novo.

@@ -5,7 +5,7 @@ namespace App\Domain\Legacy;
 use App\Domain\Mood\Scales;
 use App\Models\Membership;
 use App\Models\Tenant;
-use Illuminate\Support\Facades\Crypt;
+use App\Support\DataKeys;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -266,7 +266,7 @@ final class LegacyImporter
             'anxiety' => $this->int($r->anxiety, 0, 3), 'irritability' => $this->int($r->irritability, 0, 3),
             'sleep_hours' => is_numeric($r->sleep_hours) && $r->sleep_hours >= 0 && $r->sleep_hours <= 24 ? $r->sleep_hours : null,
             'medication_taken' => $r->medication_taken === null ? null : (int) ((bool) $r->medication_taken),
-            'note' => $note === '' ? null : Crypt::encryptString(mb_substr($note, 0, 5000)),
+            'note' => $note === '' ? null : DataKeys::seal(mb_substr($note, 0, 5000)),
             'client_uuid' => $uuid, 'created_at' => $r->created_at, 'updated_at' => $r->updated_at,
         ]);
         $this->link('entries', (int) $r->id, $id);
@@ -284,7 +284,7 @@ final class LegacyImporter
             }
             $n += DB::table('day_blocks')->insertOrIgnore([
                 'tenant_id' => $tid, 'patient_id' => $uid, 'entry_date' => $date, 'period' => $period, 'block' => $block,
-                'data' => Crypt::encryptString((string) json_encode($data)), 'version' => 1,
+                'data' => DataKeys::seal((string) json_encode($data)), 'version' => 1,
                 'created_at' => $updated ?: now(), 'updated_at' => $updated ?: now(),
             ]);
         }

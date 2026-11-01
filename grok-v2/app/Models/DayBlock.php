@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\SafeEncrypted;
 use App\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
@@ -30,7 +31,7 @@ class DayBlock extends Model
 
     protected function casts(): array
     {
-        return ['entry_date' => 'date:Y-m-d', 'data' => 'encrypted:array', 'version' => 'integer', 'patient_id' => 'integer'];
+        return ['entry_date' => 'date:Y-m-d', 'data' => SafeEncrypted::class.':array,empty', 'version' => 'integer', 'patient_id' => 'integer'];
     }
 
     public function scopeOwnedBy(Builder $q, User $user): void

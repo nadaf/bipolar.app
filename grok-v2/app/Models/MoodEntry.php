@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Casts\SafeEncrypted;
 use App\Domain\Mood\Period;
 use App\Tenancy\BelongsToTenant;
 use Illuminate\Database\Eloquent\Builder;
@@ -45,7 +46,7 @@ class MoodEntry extends Model
             'irritability' => 'integer',
             'sleep_hours' => 'float',
             'medication_taken' => 'boolean',
-            'note' => 'encrypted',
+            'note' => SafeEncrypted::class,
             'version' => 'integer',
         ];
     }

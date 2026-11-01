@@ -2,6 +2,7 @@
 
 use App\Domain\Legacy\LegacyImporter;
 use App\Domain\Legacy\LegacyReader;
+use App\Domain\Legacy\LegacyRepair;
 use App\Domain\Mood\Scales;
 use App\Models\CareGrant;
 use App\Models\DayBlock;
@@ -9,6 +10,8 @@ use App\Models\MoodEntry;
 use App\Models\User;
 use App\Tenancy\TenantContext;
 use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Encryption\Encrypter;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 
 /*
@@ -189,7 +192,7 @@ it('nunca escreve no banco legado: so SELECT e nada muda', function () {
 it('pagina /migrar-dados: sem OLD_DB mostra aviso; token errado nao roda; certo roda e mostra contagens', function () {
     config(['database.connections.legado.database' => '']);
     $this->get('/migrar-dados?token='.LEGACY_TOKEN)->assertOk()->assertSee('Faltam as linhas OLD_DB_');
-    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN])->assertOk()->assertSee('Faltam as linhas OLD_DB_');
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN])->assertStatus(409)->assertSee('Faltam as linhas OLD_DB_');
     expect(DB::table('users')->count())->toBe(0);
 
     config(['database.connections.legado' => legacyConn((string) env('LEGACY_TEST_USER', 'bp_ro'), (string) env('LEGACY_TEST_PASS', 'bp_ro'))]);
@@ -205,4 +208,70 @@ it('pagina desligada sem INSTALLER_TOKEN e a instalacao nao importa nada sozinha
     $this->get('/migrar-dados')->assertOk()->assertSee('A página está desligada');
     $this->post('/migrar-dados', ['token' => ''])->assertOk();
     expect(DB::table('users')->count())->toBe(0);
+});
+
+/** Simula o bug do 2.0.4: dados copiados cifrados com OUTRA APP_KEY. Devolve a chave "antiga". */
+function scrambleWithOtherKey(): string
+{
+    $key = 'base64:'.base64_encode(random_bytes(32));
+    $other = new Encrypter(base64_decode(substr($key, 7)), config('app.cipher'));
+    foreach (DB::table('day_blocks')->get(['id', 'data']) as $b) {
+        DB::table('day_blocks')->where('id', $b->id)->update(['data' => $other->encryptString(Crypt::decryptString($b->data))]);
+    }
+    foreach (DB::table('mood_entries')->whereNotNull('note')->get(['id', 'note']) as $e) {
+        DB::table('mood_entries')->where('id', $e->id)->update(['note' => $other->encryptString(Crypt::decryptString($e->note))]);
+    }
+
+    return $key;
+}
+
+it('bug 2.0.4: dado cifrado com outra chave nao derruba a tela (sem 500) e vira vazio', function () {
+    app(LegacyImporter::class)->run(60);
+    scrambleWithOtherKey();
+    $uid = (int) DB::table('legacy_links')->where('kind', 'users')->where('legacy_id', 10)->value('new_id');
+    $tid = (int) DB::table('day_blocks')->where('patient_id', $uid)->value('tenant_id');
+    app(TenantContext::class)->run($tid, function () use ($uid) {
+        expect(DayBlock::where('patient_id', $uid)->first()->data)->toBe([]);
+        expect(MoodEntry::where('patient_id', $uid)->first()->note)->toBeNull();
+    });
+    $u = User::find($uid);
+    $this->actingAs($u);
+    $res = $this->get('/registrar?data=2026-09-01');
+    $res->assertOk();
+});
+
+it('consertar dados copiados: com OLD_APP_KEY recifra; sem ela limpa e conta; idempotente', function () {
+    app(LegacyImporter::class)->run(60);
+    $key = scrambleWithOtherKey();
+    $blocks = DB::table('day_blocks')->count();
+
+    config(['bipolar.old_app_key' => 'base64:'.base64_encode(random_bytes(32)).','.$key]);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertOk()
+        ->assertSee('consertados com a chave antiga')->assertDontSee('anotacao ficticia');
+    $uid = (int) DB::table('legacy_links')->where('kind', 'users')->where('legacy_id', 10)->value('new_id');
+    $tid = (int) DB::table('day_blocks')->where('patient_id', $uid)->value('tenant_id');
+    app(TenantContext::class)->run($tid, function () use ($uid) {
+        expect(MoodEntry::where('patient_id', $uid)->whereNotNull('note')->count())->toBe(4);
+        expect(MoodEntry::where('patient_id', $uid)->orderBy('id')->first()->note)->toBe('anotacao ficticia 0');
+        expect(DayBlock::where('patient_id', $uid)->get()->every(fn ($b) => $b->data !== []))->toBeTrue();
+    });
+    $r = app(LegacyRepair::class)->report();
+    expect($r['fixed'])->toBe(4 + $blocks)->and($r['cleared'])->toBe(0);
+
+    // sem a chave: limpa o que nao abre e conta
+    scrambleWithOtherKey();
+    config(['bipolar.old_app_key' => null]);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertOk()
+        ->assertSee('não puderam ser lidos sem a chave antiga');
+    expect(DB::table('mood_entries')->whereNotNull('note')->count())->toBe(0);
+    expect(DB::table('day_blocks')->count())->toBe(0);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertOk();
+    expect(app(LegacyRepair::class)->report()['cleared'])->toBe(0);
+});
+
+it('copiar de novo tambem roda o conserto', function () {
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN])->assertOk()->assertSee('Pronto!');
+    scrambleWithOtherKey();
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN])->assertOk()->assertSee('não puderam ser lidos sem a chave antiga');
+    expect(DB::table('mood_entries')->whereNotNull('note')->count())->toBe(0);
 });
