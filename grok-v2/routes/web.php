@@ -9,6 +9,7 @@ use App\Http\Controllers\Web\ExportController;
 use App\Http\Controllers\Web\HistoryController;
 use App\Http\Controllers\Web\HomeController;
 use App\Http\Controllers\Web\MfaController;
+use App\Http\Controllers\Web\PasswordResetController;
 use App\Http\Controllers\Web\PushController;
 use App\Http\Controllers\Web\RegistrarController;
 use App\Http\Controllers\Web\ReportController;
@@ -18,6 +19,10 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/entrar', [SessionController::class, 'form'])->name('login');
 Route::post('/entrar', [SessionController::class, 'login'])->middleware('throttle:auth');
+Route::get('/esqueci-senha', [PasswordResetController::class, 'form'])->middleware('guest')->name('password.forgot');
+Route::post('/esqueci-senha', [PasswordResetController::class, 'send'])->middleware(['guest', 'throttle:password-reset'])->name('password.forgot.send');
+Route::get('/redefinir-senha/{token}', [PasswordResetController::class, 'edit'])->middleware(['guest', 'signed', 'throttle:30,1'])->name('password.reset');
+Route::post('/redefinir-senha', [PasswordResetController::class, 'update'])->middleware(['guest', 'throttle:auth'])->name('password.update');
 Route::get('/criar-conta', [SessionController::class, 'signupForm'])->middleware('guest')->name('signup');
 Route::post('/criar-conta', [SessionController::class, 'signup'])->middleware(['guest', 'throttle:auth']);
 Route::get('/entrar/verificacao', [MfaController::class, 'challengeForm'])->middleware('guest')->name('mfa.challenge');

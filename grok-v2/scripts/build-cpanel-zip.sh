@@ -2,10 +2,10 @@
 # Gera o cpanel.zip (hospedagem compartilhada, SEM npm/composer/SSH no servidor).
 # O MESMO script roda local e no CI. Uso: scripts/build-cpanel-zip.sh [saida.zip]
 #   SKIP_NPM=1  -> usa o public/build ja gerado (nao roda npm)
-# Conteudo do zip (extrair na pasta "home" da hospedagem, ao lado de public_html):
+# Conteudo do zip (extrair na pasta "home" da hospedagem, ao lado da pasta bipolar-2-0-public):
 #   LEIA-ME.txt          passo a passo em portugues simples
 #   bipolar/             app (FORA da pasta publica), vendor/ pronto, storage/ e bootstrap/cache/ vazios
-#   public_html/         raiz do site (index.php aponta para ../bipolar), build/ do Vite, sw.js, icones
+#   bipolar-2-0-public/  raiz do site (pasta do dominio; index.php aponta para ../bipolar), build/, sw.js, icones
 #   banco/               instalar-banco-novo.sql e atualizar-banco.sql (phpMyAdmin)
 #   cron.txt             linha do Cron Jobs do cPanel
 # NUNCA inclui: .env, auth.json, node_modules, tests, .git, logs, chaves, config em cache.
@@ -24,7 +24,7 @@ test -f public/build/manifest.json && test -f public/sw.js
 php -r '$m=json_decode(file_get_contents("public/build/manifest.json"),true); foreach($m as $e){ if(!is_file("public/build/".$e["file"])){fwrite(STDERR,"falta ".$e["file"]."\n"); exit(1);} }'
 
 echo "==> Copiando arquivos"
-APP="$STAGE/bipolar"; WEB="$STAGE/public_html"; DB="$STAGE/banco"
+APP="$STAGE/bipolar"; WEBDIR="${WEBDIR:-bipolar-2-0-public}"; WEB="$STAGE/$WEBDIR"; DB="$STAGE/banco"
 mkdir -p "$APP" "$WEB" "$DB"
 for p in app bootstrap config database lang resources routes artisan composer.json composer.lock VERSION .env.example INSTALL-CPANEL.md; do
   [ -e "$p" ] && cp -R "$p" "$APP/"
@@ -88,5 +88,5 @@ fi
 echo "==> Zip"
 mkdir -p "$(dirname "$OUT")"; rm -f "$OUT"
 ( cd "$STAGE" && find . -type d -exec chmod 755 {} + && find . -type f -exec chmod 644 {} + \
-  && zip -qr -X "$OUT" LEIA-ME.txt cron.txt banco bipolar public_html )
+  && zip -qr -X "$OUT" LEIA-ME.txt cron.txt banco bipolar "$WEBDIR" )
 echo "OK: $OUT ($(du -h "$OUT" | cut -f1)) versao $VERSION"

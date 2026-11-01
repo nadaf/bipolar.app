@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\V1\DayController;
 use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\Api\V1\MfaController;
 use App\Http\Controllers\Api\V1\MoodEntryController;
+use App\Http\Controllers\Api\V1\PasswordResetController;
 use App\Http\Controllers\Api\V1\PrivateModuleController;
 use App\Http\Controllers\Api\V1\ReminderController;
 use App\Http\Controllers\Api\V1\ReportController;
@@ -26,6 +27,9 @@ Route::prefix('v1')->name('api.v1.')->group(function () {
         Route::get('clinic-invites/{token}', [ClinicInviteController::class, 'show'])->name('clinic.invites.show');
         Route::post('clinic-invites/{token}/register', [ClinicInviteController::class, 'register'])->name('clinic.invites.register');
     });
+
+    Route::post('auth/password/forgot', [PasswordResetController::class, 'forgot'])->middleware('throttle:password-reset')->name('auth.password.forgot');
+    Route::post('auth/password/reset', [PasswordResetController::class, 'reset'])->middleware('throttle:auth')->name('auth.password.reset');
 
     // aceite do convite com token de QUALQUER tenant do usuario (o vinculo novo e na clinica do convite)
     Route::post('clinic-invites/{token}/accept', [ClinicInviteController::class, 'accept'])

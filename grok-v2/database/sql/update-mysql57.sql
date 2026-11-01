@@ -216,6 +216,13 @@ BEGIN
     alter table `clinic_invites` add constraint `fk_ci_accepted` foreign key (`accepted_user_id`) references `users` (`id`) on delete set null;
     INSERT INTO migrations (migration, batch) VALUES ('2026_11_04_000100_mfa_exports_clinic_invites', lote);
   END IF;
+  IF NOT EXISTS (SELECT 1 FROM migrations WHERE migration = '2026_11_05_000100_create_password_resets_table') THEN
+    create table `password_resets` (`id` bigint unsigned not null auto_increment primary key, `user_id` bigint unsigned not null, `host_tenant_id` bigint unsigned null, `host` varchar(190) not null, `token_hash` char(64) not null, `expires_at` timestamp not null, `used_at` timestamp null, `created_at` timestamp null, `updated_at` timestamp null) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
+    alter table `password_resets` add unique `uq_pr_token`(`token_hash`);
+    alter table `password_resets` add index `ix_pr_user_host`(`user_id`, `host`);
+    alter table `password_resets` add constraint `fk_pr_user` foreign key (`user_id`) references `users` (`id`) on delete cascade;
+    INSERT INTO migrations (migration, batch) VALUES ('2026_11_05_000100_create_password_resets_table', lote);
+  END IF;
 END$$
 DELIMITER ;
 CALL bipolar_atualizar();

@@ -108,6 +108,51 @@ paths:
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
+  /auth/password/forgot:
+    post:
+      tags: [auth]
+      x-status: implemented
+      security: []
+      summary: Pedir link de redefinição de senha por e-mail
+      description: Resposta sempre neutra (202), exista ou não a conta. Link assinado, uso único, vale 60 minutos, só no mesmo endereço (host/tenant). Limite 3/min por e-mail e 20/h por IP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '202': { description: Pedido aceito (neutro) }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/password/reset:
+    post:
+      tags: [auth]
+      x-status: implemented
+      security: []
+      summary: Definir senha nova com o token do e-mail
+      description: Token de uso único. Após a troca, todos os tokens da API e sessões da conta são encerrados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, password, password_confirmation]
+              properties:
+                token: { type: string, minLength: 64, maxLength: 64 }
+                password: { type: string, minLength: 10 }
+                password_confirmation: { type: string }
+      responses:
+        '200': { description: Senha alterada }
+        '410': { description: Token expirado, usado ou de outro endereço }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
   /account/mfa:
     get:
       tags: [account]

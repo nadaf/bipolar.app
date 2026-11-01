@@ -23,6 +23,12 @@
 - Instalador web cria `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` no `.env` quando vazios (sem SSH); nunca sobrescreve nem mostra a chave privada. Sem VAPID, Alertas mostra "Notificações indisponíveis no servidor".
 - Corrigido: o pacote antigo não levava a pasta `lang/` (traduções pt-BR). Agora vai junto.
 
+### Recuperação de senha e logo
+- "Esqueci minha senha" em /entrar: link por e-mail assinado, de uso único, vale 60 min, só o hash do token no banco, amarrado ao endereço (host/tenant), limite 3/min por e-mail e 20/h por IP, resposta neutra (não revela se o e-mail existe). Ao trocar, encerra tokens da API e sessões. API: `/auth/password/forgot`, `/auth/password/reset`. Tabela nova `password_resets` (o `atualizar-banco.sql` cria).
+- Logo no topo, no menu lateral e nas telas Entrar/Criar conta (antes só aparecia na abertura do app instalado).
+- Sem `MAIL_FROM_ADDRESS`, o remetente vira `nao-responda@<domínio do APP_URL>` (antes o envio falhava).
+- `cpanel.zip`: a pasta do site agora é `bipolar-2-0-public/` (não `public_html/`), para atualizar só extraindo por cima, sem renomear e sem tocar no site antigo.
+
 ### Segurança, exportação e convites
 - Verificação em duas etapas (TOTP) opcional em Conta, com QR gerado no servidor, 10 códigos de recuperação de uso único, limite de tentativas e segredos cifrados. Clínica pode exigir 2FA da equipe. Passkeys ficam para depois.
 - Exportar registros em CSV (Excel pt-BR) ou PDF, com intervalo de datas; profissional exporta só quem concedeu acesso, dentro do escopo. Toda exportação fica no registro de auditoria; nome de arquivo neutro.

@@ -30,6 +30,10 @@ class AppServiceProvider extends ServiceProvider
         Model::shouldBeStrict(! $this->app->isProduction());
         Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
         RateLimiter::for('auth', fn (Request $r) => Limit::perMinute(10)->by(strtolower((string) $r->input('email')).'|'.$r->ip()));
+        RateLimiter::for('password-reset', fn (Request $r) => [
+            Limit::perMinute(3)->by('pr-mail|'.strtolower((string) $r->input('email'))),
+            Limit::perHour(20)->by('pr-ip|'.$r->ip()),
+        ]);
         RateLimiter::for('api', fn (Request $r) => Limit::perMinute(120)->by($r->user()?->id ?: $r->ip()));
     }
 }

@@ -6,7 +6,8 @@ Vai precisar so do cPanel (Gerenciador de Arquivos, MySQL e phpMyAdmin).
 
 O que tem dentro do zip:
   bipolar/       o programa (fica FORA da pasta do site, por seguranca)
-  public_html/   a parte que o visitante ve (o site)
+  bipolar-2-0-public/  a parte que o visitante ve (o site). NAO e a
+                 public_html: o site antigo continua intacto na public_html.
   banco/         arquivos para o banco de dados
   cron.txt       a linha da tarefa automatica
   LEIA-ME.txt    este arquivo
@@ -23,15 +24,16 @@ IMPORTANTE - BANCO DE DADOS:
 A) PRIMEIRA INSTALACAO
 -------------------------------------------------
 
-1. Faca uma copia de seguranca. No Gerenciador de Arquivos, se ja existe
-   a pasta public_html com um site, renomeie para public_html_antigo.
+1. Nao precisa mexer na public_html (o site antigo). O zip nao a altera.
 
 2. Envie o zip. Gerenciador de Arquivos -> abra a sua pasta inicial
-   (a que mostra public_html dentro dela, NAO entre na public_html)
+   (ex.: /home1/rona3541, a que mostra public_html dentro dela;
+   NAO entre na public_html)
    -> Carregar -> escolha o cpanel.zip.
 
 3. Extraia. Clique com o botao direito no cpanel.zip -> Extract (Extrair).
-   Aparecem as pastas bipolar, public_html e banco ao lado umas das outras.
+   Aparecem as pastas bipolar, bipolar-2-0-public e banco lado a lado.
+   cPanel -> Dominios -> seu dominio -> Raiz do documento: bipolar-2-0-public
 
 4. Crie um banco NOVO e VAZIO. cPanel -> "Assistente de banco de dados MySQL":
    crie um banco com nome novo (ex.: bipolar2), um usuario com senha,
@@ -68,7 +70,7 @@ A) PRIMEIRA INSTALACAO
 
 8. Tarefa automatica (lembretes): abra o arquivo cron.txt e siga o que ele diz.
 
-9. E-mail (convites de clinica), opcional: crie uma conta de e-mail no cPanel
+9. E-mail ("Esqueci minha senha" e convites de clinica): crie uma conta de e-mail no cPanel
    e preencha no .env as linhas MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD e
    MAIL_FROM_ADDRESS.
 
@@ -83,8 +85,11 @@ com um banco NOVO.
 1. Copia de seguranca: phpMyAdmin -> seu banco -> Exportar -> Executar
    (guarda um arquivo .sql). Baixe tambem o arquivo bipolar/.env.
 
-2. Envie o cpanel.zip para a pasta inicial e Extraia por cima
-   (aceite substituir). O seu .env NAO e apagado (ele nao vem no zip).
+2. Gerenciador de Arquivos -> pasta inicial (ex.: /home1/rona3541) ->
+   Carregar o cpanel.zip -> botao direito -> Extract -> aceite substituir.
+   Ele atualiza as pastas bipolar e bipolar-2-0-public de uma vez.
+   NAO precisa renomear nada. O seu .env NAO e apagado (nao vem no zip)
+   e a public_html antiga nao e tocada.
 
 3. Atualize o banco (escolha UM jeito):
    a) phpMyAdmin -> seu banco -> Importar -> banco/atualizar-banco.sql -> Executar.
@@ -100,7 +105,8 @@ SE ALGO DER ERRADO
 -------------------------------------------------
 - "Erro 500" ou pagina branca: confira os dados do banco no .env
   (nome, usuario, senha) e se o usuario tem todos os privilegios.
-- Pagina sem cores/estilo: a pasta public_html/build nao foi extraida.
+- Pagina sem cores/estilo ou sem logo: a pasta bipolar-2-0-public nao
+  foi extraida por inteiro.
   Extraia o zip de novo.
 - "Not Found" em /instalar: o INSTALLER_TOKEN esta vazio, tem menos de
   32 caracteres, ou ja foi usado. Coloque um codigo novo.
@@ -112,7 +118,10 @@ SE ALGO DER ERRADO
 - Notificacoes "indisponiveis no servidor": as chaves VAPID estao vazias.
   Coloque um INSTALLER_TOKEN novo e abra /atualizar uma vez.
 - Detalhes do erro ficam em bipolar/storage/logs (arquivo do dia).
-- Para voltar atras: renomeie public_html_antigo para public_html e
-  importe a copia do banco no phpMyAdmin.
+- Para voltar atras: aponte a Raiz do documento do dominio de novo para
+  public_html e, se precisar, importe a copia do banco no phpMyAdmin.
+- "Esqueci minha senha" nao chega: preencha no .env MAIL_MAILER=smtp,
+  MAIL_HOST, MAIL_PORT=465, MAIL_SCHEME=smtps, MAIL_USERNAME, MAIL_PASSWORD
+  e MAIL_FROM_ADDRESS (a conta de e-mail criada no cPanel).
 
 Nunca mande o arquivo .env para ninguem: ele tem as senhas.

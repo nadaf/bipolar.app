@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Simula a hospedagem cPanel com o cpanel.zip: extrai numa pasta "home" nova, importa o SQL no MySQL,
 # cria o .env como o LEIA-ME manda (APP_KEY vazio + INSTALLER_TOKEN), sobe php -S com a raiz em
-# public_html e confere: /, /entrar, cadastro, login, /registrar, assets, atualizador web e nenhum 500.
+# bipolar-2-0-public e confere: /, /entrar, cadastro, login, /registrar, assets, atualizador web e nenhum 500.
 # Uso: DB_HOST=127.0.0.1 DB_USER=u DB_PASS=s DB_NAME=banco_vazio scripts/smoke-cpanel-zip.sh cpanel.zip [porta]
 set -euo pipefail
 ZIP="$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"; PORT="${2:-8139}"
@@ -14,7 +14,7 @@ MY=(mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS")
 echo "==> Extraindo em $HOME_DIR"
 ( cd "$HOME_DIR" && unzip -q "$ZIP" )
 for f in LEIA-ME.txt cron.txt banco/instalar-banco-novo.sql banco/atualizar-banco.sql bipolar/vendor/autoload.php \
-         bipolar/.env.example public_html/index.php public_html/.htaccess public_html/build/manifest.json public_html/sw.js; do
+         bipolar/.env.example bipolar-2-0-public/index.php bipolar-2-0-public/.htaccess bipolar-2-0-public/build/manifest.json bipolar-2-0-public/sw.js; do
   [ -f "$HOME_DIR/$f" ] || fail "falta $f"
 done
 for d in bipolar/storage/framework/sessions bipolar/storage/framework/views bipolar/storage/logs bipolar/bootstrap/cache; do
@@ -43,6 +43,11 @@ echo "==> Cenario: atualizar a partir do 2.0 anterior"
 emptydb; imp "$FIX/install-2.0-prev.sql" >/dev/null
 [ -z "$(imp "$HOME_DIR/banco/atualizar-banco.sql")" ] || fail "erro ao atualizar do 2.0 anterior"
 schema | diff -q - "$HOME_DIR/fresh.schema" >/dev/null || fail "2.0 anterior atualizado != instalacao nova"
+echo "==> Cenario: atualizar a partir do 2.0 que esta no ar (ganha password_resets)"
+emptydb; imp "$FIX/install-2.0-live.sql" >/dev/null
+[ -z "$(imp "$HOME_DIR/banco/atualizar-banco.sql")" ] || fail "erro ao atualizar do 2.0 no ar"
+schema | diff -q - "$HOME_DIR/fresh.schema" >/dev/null || fail "2.0 no ar atualizado != instalacao nova"
+"${MY[@]}" -N "$DB_NAME" -e "SELECT COUNT(*) FROM password_resets" >/dev/null 2>&1 || fail "password_resets nao criada"
 echo "==> Cenario: atualizacao interrompida no meio -> retoma"
 "${MY[@]}" "$DB_NAME" -e "DELETE FROM migrations WHERE id > 2" 2>/dev/null
 [ -z "$(imp "$HOME_DIR/banco/atualizar-banco.sql")" ] || fail "nao retomou atualizacao parcial"
@@ -81,8 +86,8 @@ sed -e "s#^APP_URL=.*#APP_URL=$BASE#" -e "s#^APP_KEY=.*#APP_KEY=#" -e "s#^INSTAL
     -e "s#^BIPOLAR_BASE_DOMAIN=.*#BIPOLAR_BASE_DOMAIN=localhost#" -e "s#^MAIL_MAILER=.*#MAIL_MAILER=log#" \
     "$HOME_DIR/bipolar/.env.example" > "$HOME_DIR/bipolar/.env"
 
-echo "==> php -S com raiz em public_html"
-( cd "$HOME_DIR/public_html" && exec php -S "127.0.0.1:$PORT" > "$HOME_DIR/server.log" 2>&1 ) & PID=$!
+echo "==> php -S com raiz em bipolar-2-0-public"
+( cd "$HOME_DIR/bipolar-2-0-public" && exec php -S "127.0.0.1:$PORT" > "$HOME_DIR/server.log" 2>&1 ) & PID=$!
 for i in $(seq 1 40); do curl -s -o /dev/null "$BASE/robots.txt" && break; sleep 0.25; done
 
 code() { curl -s -o "$HOME_DIR/body" -w '%{http_code}' -b "$JAR" -c "$JAR" "$@"; }
@@ -104,11 +109,19 @@ expect 200 "$BASE/registrar"
 grep -q 'Registrar' "$HOME_DIR/body" || fail "/registrar sem conteudo"
 rm -f "$JAR"
 expect 200 "$BASE/entrar"; T="$(csrf)"
+grep -q 'Esqueci minha senha' "$HOME_DIR/body" || fail "/entrar sem Esqueci minha senha"
+grep -q 'src="/favicon.svg"' "$HOME_DIR/body" || fail "/entrar sem logo"
+expect 200 "$BASE/favicon.svg"
+expect 200 "$BASE/esqueci-senha"; T2="$(csrf)"
+expect 302 -X POST "$BASE/esqueci-senha" --data-urlencode "_token=$T2" --data-urlencode "email=smoke@exemplo.test"
+[ "$("${MY[@]}" -N "$DB_NAME" -e "SELECT COUNT(*) FROM password_resets WHERE used_at IS NULL" 2>/dev/null)" = 1 ] || fail "pedido de senha nao registrado (e-mail via MAIL_MAILER=log)"
+expect 200 "$BASE/entrar"; T="$(csrf)"
 expect 302 -X POST "$BASE/entrar" --data-urlencode "_token=$T" --data-urlencode "email=smoke@exemplo.test" --data-urlencode "password=senha-muito-boa-1"
 expect 200 "$BASE/registrar"
 expect 200 "$BASE/historico"
 expect 200 "$BASE/exportar"
 expect 200 "$BASE/alertas"
+grep -q 'src="/favicon.svg"' "$HOME_DIR/body" || fail "logo ausente no topo"
 grep -q 'Notificações indisponíveis no servidor' "$HOME_DIR/body" || fail "/alertas sem VAPID nao avisou"
 
 echo "==> Atualizador web (uso unico)"

@@ -59,7 +59,7 @@
 <div class="{{ $nav ? 'shell' : '' }}">
   @if($nav)
   <aside class="sidebar" aria-label="Menu lateral">
-    <p class="px-3 pb-4 text-lg font-bold">Bipolar</p>
+    <p class="px-3 pb-4 text-lg">@include('partials.brand', ['size' => 32])</p>
     <nav aria-label="Principal">
       <ul class="space-y-1">
       @foreach(array_merge($nav, $extra) as [$r, $label, $icon, $pats])
@@ -74,14 +74,14 @@
   </aside>
   <header class="topbar">
     <div class="flex items-center justify-between px-4 h-13">
-      <span class="font-bold">Bipolar</span>
+      @include('partials.brand')
       @include('partials.theme-toggle')
     </div>
   </header>
   @else
   <header class="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
     <div class="mx-auto max-w-3xl px-4 h-13 flex items-center justify-between">
-      <span class="font-bold">Bipolar</span>
+      @include('partials.brand')
       @include('partials.theme-toggle')
     </div>
   </header>

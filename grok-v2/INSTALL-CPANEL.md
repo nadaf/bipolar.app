@@ -33,7 +33,7 @@ Dentro do zip há duas pastas:
 | Pasta | Para onde vai |
 |---|---|
 | `bipolar/` | fica **fora** da pasta pública (o programa e as bibliotecas) |
-| `public_html/` | é o que o visitante vê (a "raiz do site") |
+| `bipolar-2-0-public/` | é o que o visitante vê (a "raiz do site") |
 
 ## 2. Criar o banco de dados
 
@@ -46,14 +46,14 @@ Dentro do zip há duas pastas:
 
 1. cPanel → **Gerenciador de Arquivos**. Você estará na sua pasta inicial (ex.: `/home/seuusuario`).
 2. Clique em **Carregar** e envie o `cpanel.zip` para essa pasta inicial
-   (**não** dentro de `public_html`).
-3. Clique com o botão direito no zip → **Extract** (Extrair). Aparecem `bipolar/` e `public_html/`.
-   - Se já existe um site em `public_html`, o cPanel pergunta se quer sobrescrever.
-     **Renomeie antes** a pasta antiga para `public_html_antigo` (assim dá para voltar).
+   (**não** dentro de `bipolar-2-0-public`).
+3. Clique com o botão direito no zip → **Extract** (Extrair). Aparecem `bipolar/` e `bipolar-2-0-public/`.
+   - A `public_html` antiga **não é tocada** (o zip não tem `public_html`).
+   - cPanel → **Domínios** → seu domínio → **Raiz do documento**: `bipolar-2-0-public`.
 4. Apague o zip depois de extrair.
 
 > Se o site for um **subdomínio** (ex.: `beta.bipolar.app.br`), a pasta pública dele costuma
-> ser outra (ex.: `beta.bipolar.app.br/`). Nesse caso mova o conteúdo de `public_html/` para lá
+> ser outra (ex.: `beta.bipolar.app.br/`). Nesse caso mova o conteúdo de `bipolar-2-0-public/` para lá
 > e, no arquivo `index.php` dessa pasta, troque `/../bipolar/` pelo caminho certo
 > (peça ajuda se tiver dúvida).
 
@@ -78,7 +78,7 @@ Dentro do zip há duas pastas:
 
 Para endereços como `minhaclinica.bipolar.app.br`:
 1. cPanel → **Domínios** (ou **Subdomínios**) → crie o subdomínio **`*`** (asterisco) apontando para a
-   mesma pasta `public_html`. Se o cPanel não aceitar `*`, crie um subdomínio para cada clínica.
+   mesma pasta `bipolar-2-0-public`. Se o cPanel não aceitar `*`, crie um subdomínio para cada clínica.
 2. cPanel → **SSL/TLS Status** → rode o **AutoSSL** para incluir os subdomínios.
 3. No `.env`, confira `BIPOLAR_BASE_DOMAIN=bipolar.app.br`.
 4. O endereço de cada clínica ou pessoa é escolhido dentro do app (Ajustes ou API).
@@ -141,9 +141,10 @@ Detalhes: `docs/PUSH.md`.
 ## 8. Atualizar para uma versão nova
 
 1. Baixe o zip novo (passo 1) e faça backup.
-2. Extraia por cima (as pastas `bipolar/` e `public_html/`). **O `.env` não vem no zip**, então
-   o seu continua lá.
-3. Coloque de novo um `INSTALLER_TOKEN` no `.env`, abra `/instalar`, rode, e apague o token.
+2. Envie o zip para a pasta inicial (ex.: `/home1/seuusuario`) e extraia por cima, aceitando substituir
+   (as pastas `bipolar/` e `bipolar-2-0-public/`). **O `.env` não vem no zip**, então o seu continua lá.
+3. phpMyAdmin → banco do 2.0 → Importar → `banco/atualizar-banco.sql` (cria só o que falta; pode repetir).
+   Ou: coloque um `INSTALLER_TOKEN` novo no `.env` e abra `/atualizar`.
 
 ## Problemas comuns
 
@@ -152,7 +153,7 @@ Detalhes: `docs/PUSH.md`.
 | Tela branca ou "500" | Confira PHP 8.3 e os dados do banco no `.env`. Veja `bipolar/storage/logs/`. |
 | `/instalar` diz "não encontrado" | `INSTALLER_TOKEN` vazio ou com menos de 32 caracteres. |
 | "Código de instalação incorreto" | O código digitado é diferente do `.env` (atenção a espaços). |
-| Página sem estilo | A pasta `public_html/build/` não foi extraída; extraia de novo. |
+| Página sem estilo | A pasta `bipolar-2-0-public/build/` não foi extraída; extraia de novo. |
 
 Em crise? **CVV 188** (24h, gratuito) · **SAMU 192**.
 

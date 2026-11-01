@@ -111,7 +111,8 @@ return [
     */
 
     'from' => [
-        'address' => env('MAIL_FROM_ADDRESS', 'hello@example.com'),
+        // vazio no .env: usa nao-responda@<dominio do APP_URL> (senao o envio falha sem remetente)
+        'address' => env('MAIL_FROM_ADDRESS') ?: 'nao-responda@'.(parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST) ?: 'localhost'),
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
