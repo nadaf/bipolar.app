@@ -47,7 +47,7 @@ Contagem: **S4 0 · S3 3 · S2 3 · S1 2** (corrigidos: 3 S3 + 2 S2).
   - Onde: `routes/web.php:24` (middleware `signed`), `app/Http/Controllers/Web/PasswordResetController.php:31`.
   - Persona: quem abre o e-mail depois de 60 min (comum em quem está deprimido ou sem dormir) cai numa página em inglês sem saída; a tela pt-BR de "link expirou" em `auth/reset.blade.php:23` nunca aparecia nesse caso.
   - Critério: Nielsen 9; tarefa crítica 6 travava.
-  - Correção feita: assinatura conferida no controller com `$request->hasValidSignature()`; inválido → 410 com a tela pt-BR, botão "Pedir link novo" e "Voltar para Entrar". Teste em `tests/Feature/PasswordResetTest.php`. Print depois: `depois/redefinir-senha-invalido-375.png`.
+  - Correção feita: link assinado conferido no controller com `$request->hasValidSignature()`; inválido → 410 com a tela pt-BR, botão "Pedir link novo" e "Voltar para Entrar". Teste em `tests/Feature/PasswordResetTest.php`. Print depois: `depois/redefinir-senha-invalido-375.png`.
 - **[S3] A3 — Contraste insuficiente nos dias futuros do calendário** — `/historico`
   - Onde: `resources/css/app.css:100` (`.cal-day.futuro { opacity-50 }`), usado em `resources/views/history/index.blade.php:27`. axe `color-contrast` serious em 375 e 1280.
   - Critério: WCAG 1.4.3.
