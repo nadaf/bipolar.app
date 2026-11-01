@@ -31,6 +31,18 @@ final class Scales
 
     public const INTENSITY = [0 => 'Nenhuma', 1 => 'Leve', 2 => 'Moderada', 3 => 'Intensa'];
 
+    /**
+     * Energia da 0.5 (0..3 com rotulos nenhuma, leve, moderada, intensa) para a escala
+     * bipolar do 2.0 (-3..+3). Documentado em docs/MIGRATION-FROM-0.5.md. O valor original fica em
+     * mood_entries.energy_legacy. Fora de 0..3 => null (descartado e contado).
+     */
+    public const ENERGY_FROM_LEGACY = [0 => -2, 1 => 0, 2 => 1, 3 => 2];
+
+    public static function energyFromLegacy(?int $v): ?int
+    {
+        return $v === null ? null : (self::ENERGY_FROM_LEGACY[$v] ?? null);
+    }
+
     public static function label(array $scale, ?int $v): ?string
     {
         return $v === null ? null : $scale[$v][0];

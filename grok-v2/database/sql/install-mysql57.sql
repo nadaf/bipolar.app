@@ -194,3 +194,7 @@ alter table `password_resets` add unique `uq_pr_token`(`token_hash`);
 alter table `password_resets` add index `ix_pr_user_host`(`user_id`, `host`);
 alter table `password_resets` add constraint `fk_pr_user` foreign key (`user_id`) references `users` (`id`) on delete cascade;
 INSERT INTO migrations (migration, batch) VALUES ('2026_11_05_000100_create_password_resets_table', 1);
+create table `legacy_links` (`id` bigint unsigned not null auto_increment primary key, `kind` varchar(20) not null, `legacy_id` bigint unsigned not null, `new_id` bigint unsigned null, `created_at` timestamp not null default CURRENT_TIMESTAMP) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
+alter table `legacy_links` add unique `uq_ll_kind_legacy`(`kind`, `legacy_id`);
+create table `legacy_import_progress` (`step` varchar(20) not null, `last_id` bigint unsigned not null default '0', `done` tinyint(1) not null default '0', `copied` int unsigned not null default '0', `skipped` int unsigned not null default '0', `notes` text null, `updated_at` timestamp null, primary key (`step`)) default character set utf8mb4 collate 'utf8mb4_unicode_ci';
+INSERT INTO migrations (migration, batch) VALUES ('2026_11_06_000100_legacy_import', 1);

@@ -44,6 +44,23 @@ return [
             'transaction_mode' => 'DEFERRED',
         ],
 
+        // Banco do Bipolar 0.5 (antigo), SOMENTE LEITURA, usado so pelo importador (/migrar-dados).
+        // Fica desligado enquanto OLD_DB_DATABASE estiver vazio. Apague as linhas OLD_DB_ do .env depois.
+        'legado' => [
+            'driver' => 'mysql',
+            'host' => env('OLD_DB_HOST') ?: 'localhost',
+            'port' => env('OLD_DB_PORT') ?: '3306',
+            'database' => env('OLD_DB_DATABASE', ''),
+            'username' => env('OLD_DB_USERNAME', ''),
+            'password' => env('OLD_DB_PASSWORD', ''),
+            'unix_socket' => '',
+            'charset' => 'utf8mb4',
+            'collation' => 'utf8mb4_unicode_ci',
+            'prefix' => '',
+            'strict' => true,
+            'engine' => null,
+        ],
+
         'mysql' => [
             'driver' => 'mysql',
             'url' => env('DB_URL'),

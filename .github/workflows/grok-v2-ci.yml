@@ -99,6 +99,9 @@ jobs:
         run: vendor/bin/pint --test
       - name: PHPStan / Larastan
         run: vendor/bin/phpstan analyse --no-progress --memory-limit=1G
+      - name: Banco legado ficticio (importador 0.5) com usuario so de leitura
+        run: |
+          mysql -h127.0.0.1 -uroot -proot-ci-only -e "CREATE DATABASE IF NOT EXISTS bipolar_legacy_test; GRANT ALL ON bipolar_legacy_test.* TO 'bp'@'%'; CREATE USER IF NOT EXISTS 'bp_ro'@'%' IDENTIFIED BY 'bp_ro'; GRANT SELECT ON bipolar_legacy_test.* TO 'bp_ro'@'%';"
       - name: Pest (inclui isolamento entre tenants e arquitetura)
         run: vendor/bin/pest --colors=never
       - name: Isolamento (suite dedicada, deve existir e passar)

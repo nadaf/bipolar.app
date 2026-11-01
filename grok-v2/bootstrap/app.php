@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Web\InstallerController;
+use App\Http\Controllers\Web\LegacyImportController;
 use App\Http\Middleware\EnsureMfa;
 use App\Http\Middleware\EnsurePatient;
 use App\Http\Middleware\EnsureRole;
@@ -33,6 +34,9 @@ return Application::configure(basePath: dirname(__DIR__))
                 Route::post('/instalar', [InstallerController::class, 'run']);
                 Route::get('/atualizar', [InstallerController::class, 'form']);
                 Route::post('/atualizar', [InstallerController::class, 'run']);
+                // dados da 0.5: so pelo botao, com o INSTALLER_TOKEN (nunca automatico)
+                Route::get('/migrar-dados', [LegacyImportController::class, 'form']);
+                Route::post('/migrar-dados', [LegacyImportController::class, 'run']);
             });
         },
     )

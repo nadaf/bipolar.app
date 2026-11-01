@@ -6,9 +6,9 @@ use App\Domain\Account\AccountService;
 use App\Domain\Account\StepUp;
 use App\Domain\Day\Blocks;
 use App\Http\Controllers\Controller;
+use App\Support\Passwords;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
@@ -90,7 +90,7 @@ class AccountController extends Controller
 
     private function checkPassword(Request $request, string $password): void
     {
-        if (! Hash::check($password, $request->user()->password)) {
+        if (! Passwords::check($password, $request->user()->password)) {
             throw ValidationException::withMessages(['password' => 'Senha incorreta.']);
         }
     }

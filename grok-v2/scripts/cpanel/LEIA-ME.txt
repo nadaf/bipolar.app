@@ -131,6 +131,65 @@ So versoes finais (sem beta): no .env coloque AUTO_UPDATE_PRERELEASE=false
 
 
 -------------------------------------------------
+TRAZER OS DADOS DA VERSAO ANTIGA (0.5) PARA O 2.0
+-------------------------------------------------
+O 2.0 so LE o banco antigo. Nada e apagado ou alterado nele. A copia
+so acontece quando voce clica no botao (nunca sozinha). Pode clicar de
+novo quantas vezes quiser: o que ja foi copiado nao duplica.
+
+1) Copia de seguranca dos DOIS bancos
+   cPanel > phpMyAdmin > clique no banco ANTIGO (o do 0.5) > aba
+   "Exportar" > "Executar". Guarde o arquivo. Faca o mesmo com o banco
+   NOVO (o do 2.0, o que esta em DB_DATABASE no bipolar/.env).
+
+2) Dar acesso SO DE LEITURA ao banco antigo
+   cPanel > "Bancos de dados MySQL":
+   a) Em "Adicionar novo usuario": nome  leitura05  e uma senha forte
+      (use o gerador). Anote a senha. Clique "Criar usuario".
+      O nome completo fica com o prefixo da conta, ex.: USUARIO_leitura05
+   b) Em "Adicionar usuario ao banco de dados": escolha USUARIO_leitura05
+      e o banco ANTIGO. Clique "Adicionar".
+   c) Na tela de privilegios marque SO a caixa "SELECT". Nada mais.
+      Clique "Fazer alteracoes".
+   (Alternativa: usar o usuario do banco antigo que ja existe. Funciona,
+   mas o usuario so com SELECT e mais seguro.)
+
+3) Colar no bipolar/.env (Gerenciador de Arquivos > bipolar > .env >
+   Editar), no final do arquivo, trocando pelos seus dados:
+
+OLD_DB_HOST=localhost
+OLD_DB_DATABASE=USUARIO_nomedobancoantigo
+OLD_DB_USERNAME=USUARIO_leitura05
+OLD_DB_PASSWORD=SENHA_DO_PASSO_2
+
+   Confira tambem a linha INSTALLER_TOKEN=. Se estiver vazia, coloque um
+   codigo novo com 32 letras/numeros ou mais. Salve.
+   (O nome exato do banco antigo aparece em "Bancos de dados MySQL".)
+
+4) Abrir no navegador (troque SEUCODIGO pelo INSTALLER_TOKEN):
+   https://bipolar.app.br/migrar-dados?token=SEUCODIGO
+   Clique em "Copiar dados da versao antiga". Cada clique trabalha uns
+   20 segundos. Se aparecer "Ainda falta uma parte", clique "Continuar"
+   ate aparecer "Pronto! Tudo foi copiado." A tela mostra so numeros
+   (quantos copiados, quantos ignorados e por que).
+
+5) Conferir: saia do app e entre em https://bipolar.app.br/entrar com uma
+   conta antiga (e-mail e a MESMA senha de antes). Veja o Historico.
+   Quem entrava so com Google/Apple ou nao tinha senha: usar
+   "Esqueci minha senha" (precisa do e-mail configurado no .env).
+
+6) Depois de conferir, no bipolar/.env APAGUE as 4 linhas OLD_DB_ e
+   deixe INSTALLER_TOKEN= vazio. Salve. Se quiser, em "Bancos de dados
+   MySQL" remova o usuario USUARIO_leitura05.
+
+Problemas:
+- "Faltam as linhas OLD_DB_": o .env nao tem as linhas do passo 3.
+- "Nao consegui entrar no banco antigo": nome do banco, usuario ou senha
+  errados, ou o usuario nao foi adicionado ao banco (passo 2b).
+- "nao parece ser do Bipolar 0.5": OLD_DB_DATABASE aponta para o banco
+  errado (por exemplo o do 2.0).
+
+-------------------------------------------------
 SE ALGO DER ERRADO
 -------------------------------------------------
 - "Erro 500" ou pagina branca: confira os dados do banco no .env

@@ -9,10 +9,10 @@ use App\Domain\Mfa\TwoFactor;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Rules\ValidSlug;
+use App\Support\Passwords;
 use App\Tenancy\HostTenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Crypt;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -43,9 +43,10 @@ class AuthController extends Controller
         $v = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string'],
             'device_name' => ['required', 'string', 'max:100'], 'tenant_id' => ['sometimes', 'integer']]);
         $user = User::where('email', $v['email'])->first();
-        if (! $user || ! Hash::check($v['password'], $user->password)) {
+        if (! $user || ! Passwords::check($v['password'], $user->password)) {
             throw ValidationException::withMessages(['email' => 'E-mail ou senha incorretos.']);
         }
+        Passwords::upgrade($user, $v['password']);
         if ($user->mfaOn()) {
             $issue->tenantFor($user, isset($v['tenant_id']) ? (int) $v['tenant_id'] : null); // mesma mensagem se sem vinculo
 

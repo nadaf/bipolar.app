@@ -1,3 +1,8 @@
+## [2.0.4] - 2026-11-01
+- Trazer dados do Bipolar 0.5: página `/migrar-dados` (com o `INSTALLER_TOKEN`) e `php artisan bipolar:import-legacy`. Banco antigo só lido (conexão `legado`, usuário só SELECT, sessão READ ONLY), em lotes, pode repetir sem duplicar, mostra só contagens. Nunca roda sozinho. Ver `docs/MIGRATION-FROM-0.5.md` e o LEIA-ME.
+- Login aceita as senhas da 0.5 (bcrypt e Argon2id) e regrava em bcrypt no primeiro acesso.
+- Energia antiga 0..3 convertida para −3..+3 (valor original guardado em `energy_legacy`).
+
 ## [2.0.2] - 2026-11-01
 - Atualização automática pelo Cron Jobs do cPanel (`bipolar/deploy/auto-update.php`, sem SSH): busca o release no GitHub, confere sha256, faz backup (arquivos + banco, guarda 3), manutenção, troca os arquivos preservando `.env`, `storage/` e `.htaccess` customizado, roda migrations e restaura tudo se falhar. Log em `storage/logs/auto-update.log`. Desligar: `AUTO_UPDATE_ENABLED=false`.
 - CI: release de tag `v*` recebe `cpanel.zip` + `cpanel.zip.sha256`; simulação do cron no CI (`scripts/smoke-auto-update.sh`).

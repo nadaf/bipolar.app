@@ -7,10 +7,10 @@ use App\Domain\Account\RegisterPatient;
 use App\Domain\Account\RegisterSoloProfessional;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Passwords;
 use App\Tenancy\HostTenant;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -26,9 +26,10 @@ class SessionController extends Controller
     {
         $c = $request->validate(['email' => ['required', 'email'], 'password' => ['required', 'string']]);
         $user = User::where('email', $c['email'])->first();
-        if ($user === null || ! Hash::check($c['password'], $user->password)) {
+        if ($user === null || ! Passwords::check($c['password'], $user->password)) {
             throw ValidationException::withMessages(['email' => 'E-mail ou senha incorretos.']);
         }
+        Passwords::upgrade($user, $c['password']);
         $m = $issue->tenantFor($user); // lanca a mesma mensagem se nao houver vinculo neste host
         if ($user->mfaOn()) { // segunda etapa: nada de sessao autenticada antes do codigo
             $request->session()->regenerate();

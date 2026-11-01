@@ -1,49 +1,48 @@
-# Migração de dados 0.5.3-beta → 2.0
+# Migração de dados 0.5 → 2.0
 
-Status: **rascunho** (o importador ainda não foi escrito). Nada é apagado do banco antigo.
+Status: **implementado na 2.0.4** (`App\Domain\Legacy`). Passo a passo para quem opera o cPanel:
+`scripts/cpanel/LEIA-ME.txt`, seção "TRAZER OS DADOS DA VERSAO ANTIGA".
 
-## Estratégia
-1. Banco 2.0 **novo e separado**; o banco 0.5 fica só leitura durante a migração.
-2. Importador como comando `php artisan bipolar:import-legacy` (rodável também por página protegida
-   igual ao instalador, já que não há SSH), em lotes por usuário, **idempotente** (usa `legacy_id`).
-3. Cada usuário 0.5 vira: `users` + `tenants(kind=personal)` + `memberships(role=patient)`.
-   Profissionais (`is_professional=1`) viram usuários com vínculo `professional` em um tenant de clínica
-   (a definir com o dono: uma clínica por profissional ou agrupamento manual).
-4. Todas as linhas importadas recebem o `tenant_id` do paciente dono.
-5. Verificação: contagens por usuário/tabela antes e depois, amostragem, e teste de isolamento rodado
-   no banco migrado (staging).
-6. Janela: modo manutenção na 0.5 → importação → conferência → troca de DNS/pasta.
+## Como funciona
+- Conexão `legado` (`config/database.php`) lida de `OLD_DB_HOST/OLD_DB_DATABASE/OLD_DB_USERNAME/OLD_DB_PASSWORD`.
+  Vazia = desligada (a página só mostra um aviso).
+- **Somente leitura**: `LegacyReader` só aceita `SELECT` (sem `information_schema`), abre a sessão MySQL com
+  `SET SESSION TRANSACTION READ ONLY` e a orientação é um usuário do cPanel só com o privilégio SELECT.
+- Só roda por ação humana: página `/migrar-dados` (POST com o `INSTALLER_TOKEN`) ou `php artisan bipolar:import-legacy`.
+  A instalação/atualização automática nunca importa nada.
+- **Idempotente**: cada linha antiga tratada fica em `legacy_links (kind, legacy_id)`. Repetir pula o que já foi feito.
+- **Em lotes** de 200 linhas, ~20 s por clique; `legacy_import_progress` guarda o último id de cada etapa, contagens e motivos.
+- A tela e o comando mostram **só contagens e motivos**; nenhum conteúdo de saúde é exibido ou logado.
 
-## Mapeamento de tabelas
-
+## O que é copiado
 | 0.5 | 2.0 | Observações |
 |---|---|---|
-| users | users + tenants + memberships | senha (`password_hash` bcrypt) reaproveitada; `session_epoch` descartado; segredo TOTP recriptografado com a nova APP_KEY |
-| oauth_identities | social_identities (futuro) | |
-| entries | mood_entries | `period` igual (manha/tarde/noite); `mood` -3..3 igual; `note` recriptografada; `tags` → tabela futura; `version` e `client_uuid` preservados |
-| entries.energy (0..3) | mood_entries.energy (-3..3) + `energy_legacy` | ver abaixo — **decisão pendente** |
-| media | media (futuro) | arquivos copiados para `storage/app/private/{tenant}/{patient}` |
-| daily_markers | day_markers | campos sensíveis (`th_death`, `religiosity`, substâncias) vão para módulos privados |
-| period_markers | period_markers | idem |
-| sexuality_log | private_sexuality | módulo sensível |
-| substance_log | private_substances | módulo sensível |
-| recipients (relatórios por e-mail) | care_grants + report_recipients | e-mails sem conta viram convites pendentes; nada é enviado automaticamente na migração |
-| care_shares / care_codes / care_access_log | care_grants / invites / audit_logs | `scope_mask` compatível bit a bit |
-| reminders | reminders (grade semanal) | `days` "0,1,…" → bitmask de dias |
-| push_subscriptions | push_subscriptions | endpoints mantidos; chaves VAPID precisam ser as mesmas |
-| alerts / alert_rules | alerts / alert_rules | regras revisadas para a nova escala de energia |
-| webauthn_credentials | webauthn_credentials | RP ID igual (mesmo domínio) |
-| mfa_recovery_codes | mfa_recovery_codes | hashes mantidos |
-| auth_tokens, rate_limits, outbox, entry_client_ids, ai_usage | não migrar | temporários; `ai_*` fora do escopo da 2.0 inicial |
+| users | users (+`legacy_id`) + tenant pessoal + membership `patient` | nome, e-mail, fuso (inválido → America/Sao_Paulo), e-mail verificado, módulos opcionais ligados (substâncias, sexualidade, pensamentos de morte → `morte`, religiosidade) |
+| users.is_professional=1 | + tenant `solo` + membership `professional` | igual a uma conta de profissional solo |
+| entries | mood_entries | humor −3..3 igual; ansiedade/irritabilidade 0..3; sono; medicação; anotação (recriptografada com a APP_KEY do 2.0); versão; client_uuid |
+| daily_markers | day_blocks `sono`, `meudia`, `substancias` (período `dia`) | deitar/acordar/qualidade; sol/exercício (máx. 720 min), gastos, fala, ciclo (`pre_menstrual`→`lutea`, `nao_sei`→vazio); café, cigarros, álcool, nicotina (`vape_pod`→`vape`, `adesivo_chiclete`→`adesivo`, palha/charuto→`outra`), outras |
+| period_markers | day_blocks `estresse`, `alimentacao`, `pensamentos`, `religiosidade`, `morte` | por período |
+| sexuality_log | day_blocks `sexualidade` | desejo −2..2 → −3,−1,0,1,3; "diferente do habitual"; anotação |
+| reminders (ativos) | alert_settings.reminders (grade semanal) | período pelo horário (<12 manhã, <18 tarde, senão noite); até 6 por dia |
+| — | alert_settings | limiares padrão −2/+2 criados para cada conta |
+| care_shares ativos e no prazo | care_grants aceitos | `scope_mask` igual bit a bit; tipo psicólogo/psiquiatra, outros → `outro` |
 
-## Energia: conversão 0..3 → -3..+3
-Na 0.5 a energia ia de 0 (baixa — os alertas tratam 0 como sinal depressivo) a 3 (intensa — sinal de mania).
-Proposta: `0 → -2 (Baixa)`, `1 → 0 (Normal)`, `2 → +1 (Um pouco alta)`, `3 → +2 (Alta)`.
-O valor original fica em `mood_entries.energy_legacy` para auditoria e reversão. A interface pode marcar
-registros convertidos. **Precisa de confirmação do dono do produto.**
+## O que NÃO é copiado (a tela mostra as quantidades)
+Contas sem e-mail (só Google/Apple); contas cujo e-mail já existe no 2.0; etiquetas (`tags`); verificação em duas
+etapas (segredo cifrado com a chave da 0.5: a pessoa liga de novo); convites pendentes e compartilhamentos encerrados
+ou vencidos; relatórios por e-mail (`recipients`); alertas personalizados e histórico de alertas; detalhe de
+substâncias por dose (`substance_log`, o total do dia vem de `daily_markers`); mídia; inscrições de push; passkeys;
+doses de medicação por remédio (`doses_json`); atividades/frequência de sexualidade; tokens, limites e filas.
+A 0.5 não tem clínicas (só existem no 2.0).
 
-## Riscos
-- Re-criptografia: a 0.5 usa chave própria; o importador precisa dela **só em memória** (variável de ambiente
-  temporária), nunca copiando o `config.php`.
-- Fuso: datas da 0.5 já são locais do usuário (`entry_date`); manter.
-- Duplicidade de e-mail entre conta e destinatário: tratar como convite, não como conta.
+## Senhas
+A 0.5 usa `password_hash()` do PHP (Argon2id quando disponível, senão bcrypt). O hash é copiado como está.
+`App\Support\Passwords::check` usa `password_verify` (aceita bcrypt e Argon2id) em todos os pontos de senha, e no
+primeiro login certo a senha é regravada em bcrypt (`Passwords::upgrade`). Sem hash utilizável → hash aleatório
+(ninguém sabe) e a pessoa usa "Esqueci minha senha".
+
+## Energia: conversão 0..3 → −3..+3
+Na 0.5 a energia era intensidade 0..3 (rótulos: nenhuma, leve, moderada, intensa; os alertas tratavam 3 como sinal de mania).
+Conversão (`Scales::ENERGY_FROM_LEGACY`): `0 → −2 (Baixa)`, `1 → 0 (Normal)`, `2 → +1 (Um pouco alta)`, `3 → +2 (Alta)`.
+O valor original fica em `mood_entries.energy_legacy` para auditoria e para refazer a conversão se a regra mudar.
+Valor fora de 0..3 → energia vazia (contado nos avisos).

@@ -4,6 +4,7 @@ namespace App\Domain\Account;
 
 use App\Models\AuditLog;
 use App\Models\User;
+use App\Support\Passwords;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
@@ -20,7 +21,7 @@ final class StepUp
     public function check(User $user, string $method, string $secret): bool
     {
         $ok = match ($method) {
-            'password' => Hash::check($secret, $user->password),
+            'password' => Passwords::check($secret, $user->password),
             'pin' => $user->pin_hash !== null && Hash::check($secret, $user->pin_hash),
             default => false,
         };

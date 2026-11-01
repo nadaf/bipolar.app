@@ -5,9 +5,9 @@ namespace App\Http\Controllers\Web;
 use App\Domain\Mfa\TwoFactor;
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Support\Passwords;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 /** Verificacao em duas etapas: desafio no login e configuracao em /conta. */
@@ -123,7 +123,7 @@ class MfaController extends Controller
 
     private function checkPassword(User $u, string $password): void
     {
-        if (! Hash::check($password, $u->password)) {
+        if (! Passwords::check($password, $u->password)) {
             throw ValidationException::withMessages(['password' => 'Senha incorreta.']);
         }
     }

@@ -7,9 +7,9 @@ use App\Domain\Mfa\TwoFactor;
 use App\Http\Controllers\Controller;
 use App\Models\ClinicInvite;
 use App\Models\User;
+use App\Support\Passwords;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
 
@@ -35,7 +35,7 @@ class ClinicInviteController extends Controller
             abort_if($user === null, 404);
         } else {
             $v = $request->validate(['password' => ['required', 'string'], 'code' => ['nullable', 'string', 'max:20']]);
-            if (! Hash::check($v['password'], $user->password)) {
+            if (! Passwords::check($v['password'], $user->password)) {
                 throw ValidationException::withMessages(['password' => 'Senha incorreta.']);
             }
             if ($user->mfaOn() && ! $mfa->verify($user, (string) ($v['code'] ?? ''))) {
