@@ -351,3 +351,11 @@ it('detecta APP_KEY malformada sem trocar', function () {
     expect(DataKeys::appKeyProblem())->toContain('APP_KEY= do .env parece errada')->not->toContain('chave-sem');
     config(['app.key' => $orig]);
 });
+
+it('APP_KEY malformada: /migrar-dados explica e nao da 500', function () {
+    config(['app.key' => 'chave-sem-prefixo-de-40-caracteres-xxxxx']);
+    app()->forgetInstance('encrypter');
+    Crypt::clearResolvedInstance('encrypter');
+    $this->get('/migrar-dados?token='.LEGACY_TOKEN)->assertOk()->assertSee('APP_KEY= do .env parece errada')->assertDontSee('chave-sem-prefixo');
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertStatus(409)->assertSee('Nada foi feito');
+});
