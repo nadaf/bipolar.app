@@ -24,6 +24,43 @@ done
 ! find "$HOME_DIR" -name node_modules -o -name tests -not -path '*/vendor/*' | grep -q . || fail "node_modules/tests no zip"
 ! ls "$HOME_DIR"/bipolar/bootstrap/cache/*.php >/dev/null 2>&1 || fail "config/pacotes em cache no zip"
 
+FIX="$(cd "$(dirname "$0")/.." && pwd)/tests/fixtures/sql"
+emptydb() {
+  "${MY[@]}" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" 2>/dev/null \
+    || "${MY[@]}" "$DB_NAME" -e "SELECT 1" >/dev/null 2>&1 || fail "sem acesso ao banco"
+  local t; for t in $("${MY[@]}" -N "$DB_NAME" -e "SHOW TABLES" 2>/dev/null || true); do "${MY[@]}" "$DB_NAME" -e "SET FOREIGN_KEY_CHECKS=0; DROP TABLE \`$t\`" 2>/dev/null; done
+  "${MY[@]}" "$DB_NAME" -e "DROP PROCEDURE IF EXISTS bipolar_verificar; DROP PROCEDURE IF EXISTS bipolar_atualizar" 2>/dev/null || true
+}
+imp() { "${MY[@]}" "$DB_NAME" < "$1" 2>&1 | grep -v Warning || true; }
+schema() { mysqldump -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS" --no-data --skip-comments --skip-dump-date "$DB_NAME" 2>/dev/null | sed 's/AUTO_INCREMENT=[0-9]* //'; }
+snap() { schema; local t; for t in $("${MY[@]}" -N "$DB_NAME" -e "SHOW TABLES" 2>/dev/null); do "${MY[@]}" -N "$DB_NAME" -e "CHECKSUM TABLE \`$t\`" 2>/dev/null; done; }
+
+echo "==> Cenario: banco 2.0 novo (referencia)"
+emptydb; [ -z "$(imp "$HOME_DIR/banco/instalar-banco-novo.sql")" ] || fail "erro no instalar-banco-novo.sql"; schema > "$HOME_DIR/fresh.schema"
+echo "==> Cenario: instalar de novo num banco ja instalado -> PARA"
+imp "$HOME_DIR/banco/instalar-banco-novo.sql" | grep -q 'PARE: banco nao esta vazio' || fail "instalar em banco cheio nao parou"
+echo "==> Cenario: atualizar a partir do 2.0 anterior"
+emptydb; imp "$FIX/install-2.0-prev.sql" >/dev/null
+[ -z "$(imp "$HOME_DIR/banco/atualizar-banco.sql")" ] || fail "erro ao atualizar do 2.0 anterior"
+schema | diff -q - "$HOME_DIR/fresh.schema" >/dev/null || fail "2.0 anterior atualizado != instalacao nova"
+echo "==> Cenario: atualizacao interrompida no meio -> retoma"
+"${MY[@]}" "$DB_NAME" -e "DELETE FROM migrations WHERE id > 2" 2>/dev/null
+[ -z "$(imp "$HOME_DIR/banco/atualizar-banco.sql")" ] || fail "nao retomou atualizacao parcial"
+schema | diff -q - "$HOME_DIR/fresh.schema" >/dev/null || fail "retomada != instalacao nova"
+echo "==> Cenario: banco vazio + atualizar -> instala tudo"
+emptydb; [ -z "$(imp "$HOME_DIR/banco/atualizar-banco.sql")" ] || fail "atualizar em banco vazio falhou"
+schema | diff -q - "$HOME_DIR/fresh.schema" >/dev/null || fail "atualizar em banco vazio != instalacao nova"
+for extra in none buggy; do
+  echo "==> Cenario: banco do Bipolar 0.5 ($extra) -> PARA sem alterar nada"
+  for f in atualizar-banco.sql instalar-banco-novo.sql; do
+    emptydb; imp "$FIX/legacy-0.5.3-schema.sql" >/dev/null
+    [ "$extra" = buggy ] && { imp "$FIX/update-2.0-buggy.sql" >/dev/null; imp "$FIX/update-2.0-buggy.sql" | grep -q "1050" || fail "nao reproduziu o erro 1050"; }
+    snap > "$HOME_DIR/before"
+    imp "$HOME_DIR/banco/$f" | grep -q 'PARE: banco do Bipolar 0.5' || fail "$f nao parou no banco 0.5"
+    snap | diff -q - "$HOME_DIR/before" >/dev/null || fail "$f alterou o banco 0.5"
+  done
+done
+
 echo "==> Banco: instalar + atualizar (deve ser no-op) + atualizar de novo"
 "${MY[@]}" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci" 2>/dev/null \
   || "${MY[@]}" "$DB_NAME" -e "SELECT 1" >/dev/null 2>&1 || fail "sem acesso ao banco"
@@ -71,11 +108,22 @@ expect 302 -X POST "$BASE/entrar" --data-urlencode "_token=$T" --data-urlencode 
 expect 200 "$BASE/registrar"
 expect 200 "$BASE/historico"
 expect 200 "$BASE/exportar"
+expect 200 "$BASE/alertas"
+grep -q 'Notificações indisponíveis no servidor' "$HOME_DIR/body" || fail "/alertas sem VAPID nao avisou"
 
 echo "==> Atualizador web (uso unico)"
 expect 200 "$BASE/atualizar"
 expect 200 -X POST "$BASE/atualizar" --data-urlencode "token=$TOKEN"
 expect 404 "$BASE/atualizar"
+echo "==> VAPID criado pelo instalador (sem SSH), privada nunca na tela, nao sobrescreve"
+grep -qE '^VAPID_PUBLIC_KEY=\S{60,}$' "$HOME_DIR/bipolar/.env" || fail "VAPID_PUBLIC_KEY nao foi criada"
+grep -qE '^VAPID_PRIVATE_KEY=\S{20,}$' "$HOME_DIR/bipolar/.env" || fail "VAPID_PRIVATE_KEY nao foi criada"
+grep -q '^VAPID_SUBJECT=.\+' "$HOME_DIR/bipolar/.env" || fail "VAPID_SUBJECT vazio"
+PRIV="$(sed -n 's/^VAPID_PRIVATE_KEY=//p' "$HOME_DIR/bipolar/.env")"; ! grep -qF "$PRIV" "$HOME_DIR/body" || fail "chave privada apareceu na tela"
+cp "$HOME_DIR/bipolar/.env" "$HOME_DIR/env.1"
+sed -i "s#^INSTALLER_TOKEN=.*#INSTALLER_TOKEN=${TOKEN}novo#" "$HOME_DIR/bipolar/.env"
+expect 200 -X POST "$BASE/atualizar" --data-urlencode "token=${TOKEN}novo"
+diff <(grep ^VAPID "$HOME_DIR/env.1") <(grep ^VAPID "$HOME_DIR/bipolar/.env") >/dev/null || fail "instalador sobrescreveu VAPID"
 
 echo "==> Nenhum 500 / erro no log"
 if grep -q ' 500 ' "$HOME_DIR/server.log"; then fail "houve 500 no servidor"; fi

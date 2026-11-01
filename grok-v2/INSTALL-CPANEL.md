@@ -155,3 +155,10 @@ Detalhes: `docs/PUSH.md`.
 | Página sem estilo | A pasta `public_html/build/` não foi extraída; extraia de novo. |
 
 Em crise? **CVV 188** (24h, gratuito) · **SAMU 192**.
+
+## Banco de dados: sempre um banco NOVO para o 2.0
+
+- Crie um banco **novo e vazio** e importe `banco/instalar-banco-novo.sql` (ou use `/instalar`).
+- `atualizar-banco.sql` é só para bancos que **já são do 2.0**.
+- Nunca aponte o 2.0 para o banco do Bipolar 0.5: os SQL e o instalador detectam o 0.5 e param com "PARE: ..." sem alterar nada.
+- Chaves VAPID: deixe vazias no `.env`; o `/instalar` ou `/atualizar` cria (não precisa de SSH).

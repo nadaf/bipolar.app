@@ -3,6 +3,7 @@
 use App\Http\Middleware\SecurityHeaders;
 use App\Models\DayBlock;
 use App\Models\MoodEntry;
+use Illuminate\Support\Facades\DB;
 
 it('Registrar: periodo travado, cartoes acessiveis e CSP estrita', function () {
     $r = $this->actingAs(patient())->get('/registrar');
@@ -101,4 +102,12 @@ it('instalador com token: recusa token errado e roda migrations com o certo', fu
     $this->get('/atualizar')->assertOk()->assertSee('action="/atualizar"', false);
     $this->post('/atualizar', ['token' => str_repeat('b', 40)])->assertOk();
     @unlink(storage_path('app/installer.lock'));
+});
+
+it('instalador web PARA num banco do Bipolar 0.5 sem alterar nada', function () {
+    config(['bipolar.installer_token' => str_repeat('c', 40)]);
+    DB::statement('CREATE TABLE entries (id integer primary key)');
+    $this->post('/instalar', ['token' => str_repeat('c', 40)])->assertStatus(409)->assertSee('Bipolar 0.5');
+    expect(file_exists(storage_path('app/installer.lock')))->toBeFalse();
+    DB::statement('DROP TABLE entries');
 });

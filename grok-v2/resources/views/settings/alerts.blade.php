@@ -43,7 +43,7 @@
   <div class="card mb-4" x-data="pushAparelho" data-vapid="{{ $vapid }}" data-url="{{ route('push.subscribe') }}" data-url-remover="{{ route('push.unsubscribe') }}">
     <h3 class="font-semibold">Notificações neste aparelho</h3>
     <p class="hint mt-1">O aviso diz só <strong>“Hora do seu registro”</strong>, sem nenhuma informação sobre você, e abre o Registrar. Você pode desligar quando quiser.</p>
-    <p class="mt-2" role="status" aria-live="polite" x-text="msg">@if($vapid === '')O envio de notificações não está configurado neste servidor.@else Verificando este aparelho…@endif</p>
+    <p class="mt-2" role="status" aria-live="polite" x-text="msg">@if($vapid === '')Notificações indisponíveis no servidor.@else Verificando este aparelho…@endif</p>
     <div class="mt-3 flex flex-wrap gap-2">
       <button type="button" class="btn-primary" x-bind:hidden="!podeAtivar" x-on:click="ativar" x-bind:disabled="ocupado" hidden>Ativar notificações</button>
       <button type="button" class="btn-secondary" x-bind:hidden="!ativo" x-on:click="desativar" x-bind:disabled="ocupado" hidden>Desativar neste aparelho</button>

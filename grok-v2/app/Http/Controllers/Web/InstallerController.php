@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Web;
 
 use App\Http\Controllers\Controller;
+use App\Support\EnvVapid;
+use App\Support\LegacyDbGuard;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 
@@ -45,6 +47,10 @@ class InstallerController extends Controller
             return response()->view('installer', ['done' => null, 'error' => 'Código de instalação incorreto.'], 403);
         }
 
+        if ($problem = LegacyDbGuard::problem()) {
+            return response()->view('installer', ['done' => null, 'error' => $problem], 409);
+        }
+
         try {
             Artisan::call('migrate', ['--force' => true]);
             $out = Artisan::output();
@@ -52,6 +58,14 @@ class InstallerController extends Controller
             report($e);
 
             return response()->view('installer', ['done' => null, 'error' => 'Falha ao criar as tabelas. Confira os dados do banco no arquivo .env.'], 500);
+        }
+        try {
+            // chaves de notificacao (so se vazias; a privada nunca aparece na tela)
+            if (! app()->runningUnitTests() && EnvVapid::ensure(app()->environmentFilePath())) {
+                $out = trim($out)."\nChaves de notificação criadas no .env.";
+            }
+        } catch (\Throwable $e) {
+            report($e);
         }
         file_put_contents(storage_path('app/installer.lock'), now()->toIso8601String().' '.hash('sha256', (string) config('bipolar.installer_token'))."\n", FILE_APPEND);
 

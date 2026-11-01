@@ -18,6 +18,9 @@
 - `atualizar-banco.sql` (phpMyAdmin) aplica só as migrations que faltam e pode ser importado de novo.
 - Atualizador web `/atualizar` (e `/instalar`) com código de uso único do `.env`: depois de usado, o mesmo código dá 404.
 - CI simula o cPanel (`scripts/smoke-cpanel-zip.sh`): extrai, importa o SQL no MySQL 5.7, sobe `php -S` na `public_html`, cria conta, entra, `/registrar`, assets e atualizador, sem nenhum 500.
+- Corrigido (#1050 "Tabela 'tenants' já existe"): `atualizar-banco.sql` criava `migrations` e `tenants` antes de conferir o banco, e falhava num banco do Bipolar 0.5. Agora os dois SQL e o instalador web conferem o banco antes (sem `information_schema`) e **PARAM sem alterar nada** se for banco do 0.5, de outro sistema ou (na instalação) não vazio. A atualização é retomável: o que já existe é pulado.
+- O 2.0 sempre usa um banco NOVO e vazio; o banco do 0.5 nunca é alterado (migração dos dados do 0.5 virá num script separado).
+- Instalador web cria `VAPID_PUBLIC_KEY`/`VAPID_PRIVATE_KEY`/`VAPID_SUBJECT` no `.env` quando vazios (sem SSH); nunca sobrescreve nem mostra a chave privada. Sem VAPID, Alertas mostra "Notificações indisponíveis no servidor".
 - Corrigido: o pacote antigo não levava a pasta `lang/` (traduções pt-BR). Agora vai junto.
 
 ### Segurança, exportação e convites

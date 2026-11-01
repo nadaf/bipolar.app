@@ -1,4 +1,106 @@
--- Bipolar 2.x - MySQL 5.7+ - gerado por bipolar:export-sql em 2026-10-31
+-- Bipolar 2.x - MySQL 5.7+ - gerado por bipolar:export-sql em 2026-11-01
+-- PROTECAO: para (sem alterar nada) se o banco nao estiver vazio ou for do Bipolar 0.5.
+DROP PROCEDURE IF EXISTS bipolar_verificar;
+DELIMITER $$
+CREATE PROCEDURE bipolar_verificar(IN modo VARCHAR(10))
+BEGIN
+  DECLARE ok INT DEFAULT 1;
+  DECLARE CONTINUE HANDLER FOR 1146, 1054 SET ok = 0;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `entries`);
+  IF ok = 1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco do Bipolar 0.5 (antigo). NADA foi alterado. Crie um banco NOVO vazio e importe instalar-banco-novo.sql';
+  END IF;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `care_shares`);
+  IF ok = 1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco do Bipolar 0.5 (antigo). NADA foi alterado. Crie um banco NOVO vazio e importe instalar-banco-novo.sql';
+  END IF;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `care_codes`);
+  IF ok = 1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco do Bipolar 0.5 (antigo). NADA foi alterado. Crie um banco NOVO vazio e importe instalar-banco-novo.sql';
+  END IF;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `auth_tokens`);
+  IF ok = 1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco do Bipolar 0.5 (antigo). NADA foi alterado. Crie um banco NOVO vazio e importe instalar-banco-novo.sql';
+  END IF;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `outbox`);
+  IF ok = 1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco do Bipolar 0.5 (antigo). NADA foi alterado. Crie um banco NOVO vazio e importe instalar-banco-novo.sql';
+  END IF;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `period_markers`);
+  IF ok = 1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco do Bipolar 0.5 (antigo). NADA foi alterado. Crie um banco NOVO vazio e importe instalar-banco-novo.sql';
+  END IF;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `daily_markers`);
+  IF ok = 1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco do Bipolar 0.5 (antigo). NADA foi alterado. Crie um banco NOVO vazio e importe instalar-banco-novo.sql';
+  END IF;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `recipients`);
+  IF ok = 1 THEN
+    SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco do Bipolar 0.5 (antigo). NADA foi alterado. Crie um banco NOVO vazio e importe instalar-banco-novo.sql';
+  END IF;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `users`);
+  IF ok = 1 THEN
+    SET ok = 1;
+    DO (SELECT COUNT(`remember_token`) FROM `users`);
+    IF ok = 0 THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco do Bipolar 0.5 (antigo). NADA foi alterado. Crie um banco NOVO vazio e importe instalar-banco-novo.sql';
+    END IF;
+  END IF;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `tenants`);
+  IF ok = 1 THEN
+    SET ok = 1;
+    DO (SELECT COUNT(`kind`) FROM `tenants`);
+    IF ok = 0 THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: a tabela tenants e de outro sistema. NADA foi alterado. Use um banco NOVO e vazio para o Bipolar 2.0';
+    END IF;
+    IF modo = 'instalar' THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco nao esta vazio. NADA foi alterado. Para instalar, use um banco NOVO e vazio. Para atualizar, use atualizar-banco.sql';
+    END IF;
+  END IF;
+  SET ok = 1;
+  DO (SELECT COUNT(*) FROM `migrations`);
+  IF ok = 1 THEN
+    SET ok = 1;
+    DO (SELECT COUNT(`migration`) FROM `migrations`);
+    IF ok = 0 THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: a tabela migrations e de outro sistema. NADA foi alterado. Use um banco NOVO e vazio para o Bipolar 2.0';
+    END IF;
+    IF modo = 'instalar' THEN
+      SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco nao esta vazio. NADA foi alterado. Para instalar, use um banco NOVO e vazio. Para atualizar, use atualizar-banco.sql';
+    END IF;
+  END IF;
+  IF modo = 'instalar' THEN
+    SET ok = 1;
+    DO (SELECT COUNT(*) FROM `users`);
+    IF ok = 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco nao esta vazio. NADA foi alterado. Para instalar, use um banco NOVO e vazio. Para atualizar, use atualizar-banco.sql';
+    END IF;
+  END IF;
+  IF modo = 'atualizar' THEN
+    SET ok = 1;
+    DO (SELECT COUNT(*) FROM `migrations`);
+    IF ok = 0 THEN
+      SET ok = 1;
+      DO (SELECT COUNT(*) FROM `users`);
+      IF ok = 1 THEN
+        SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'PARE: banco sem controle de versao do Bipolar 2.0. NADA foi alterado. Use um banco NOVO e importe instalar-banco-novo.sql';
+      END IF;
+    END IF;
+  END IF;
+END$$
+DELIMITER ;
+CALL bipolar_verificar('instalar');
+DROP PROCEDURE bipolar_verificar;
 SET NAMES utf8mb4;
 SET time_zone = '+00:00';
 CREATE TABLE IF NOT EXISTS migrations (id int unsigned not null auto_increment primary key, migration varchar(255) not null, batch int not null) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

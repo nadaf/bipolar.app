@@ -258,7 +258,7 @@ Alpine.data('pushAparelho', () => ({
   ocupado: false,
   async init() {
     const { vapid } = this.$el.dataset;
-    if (!vapid) { this.msg = 'O envio de notificações não está configurado neste servidor.'; return; }
+    if (!vapid) { this.msg = 'Notificações indisponíveis no servidor.'; return; }
     if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
       this.msg = 'Este navegador não recebe notificações. No iPhone/iPad, instale o app na Tela de Início e abra por ele.';
       return;

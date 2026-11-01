@@ -11,6 +11,13 @@ O que tem dentro do zip:
   cron.txt       a linha da tarefa automatica
   LEIA-ME.txt    este arquivo
 
+IMPORTANTE - BANCO DE DADOS:
+  O Bipolar 2.0 usa um banco de dados NOVO e VAZIO, separado do antigo.
+  NUNCA use o banco do Bipolar 0.5 (o antigo, com os registros dos pacientes).
+  Nao apague nem mexa no banco antigo. Se voce tentar usar o banco antigo,
+  os arquivos SQL e o instalador PARAM com a mensagem "PARE: ... 0.5"
+  e nao alteram nada.
+
 
 -------------------------------------------------
 A) PRIMEIRA INSTALACAO
@@ -26,9 +33,10 @@ A) PRIMEIRA INSTALACAO
 3. Extraia. Clique com o botao direito no cpanel.zip -> Extract (Extrair).
    Aparecem as pastas bipolar, public_html e banco ao lado umas das outras.
 
-4. Crie o banco. cPanel -> "Assistente de banco de dados MySQL":
-   crie um banco, um usuario com senha, e marque TODOS OS PRIVILEGIOS.
-   Anote: nome do banco, usuario e senha.
+4. Crie um banco NOVO e VAZIO. cPanel -> "Assistente de banco de dados MySQL":
+   crie um banco com nome novo (ex.: bipolar2), um usuario com senha,
+   e marque TODOS OS PRIVILEGIOS. Anote: nome do banco, usuario e senha.
+   NAO use o banco do Bipolar antigo (0.5).
 
 5. Crie o arquivo de configuracao. Gerenciador de Arquivos -> pasta bipolar
    (se nao aparecer, clique em Configuracoes e marque "Mostrar arquivos ocultos").
@@ -42,17 +50,19 @@ A) PRIMEIRA INSTALACAO
      INSTALLER_TOKEN=invente um codigo com 32 letras e numeros ou mais
                      (ex.: Bipolar2026instalacaoSeguraXyz123)
    Deixe APP_KEY= vazio: ele e criado sozinho no passo 6.
+   Deixe VAPID_PUBLIC_KEY=, VAPID_PRIVATE_KEY= e VAPID_SUBJECT= vazios:
+   o instalador (passo 6) cria essas chaves de notificacao sozinho.
    Salve.
 
-6. Crie as tabelas. No navegador, abra:  https://seu-site.com.br/instalar
+6. Crie as tabelas. Jeito recomendado: cPanel -> phpMyAdmin -> clique no
+   banco NOVO do passo 4 -> Importar -> escolha banco/instalar-banco-novo.sql
+   -> Executar. (NAO use atualizar-banco.sql numa instalacao nova.)
+   Depois, no navegador, abra:  https://seu-site.com.br/instalar
    Digite o codigo que voce inventou no INSTALLER_TOKEN e clique no botao.
-   Ao aparecer "Pronto!", o banco esta criado. Esse codigo nao funciona
-   de novo (o instalador se desliga sozinho).
-
-   (Outra opcao, sem o passo 6: cPanel -> phpMyAdmin -> clique no seu banco
-    -> Importar -> escolha banco/instalar-banco-novo.sql -> Executar.
-    Nesse caso, invente o INSTALLER_TOKEN mesmo assim e abra o site uma vez
-    para a chave APP_KEY ser criada.)
+   Ao aparecer "Pronto!", ele confere o banco e cria as chaves de
+   notificacao no .env. Esse codigo nao funciona de novo (o instalador
+   se desliga sozinho). (Se voce pulou o phpMyAdmin, o /instalar tambem
+   cria as tabelas sozinho.)
 
 7. Abra https://seu-site.com.br e crie sua conta.
 
@@ -64,8 +74,11 @@ A) PRIMEIRA INSTALACAO
 
 
 -------------------------------------------------
-B) ATUALIZAR UMA VERSAO QUE JA ESTA NO AR
+B) ATUALIZAR UM BIPOLAR 2.0 QUE JA ESTA NO AR
 -------------------------------------------------
+So para o banco que JA e do Bipolar 2.0 (criado na parte A).
+Se o seu site ainda e o Bipolar 0.5, NAO use esta parte: faca a parte A
+com um banco NOVO.
 
 1. Copia de seguranca: phpMyAdmin -> seu banco -> Exportar -> Executar
    (guarda um arquivo .sql). Baixe tambem o arquivo bipolar/.env.
@@ -91,6 +104,13 @@ SE ALGO DER ERRADO
   Extraia o zip de novo.
 - "Not Found" em /instalar: o INSTALLER_TOKEN esta vazio, tem menos de
   32 caracteres, ou ja foi usado. Coloque um codigo novo.
+- "PARE: banco do Bipolar 0.5": voce escolheu o banco antigo. Nada foi
+  alterado. Volte ao passo A4, crie um banco NOVO e vazio e importe nele
+  banco/instalar-banco-novo.sql. Coloque os dados do banco novo no .env.
+- "PARE: banco nao esta vazio": o banco ja tem tabelas. Para instalar, use
+  um banco NOVO e vazio. Para atualizar um 2.0, use atualizar-banco.sql.
+- Notificacoes "indisponiveis no servidor": as chaves VAPID estao vazias.
+  Coloque um INSTALLER_TOKEN novo e abra /atualizar uma vez.
 - Detalhes do erro ficam em bipolar/storage/logs (arquivo do dia).
 - Para voltar atras: renomeie public_html_antigo para public_html e
   importe a copia do banco no phpMyAdmin.
