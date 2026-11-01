@@ -115,6 +115,8 @@ atualizar sozinho toda noite, as 3h, pegando a versao nova no GitHub.
    /usr/local/bin/php /home1/SEU_USUARIO/bipolar/deploy/auto-update.php >/dev/null 2>&1
 
 4. Clique em "Adicionar novo trabalho cron". Pronto.
+   NUNCA rode a cada minuto (Minuto: *). No maximo a cada 15 minutos
+   (Minuto: 0,15,30,45) ou 1x por dia como acima.
 
 O que ele faz sozinho: confere se ha versao nova, baixa, confere o
 codigo de seguranca (sha256), faz copia de seguranca dos arquivos e do
@@ -128,6 +130,23 @@ Ver o que aconteceu: bipolar/storage/logs/auto-update.log (horario de Fortaleza)
 Desligar: apague a linha no "Trabalhos Cron", ou no bipolar/.env coloque
    AUTO_UPDATE_ENABLED=false
 So versoes finais (sem beta): no .env coloque AUTO_UPDATE_PRERELEASE=false
+Se uma versao falhar 2 vezes, ele para de tentar e cria
+bipolar/storage/app/versao-falhou.txt (apague para tentar de novo).
+
+SE O SITE CAIR NO MEIO DE UMA ATUALIZACAO (so com o Gerenciador de Arquivos):
+1. "Trabalhos Cron": apague a linha do auto-update.php (para nao repetir).
+2. Gerenciador de Arquivos -> Configuracoes -> marque "Mostrar arquivos
+   ocultos". Se NAO existir a pasta bipolar mas existir .bipolar-anterior,
+   renomeie .bipolar-anterior para bipolar (o mesmo com
+   .bipolar-2-0-public-anterior -> bipolar-2-0-public).
+3. Baixe o cpanel.zip da versao mais nova em
+   https://github.com/nadaf/bipolar.app/releases , envie para a pasta
+   inicial (/home1/SEU_USUARIO), clique nele -> Extrair -> confirme
+   (sobrescreve os arquivos; o .env e os dados em storage nao vem no zip).
+4. Apague bipolar/storage/framework/down (se existir) e os arquivos .php
+   de bipolar/bootstrap/cache (deixe o .gitignore).
+5. Abra o site. Depois volte a linha do cron (no maximo a cada 15 min).
+NUNCA troque a linha APP_KEY= do .env.
 
 
 -------------------------------------------------

@@ -1,3 +1,10 @@
+## [2.0.7] - 2026-11-01
+- Atualização automática à prova de processo morto: cada etapa é anotada antes de começar (`storage/app/auto-update-estado.json`); se a hospedagem matar o processo, a próxima execução (ou o `register_shutdown_function`) volta a versão anterior e tira da manutenção. Erros fatais vão para o `auto-update.log`.
+- Troca por renomear pastas (`.bipolar-novo` → `bipolar`, anterior em `.bipolar-anterior`), quase instantânea, em vez de copiar arquivo por arquivo; cópia arquivo a arquivo só se renomear não funcionar.
+- `set_time_limit(0)` e `memory_limit` 512M quando permitido; trava com pid/validade além do `flock`; depois de 2 falhas na mesma versão grava `storage/app/versao-falhou.txt` e para; guarda 2 backups (só completos contam).
+- Versão instalada = a mais nova entre `versao-instalada.txt` e `VERSION` (quem extrai o zip à mão não dispara reinstalação).
+- LEIA-ME: recuperação manual pelo Gerenciador de Arquivos; cron no máximo a cada 15 min.
+
 ## [2.0.6] - 2026-11-01
 - `/migrar-dados`: qualquer erro vira mensagem com código curto e é registrado (`Log::error` com tipo/mensagem, sem conteúdo nem chaves; cópia no `error_log` do PHP se o log falhar). Nunca mais a tela genérica de erro.
 - `OLD_APP_KEY` é conferida: sem `base64:`/tamanho errado (ex.: a `secret_key` da 0.5), igual à `APP_KEY` atual → aviso amigável sem mostrar a chave e nada é feito. Aspas e espaços colados são ignorados.

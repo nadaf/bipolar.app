@@ -86,6 +86,23 @@ run && fail "migration quebrada deveria sair com erro"
 [ ! -e "$H/bipolar/storage/framework/down" ] || fail "ficou em manutencao apos falha"
 grep -q 'backup restaurado' "$H/bipolar/storage/logs/auto-update.log" || fail "restauracao nao logada"
 
+echo "==> 4b) hospedagem mata o processo no meio -> proxima execucao desfaz; 2 falhas -> para"
+mkrel v9.0.5 NOVO5.txt - ok; publish v9.0.5 v9.0.0
+AUTO_UPDATE_TEST_KILL=depois-da-troca run && fail "kill deveria sair com erro" || true
+run || true   # proxima execucao: desfaz
+[ ! -e "$H/bipolar/NOVO5.txt" ] && [ -f "$H/bipolar/NOVO.txt" ] && [ -f "$H/bipolar/vendor/autoload.php" ] || fail "nao desfez apos kill"
+grep -q '^SEGREDO_DO_SERVIDOR=nao-mexer' "$H/bipolar/.env" || fail ".env perdido apos kill"
+[ "$(cat "$H/bipolar/storage/app/dado.txt")" = "dado do usuario" ] || fail "storage perdido apos kill"
+[ ! -e "$H/bipolar/storage/framework/down" ] || fail "ficou em manutencao apos kill"
+grep -q 'parou na etapa' "$H/bipolar/storage/logs/auto-update.log" || grep -q 'PARADA INESPERADA' "$H/bipolar/storage/logs/auto-update.log" || fail "kill nao logado"
+AUTO_UPDATE_TEST_KILL=depois-do-backup:exit run || true
+grep -q 'PARADA INESPERADA' "$H/bipolar/storage/logs/auto-update.log" || fail "shutdown nao logou"
+[ "$(cat "$H/bipolar/storage/app/versao-falhou.txt")" = v9.0.5 ] || fail "nao marcou versao-falhou apos 2 falhas"
+run; [ ! -e "$H/bipolar/NOVO5.txt" ] || fail "tentou de novo versao que falhou"
+[ "$(ls -d "$H"/bipolar/storage/backups/*/ | wc -l)" -le 2 ] || fail "backups nao rotacionados"
+rm -f "$H/bipolar/storage/app/versao-falhou.txt" "$H/bipolar/storage/app/auto-update-falhas.json"
+[ ! -e "$H/bipolar/storage/framework/down" ] || fail "ficou em manutencao"
+
 echo "==> 5) desligado pelo .env"
 echo "AUTO_UPDATE_ENABLED=false" >> "$H/bipolar/.env"; mkrel v9.0.3 NOVO4.txt - ok; publish v9.0.3
 run; [ ! -e "$H/bipolar/NOVO4.txt" ] || fail "instalou mesmo desligado"
@@ -97,4 +114,4 @@ for i in $(seq 1 40); do curl -s -o /dev/null "http://127.0.0.1:$((PORT+1))/robo
 c="$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:$((PORT+1))/entrar")"; kill $SP 2>/dev/null || true
 [ "$c" = 200 ] || fail "/entrar -> $c depois da atualizacao"
 q "DELETE FROM migrations WHERE migration='au_smoke_marcador' OR migration LIKE '%au_smoke'"; q "DROP TABLE IF EXISTS au_smoke"
-echo "OK: atualizacao automatica funcionou nos 6 cenarios"
+echo "OK: atualizacao automatica funcionou nos 7 cenarios"

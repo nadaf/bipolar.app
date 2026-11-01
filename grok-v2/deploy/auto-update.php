@@ -3,8 +3,14 @@
 /*
  * Bipolar 2.0 - atualizacao automatica pelo Cron Jobs do cPanel (sem SSH).
  *
- * Linha do cron (1x por dia, 3h):
- *   0 3 * * * /usr/local/bin/php /home1/SEU_USUARIO/bipolar/deploy/auto-update.php >/dev/null 2>&1
+ * Linha do cron (a cada 15 min ou 1x por dia; NUNCA a cada minuto):
+ *   0,15,30,45 * * * * /usr/local/bin/php /home1/SEU_USUARIO/bipolar/deploy/auto-update.php >/dev/null 2>&1
+ *
+ * Seguranca contra processo morto (2.0.7): cada etapa e anotada em storage/app/auto-update-estado.json
+ * ANTES de comecar; se o processo morrer (tempo, memoria, kill da hospedagem), a proxima execucao
+ * (ou o register_shutdown_function, se der) desfaz: volta a pasta anterior e tira da manutencao.
+ * A troca e por renomear pastas (quase instantanea), nao arquivo por arquivo. Depois de 2 falhas na
+ * mesma versao grava storage/app/versao-falhou.txt e para de tentar ate alguem apagar esse arquivo.
  *
  * O que faz: consulta os releases publicos do GitHub; se houver versao mais nova que a instalada,
  * baixa o cpanel.zip, confere o sha256, faz backup (arquivos + banco) em storage/backups (guarda 3),
@@ -30,7 +36,11 @@ final class BipolarAutoUpdate
 
     private const ASSET = 'cpanel.zip';
 
-    private const KEEP_BACKUPS = 3;
+    private const KEEP_BACKUPS = 2;
+
+    private const MAX_FAILS = 2;
+
+    private bool $busy = false;
 
     private string $app;
 
@@ -55,6 +65,10 @@ final class BipolarAutoUpdate
 
     public function run(): int
     {
+        @set_time_limit(0);
+        @ini_set('max_execution_time', '0');
+        @ini_set('memory_limit', '512M');
+        @ignore_user_abort(true);
         @mkdir(dirname($this->log), 0755, true);
         if (! $this->flag('AUTO_UPDATE_ENABLED', true)) {
             $this->say('desligado (AUTO_UPDATE_ENABLED=false). Nada feito.');
@@ -70,22 +84,129 @@ final class BipolarAutoUpdate
         $lockFile = $this->app.'/storage/app/auto-update.lock';
         @mkdir(dirname($lockFile), 0755, true);
         $lock = fopen($lockFile, 'c');
-        if ($lock === false || ! flock($lock, LOCK_EX | LOCK_NB)) {
+        if ($lock === false || ! flock($lock, LOCK_EX | LOCK_NB) || $this->lockHeldByOther($lockFile)) {
             $this->say('outra atualizacao ja esta rodando. Saindo.');
 
             return 0;
         }
+        @file_put_contents($lockFile, (string) json_encode(['pid' => getmypid(), 't' => time()]));
+        register_shutdown_function(function () {
+            if (! $this->busy) {
+                return;
+            }
+            $e = error_get_last();
+            $e = ($e && in_array($e['type'], [E_ERROR, E_CORE_ERROR, E_COMPILE_ERROR, E_USER_ERROR], true)) ? $e : null;
+            $this->say('PARADA INESPERADA durante a atualizacao'.($e ? ': '.$e['message'].' ('.basename((string) $e['file']).':'.$e['line'].')' : '').'. Desfazendo.');
+            $this->recover();
+        });
 
         try {
+            if (is_file($this->stateFile())) {
+                $st = $this->state();
+                $this->say('a execucao anterior parou na etapa "'.($st['etapa'] ?? '?').'" sem terminar (processo encerrado pela hospedagem?). Desfazendo.');
+                $this->recover();
+
+                return 1;
+            }
+
             return $this->check();
         } catch (Throwable $e) {
             $this->say('ERRO: '.$e->getMessage());
 
             return 1;
         } finally {
+            @file_put_contents($lockFile, '');
             flock($lock, LOCK_UN);
             fclose($lock);
         }
+    }
+
+    /** Trava "de verdade" mesmo se flock nao funcionar no disco da hospedagem: pid vivo e recente. */
+    private function lockHeldByOther(string $file): bool
+    {
+        $d = json_decode((string) @file_get_contents($file), true);
+        if (! is_array($d) || ! isset($d['pid'], $d['t']) || (int) $d['pid'] === getmypid()) {
+            return false;
+        }
+        $alive = is_dir('/proc') ? is_dir('/proc/'.(int) $d['pid']) : true;
+
+        return $alive && time() - (int) $d['t'] < 1800;
+    }
+
+    // ---------------------------------------------------------------- estado / recuperacao
+
+    private function stateFile(): string
+    {
+        return $this->app.'/storage/app/auto-update-estado.json';
+    }
+
+    /** @return array<string, mixed> */
+    private function state(): array
+    {
+        foreach ([$this->stateFile(), $this->home.'/.bipolar-novo/storage/app/auto-update-estado.json'] as $f) {
+            $d = json_decode((string) @file_get_contents($f), true);
+            if (is_array($d)) {
+                return $d;
+            }
+        }
+
+        return [];
+    }
+
+    /** Anota a etapa ANTES de comecar (sobrevive a kill). @param array<string, mixed> $set */
+    private function stage(array $set): void
+    {
+        $st = array_merge($this->state(), $set, ['quando' => date('c')]);
+        @mkdir(dirname($this->stateFile()), 0755, true);
+        file_put_contents($this->stateFile(), (string) json_encode($st));
+        $this->say('etapa: '.$st['etapa']);
+    }
+
+    /** Desfaz uma instalacao que nao terminou e tira da manutencao. Conta a falha da versao. */
+    private function recover(): void
+    {
+        $this->busy = false;
+        $st = $this->state();
+        $etapa = (string) ($st['etapa'] ?? '');
+        try {
+            if (in_array($etapa, ['troca', 'migrations'], true)) {
+                if (! $this->undoSwap()) {
+                    $b = (string) ($st['backup'] ?? '');
+                    if ($b !== '' && is_file("$b/completo")) {
+                        $this->restore($b, false);
+                    }
+                }
+                $b = (string) ($st['backup'] ?? '');
+                if ($etapa === 'migrations' && $b !== '' && is_file("$b/banco.sql")) {
+                    $this->restoreDb("$b/banco.sql");
+                }
+                $this->say('versao anterior de volta.');
+            }
+        } catch (Throwable $e) {
+            $this->say('ERRO ao desfazer: '.$e->getMessage().'. Veja o passo a passo de recuperacao no LEIA-ME.');
+        }
+        $this->maintenance(false);
+        $this->clearBootstrapCache();
+        $tag = (string) ($st['tag'] ?? '');
+        if ($tag !== '') {
+            $fails = $this->fails();
+            $fails[$tag] = ($fails[$tag] ?? 0) + 1;
+            @file_put_contents($this->app.'/storage/app/auto-update-falhas.json', (string) json_encode($fails));
+            if ($fails[$tag] >= self::MAX_FAILS) {
+                @file_put_contents($this->app.'/storage/app/versao-falhou.txt', $tag."\n");
+                $this->say("$tag falhou {$fails[$tag]} vezes: nao vou tentar de novo. Apague storage/app/versao-falhou.txt para tentar outra vez.");
+            }
+        }
+        @unlink($this->stateFile());
+        $this->rmTree($this->app.'/storage/app/auto-update-tmp');
+    }
+
+    /** @return array<string, int> */
+    private function fails(): array
+    {
+        $d = json_decode((string) @file_get_contents($this->app.'/storage/app/auto-update-falhas.json'), true);
+
+        return is_array($d) ? $d : [];
     }
 
     private function check(): int
@@ -100,6 +221,12 @@ final class BipolarAutoUpdate
         $tag = (string) $release['tag_name'];
         if (version_compare($this->norm($tag), $this->norm($installed), '<=')) {
             $this->say("ja esta na versao mais nova ($installed; ultimo release: $tag). Nada feito.", false);
+
+            return 0;
+        }
+        $failed = trim((string) @file_get_contents($this->app.'/storage/app/versao-falhou.txt'));
+        if ($failed !== '' && $this->norm($failed) === $this->norm($tag)) {
+            $this->say("$tag ja falhou antes (storage/app/versao-falhou.txt). Nada feito.", false);
 
             return 0;
         }
@@ -149,33 +276,54 @@ final class BipolarAutoUpdate
             throw new RuntimeException("zip sem bipolar/ ou $webName/. Nada alterado.");
         }
 
+        $this->busy = true;
+        $this->stage(['tag' => $tag, 'from' => $from, 'etapa' => 'backup']);
         $backup = $this->backup($from);
         $this->say("backup: $backup");
 
+        $this->stage(['etapa' => 'troca', 'backup' => $backup]);
+        $this->testKill('depois-do-backup');
         $this->maintenance(true);
         try {
-            $this->replace($new.'/bipolar', $this->app, true);
-            $this->replace($new.'/'.$webName, $this->web, false);
+            if (! $this->swap($new, $webName)) {
+                $this->say('troca por renomear indisponivel; copiando arquivo por arquivo.');
+                $this->replace($new.'/bipolar', $this->app, true);
+                $this->replace($new.'/'.$webName, $this->web, false);
+            }
             $this->clearBootstrapCache();
+            $this->testKill('depois-da-troca');
+            $this->stage(['etapa' => 'migrations']);
             $this->artisan(['migrate', '--force' => true]);
             $this->artisan(['optimize:clear']);
             file_put_contents($this->app.'/storage/app/versao-instalada.txt', $tag."\n");
             $this->rememberHtaccess();
             $this->maintenance(false);
+            @unlink($this->stateFile());
+            $this->busy = false;
             $this->rmTree($work);
+            $this->rmTree($this->home.'/.bipolar-anterior');
+            $this->rmTree($this->home.'/.'.$webName.'-anterior');
             $this->say("instalado $tag com sucesso.");
 
             return 0;
         } catch (Throwable $e) {
+            $this->busy = false;
             $this->say('ERRO durante a instalacao: '.$e->getMessage().' -> restaurando backup.');
             try {
-                $this->restore($backup);
+                if (! $this->undoSwap()) {
+                    $this->restore($backup, false);
+                }
+                if (is_file("$backup/banco.sql") && ($this->state()['etapa'] ?? '') === 'migrations') {
+                    $this->restoreDb("$backup/banco.sql");
+                }
                 $this->say('backup restaurado (arquivos'.(is_file("$backup/banco.sql") ? ' e banco' : '').').');
             } catch (Throwable $r) {
                 $this->say('ERRO ao restaurar: '.$r->getMessage().". Backup em $backup");
             }
             $this->maintenance(false);
-            $this->rmTree($work);
+            $this->clearBootstrapCache();
+            @unlink($this->stateFile());
+            $this->rmTree($this->app.'/storage/app/auto-update-tmp');
 
             return 1;
         }
@@ -206,13 +354,15 @@ final class BipolarAutoUpdate
 
     private function installedVersion(): string
     {
+        $best = '0.0.0';
         foreach ([$this->app.'/storage/app/versao-instalada.txt', $this->app.'/VERSION'] as $f) {
-            if (is_file($f) && trim((string) file_get_contents($f)) !== '') {
-                return trim((string) file_get_contents($f));
+            $v = is_file($f) ? trim((string) file_get_contents($f)) : '';
+            if ($v !== '' && version_compare($this->norm($v), $this->norm($best), '>')) {
+                $best = $v; // a mais nova (quem extraiu o zip a mao atualiza VERSION)
             }
         }
 
-        return '0.0.0';
+        return $best;
     }
 
     private function norm(string $v): string
@@ -246,6 +396,7 @@ final class BipolarAutoUpdate
             $this->say('aviso: backup do banco nao feito ('.$e->getMessage().'). Continuando so com arquivos.');
         }
 
+        file_put_contents("$dir/completo", date('c')."\n");
         $all = glob($root.'/*', GLOB_ONLYDIR) ?: [];
         sort($all);
         while (count($all) > self::KEEP_BACKUPS) {
@@ -275,7 +426,7 @@ final class BipolarAutoUpdate
         }
     }
 
-    private function restore(string $backup): void
+    private function restore(string $backup, bool $withDb = true): void
     {
         $tmp = $backup.'/restaurar';
         $this->rmTree($tmp);
@@ -294,9 +445,117 @@ final class BipolarAutoUpdate
         }
         $this->clearBootstrapCache();
         $this->rmTree($tmp);
-        if (is_file("$backup/banco.sql")) {
+        if ($withDb && is_file("$backup/banco.sql")) {
             $this->restoreDb("$backup/banco.sql");
         }
+    }
+
+    // ---------------------------------------------------------------- troca por renomear pastas
+
+    /** Troca bipolar/ e a pasta publica renomeando pastas (rapido). false = renomear nao disponivel (nada mudou). */
+    private function swap(string $new, string $webName): bool
+    {
+        $sa = $this->home.'/.bipolar-novo';
+        $sw = $this->home.'/.'.$webName.'-novo';
+        $this->rmTree($sa);
+        $this->rmTree($sw);
+        $this->rmTree($this->home.'/.bipolar-anterior');
+        $this->rmTree($this->home.'/.'.$webName.'-anterior');
+        if (! @rename($new.'/bipolar', $sa)) {
+            return false;
+        }
+        if (! @rename($new.'/'.$webName, $sw)) {
+            @rename($sa, $new.'/bipolar');
+
+            return false;
+        }
+        // preparar a pasta nova: .env, .htaccess customizado; storage vem da atual
+        $this->rmTree($sa.'/storage');
+        if (! @copy($this->app.'/.env', $sa.'/.env')) {
+            throw new RuntimeException('nao consegui copiar o .env para a pasta nova.');
+        }
+        if (is_file($this->web.'/.htaccess') && $this->htaccessCustomized($sw.'/.htaccess')) {
+            @copy($sw.'/.htaccess', $sw.'/.htaccess.novo');
+            @copy($this->web.'/.htaccess', $sw.'/.htaccess');
+            $this->say('.htaccess customizado mantido; o do pacote ficou em .htaccess.novo');
+        }
+        $this->say('trocando as pastas (renomear).');
+        // ordem pensada para poder desfazer em qualquer ponto (undoSwap)
+        $this->mustRename($this->app.'/storage', $sa.'/storage');
+        $this->mustRename($this->app, $this->home.'/.bipolar-anterior');
+        $this->mustRename($sa, $this->app);
+        if (file_exists($this->web.'/storage') || is_link($this->web.'/storage')) {
+            $this->rmTree($sw.'/storage');
+            @unlink($sw.'/storage');
+            $this->mustRename($this->web.'/storage', $sw.'/storage');
+        }
+        $this->mustRename($this->web, $this->home.'/.'.$webName.'-anterior');
+        $this->mustRename($sw, $this->web);
+
+        return true;
+    }
+
+    /** So para o teste (smoke): simula a hospedagem matando o processo. */
+    private function testKill(string $where): void
+    {
+        $want = (string) getenv('AUTO_UPDATE_TEST_KILL');
+        if ($want === $where || $want === $where.':exit') {
+            if ($want === $where && function_exists('posix_kill')) {
+                posix_kill((int) getmypid(), 9);
+            }
+            exit(137); // sem posix (ou ":exit"): fim abrupto; o shutdown function tenta desfazer
+        }
+    }
+
+    private function mustRename(string $a, string $b): void
+    {
+        if (! @rename($a, $b)) {
+            throw new RuntimeException('nao consegui renomear '.basename($a).' -> '.basename($b));
+        }
+    }
+
+    /** Volta as pastas anteriores (se a troca por renomear chegou a comecar). true = desfeito. */
+    private function undoSwap(): bool
+    {
+        $webName = basename($this->web);
+        $oa = $this->home.'/.bipolar-anterior';
+        $ow = $this->home.'/.'.$webName.'-anterior';
+        $sa = $this->home.'/.bipolar-novo';
+        $sw = $this->home.'/.'.$webName.'-novo';
+        if (! is_dir($oa) && ! is_dir($sa.'/storage')) {
+            return false;
+        }
+        // storage: onde estiver, volta para a pasta antiga
+        $target = is_dir($oa) ? $oa : $this->app;
+        foreach ([$this->app.'/storage', $sa.'/storage'] as $s) {
+            if (is_dir($s) && ! is_dir($target.'/storage') && $s !== $target.'/storage') {
+                $this->mustRename($s, $target.'/storage');
+            }
+        }
+        if (is_dir($oa)) {
+            if (is_dir($this->app)) {
+                $this->rmTree($this->home.'/.bipolar-falhou');
+                $this->mustRename($this->app, $this->home.'/.bipolar-falhou');
+            }
+            $this->mustRename($oa, $this->app);
+        }
+        if (is_dir($ow)) {
+            $ws = is_dir($this->web) ? $this->web.'/storage' : $sw.'/storage';
+            if ((file_exists($ws) || is_link($ws)) && ! file_exists($ow.'/storage') && ! is_link($ow.'/storage')) {
+                @rename($ws, $ow.'/storage');
+            }
+            if (is_dir($this->web)) {
+                $this->rmTree($this->home.'/.'.$webName.'-falhou');
+                $this->mustRename($this->web, $this->home.'/.'.$webName.'-falhou');
+            }
+            $this->mustRename($ow, $this->web);
+        }
+        $this->rmTree($sa);
+        $this->rmTree($sw);
+        $this->rmTree($this->home.'/.bipolar-falhou');
+        $this->rmTree($this->home.'/.'.$webName.'-falhou');
+
+        return true;
     }
 
     // ---------------------------------------------------------------- arquivos
