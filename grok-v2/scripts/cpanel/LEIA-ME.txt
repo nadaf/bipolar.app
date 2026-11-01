@@ -191,8 +191,9 @@ Problemas:
 - Erro na tela do paciente depois de copiar (versao 2.0.4), ou aviso
   "nao puderam ser lidos sem a chave antiga": abra
   https://bipolar.app.br/migrar-dados?token=SEUCODIGO e clique em
-  "Consertar dados copiados". Se voce tiver a APP_KEY antiga do 2.0
-  (a linha APP_KEY= do .env de antes, por exemplo num backup), cole no
+  "Consertar dados". Se voce tiver a APP_KEY antiga do 2.0
+  (a linha APP_KEY= do .env de antes, por exemplo num backup; comeca
+  com base64: e tem 51 caracteres; a secret_key da 0.5 NAO serve), cole no
   .env a linha OLD_APP_KEY=base64:... antes de clicar: os dados sao
   recuperados. Sem ela, o conserto limpa o que nao abre e voce clica em
   "Copiar dados da versao antiga" de novo para trazer outra vez da 0.5.

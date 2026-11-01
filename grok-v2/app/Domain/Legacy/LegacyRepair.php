@@ -6,19 +6,20 @@ use App\Support\DataKeys;
 use Illuminate\Support\Facades\DB;
 
 /**
- * "Consertar dados copiados": rele so as linhas trazidas da 0.5 (legacy_links) e garante que
- * todo campo cifrado abre com a APP_KEY atual:
+ * "Consertar dados": confere TODAS as anotacoes e marcadores do dia (copiados da 0.5 ou criados no 2.0)
+ * e garante que todo campo cifrado abre com a APP_KEY atual:
  * - abre com a atual: nada a fazer;
  * - abre com OLD_APP_KEY: recifra com a atual;
- * - nao abre: limpa o campo (anotacao vira vazia; marcador do dia ilegivel e removido).
+ * - nao abre e veio da 0.5: limpa (da para copiar de novo);
+ * - nao abre e e do proprio 2.0: so conta; so limpa com o botao "Limpar" ($clean).
  * Idempotente. Em lotes com limite de tempo. Nunca registra conteudo, so contagens.
  */
-final class LegacyRepair
+class LegacyRepair
 {
     private const BATCH = 300;
 
-    /** @return array{done: bool, ok: int, fixed: int, cleared: int} */
-    public function run(float $seconds = 20.0): array
+    /** @return array{done: bool, ok: int, fixed: int, cleared: int, native: int} */
+    public function run(float $seconds = 20.0, bool $clean = false): array
     {
         $deadline = microtime(true) + $seconds;
         $first = true;
@@ -26,8 +27,8 @@ final class LegacyRepair
             $p = $this->progress($step);
             while (! $p->done && ($first || microtime(true) < $deadline)) {
                 $first = false;
-                $c = ['ok' => 0, 'fixed' => 0, 'cleared' => 0];
-                [$last, $more] = $step === 'fix_notes' ? $this->notes((int) $p->last_id, $c) : $this->blocks((int) $p->last_id, $c);
+                $c = ['ok' => 0, 'fixed' => 0, 'cleared' => 0, 'native' => 0];
+                [$last, $more] = $step === 'fix_notes' ? $this->notes((int) $p->last_id, $c, $clean) : $this->blocks((int) $p->last_id, $c, $clean);
                 $n = (array) json_decode((string) $p->notes, true);
                 foreach ($c as $k => $v) {
                     $n[$k] = ($n[$k] ?? 0) + $v;
@@ -52,10 +53,10 @@ final class LegacyRepair
         }
     }
 
-    /** @return array{done: bool, ok: int, fixed: int, cleared: int} */
+    /** @return array{done: bool, ok: int, fixed: int, cleared: int, native: int} */
     public function report(): array
     {
-        $r = ['done' => true, 'ok' => 0, 'fixed' => 0, 'cleared' => 0];
+        $r = ['done' => true, 'ok' => 0, 'fixed' => 0, 'cleared' => 0, 'native' => 0];
         foreach (['fix_notes', 'fix_blocks'] as $step) {
             $p = DB::table('legacy_import_progress')->where('step', $step)->first();
             $r['done'] = $r['done'] && (bool) ($p->done ?? false);
@@ -78,11 +79,10 @@ final class LegacyRepair
     }
 
     /** @param array<string, int> $c @return array{0: int, 1: bool} */
-    private function notes(int $after, array &$c): array
+    private function notes(int $after, array &$c, bool $clean): array
     {
-        $rows = DB::table('mood_entries')->join('legacy_links', fn ($j) => $j->on('legacy_links.new_id', '=', 'mood_entries.id')->where('legacy_links.kind', 'entries'))
-            ->where('mood_entries.id', '>', $after)->orderBy('mood_entries.id')->limit(self::BATCH)
-            ->get(['mood_entries.id', 'mood_entries.note']);
+        $rows = DB::table('mood_entries')->where('id', '>', $after)->orderBy('id')->limit(self::BATCH)->get(['id', 'note']);
+        $imported = DB::table('legacy_links')->where('kind', 'entries')->whereIn('new_id', $rows->pluck('id'))->pluck('new_id')->flip();
         foreach ($rows as $r) {
             $after = (int) $r->id;
             if ($r->note === null) {
@@ -91,6 +91,8 @@ final class LegacyRepair
             $plain = $this->open((string) $r->note);
             if ($plain === false) {
                 $c['ok']++;
+            } elseif ($plain === null && ! $clean && ! $imported->has($r->id)) {
+                $c['native']++;
             } elseif ($plain === null) {
                 DB::table('mood_entries')->where('id', $r->id)->update(['note' => null]);
                 $c['cleared']++;
@@ -104,15 +106,17 @@ final class LegacyRepair
     }
 
     /** @param array<string, int> $c @return array{0: int, 1: bool} */
-    private function blocks(int $after, array &$c): array
+    private function blocks(int $after, array &$c, bool $clean): array
     {
-        $rows = DB::table('day_blocks')->whereIn('patient_id', DB::table('legacy_links')->where('kind', 'users')->whereNotNull('new_id')->select('new_id'))
-            ->where('id', '>', $after)->orderBy('id')->limit(self::BATCH)->get(['id', 'data']);
+        $rows = DB::table('day_blocks')->where('id', '>', $after)->orderBy('id')->limit(self::BATCH)->get(['id', 'data', 'patient_id']);
+        $imported = DB::table('legacy_links')->where('kind', 'users')->whereIn('new_id', $rows->pluck('patient_id')->unique())->pluck('new_id')->flip();
         foreach ($rows as $r) {
             $after = (int) $r->id;
             $plain = $this->open((string) $r->data);
             if ($plain === false) {
                 $c['ok']++;
+            } elseif (($plain === null || ! is_array(json_decode($plain, true))) && ! $clean && ! $imported->has($r->patient_id)) {
+                $c['native']++;
             } elseif ($plain === null || ! is_array(json_decode($plain, true))) {
                 DB::table('day_blocks')->where('id', $r->id)->delete();
                 $c['cleared']++;

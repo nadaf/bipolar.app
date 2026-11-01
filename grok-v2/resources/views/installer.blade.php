@@ -4,6 +4,8 @@
 <body>
 <main>
 <h1>Instalação / atualização do banco de dados</h1>
+@php($keyProblem = \App\Support\DataKeys::appKeyProblem())
+@if($keyProblem)<p role="alert"><strong>Aviso: {{ $keyProblem }}</strong></p>@endif
 @if($error)<p role="alert"><strong>{{ $error }}</strong></p>@endif
 @if($done)
   <p role="status">Pronto! As tabelas foram criadas/atualizadas.</p>

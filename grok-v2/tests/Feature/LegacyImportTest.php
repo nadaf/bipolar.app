@@ -6,13 +6,16 @@ use App\Domain\Legacy\LegacyRepair;
 use App\Domain\Mood\Scales;
 use App\Models\CareGrant;
 use App\Models\DayBlock;
+use App\Models\Membership;
 use App\Models\MoodEntry;
 use App\Models\User;
+use App\Support\DataKeys;
 use App\Tenancy\TenantContext;
 use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Encryption\Encrypter;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 /*
  * Banco "legado" FICTICIO (estrutura real da 0.5.0, dados inventados) num MySQL separado:
@@ -274,4 +277,77 @@ it('copiar de novo tambem roda o conserto', function () {
     scrambleWithOtherKey();
     $this->post('/migrar-dados', ['token' => LEGACY_TOKEN])->assertOk()->assertSee('não puderam ser lidos sem a chave antiga');
     expect(DB::table('mood_entries')->whereNotNull('note')->count())->toBe(0);
+});
+
+it('OLD_APP_KEY invalida mostra aviso amigavel sem mostrar a chave e nao faz nada', function (string $bad, string $see) {
+    app(LegacyImporter::class)->run(60);
+    scrambleWithOtherKey();
+    config(['bipolar.old_app_key' => $bad === '__APP__' ? config('app.key') : $bad]);
+    $this->get('/migrar-dados?token='.LEGACY_TOKEN)->assertOk()->assertSee($see);
+    $res = $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertStatus(409)->assertSee($see)->assertSee('Nada foi feito');
+    expect($res->getContent())->not->toContain($bad);
+    expect(DB::table('mood_entries')->whereNotNull('note')->count())->toBe(4); // nada limpo
+})->with([
+    'secret_key da 0.5 (hex 64)' => [str_repeat('a1b2c3d4', 8), 'OLD_APP_KEY parece incompleta'],
+    'curta' => ['abc123', 'OLD_APP_KEY parece incompleta'],
+    'base64 cortada' => ['base64:QUJDREVGR0hJSktM', 'OLD_APP_KEY parece incompleta'],
+    'igual a APP_KEY' => ['__APP__', 'igual à APP_KEY atual'],
+]);
+
+it('OLD_APP_KEY com aspas e espacos funciona', function () {
+    app(LegacyImporter::class)->run(60);
+    $key = scrambleWithOtherKey();
+    config(['bipolar.old_app_key' => ' "'.$key.'" ']);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertOk();
+    expect(app(LegacyRepair::class)->report()['fixed'])->toBeGreaterThan(0);
+});
+
+it('registros nativos do 2.0 ilegiveis: tenta OLD_APP_KEY, senao so conta e oferece limpar', function () {
+    $u = User::factory()->create();
+    $tid = (int) DB::table('tenants')->insertGetId(['kind' => 'personal', 'name' => 'P', 'created_at' => now(), 'updated_at' => now()]);
+    DB::table('memberships')->insert(['tenant_id' => $tid, 'user_id' => $u->id, 'role' => Membership::PATIENT, 'created_at' => now(), 'updated_at' => now()]);
+    $key = 'base64:'.base64_encode(random_bytes(32));
+    $other = new Encrypter(base64_decode(substr($key, 7)), config('app.cipher'));
+    foreach (['sono', 'meu_dia', 'substancias'] as $i => $b) {
+        DB::table('day_blocks')->insert(['tenant_id' => $tid, 'patient_id' => $u->id, 'entry_date' => '2026-10-0'.($i + 1), 'period' => 'dia', 'block' => $b,
+            'data' => $other->encryptString('{"x":1}'), 'version' => 1, 'created_at' => now(), 'updated_at' => now()]);
+    }
+    // chave valida mas errada: so conta, nao apaga
+    config(['bipolar.old_app_key' => 'base64:'.base64_encode(random_bytes(32))]);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertOk()->assertSee('3 anotações/marcadores criados no 2.0')->assertSee('Limpar os 3');
+    expect(DB::table('day_blocks')->count())->toBe(3);
+    // chave certa: recupera
+    config(['bipolar.old_app_key' => $key]);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertOk();
+    expect(app(LegacyRepair::class)->report()['fixed'])->toBe(3);
+    // sem chave e pedindo limpar
+    DB::table('day_blocks')->update(['data' => $other->encryptString('{"x":1}')]);
+    config(['bipolar.old_app_key' => null]);
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'limpar'])->assertOk();
+    expect(DB::table('day_blocks')->count())->toBe(0);
+});
+
+it('qualquer erro na pagina vira mensagem com codigo e vai para o log (sem segredos)', function () {
+    app()->instance(LegacyRepair::class, new class extends LegacyRepair
+    {
+        public function run(float $seconds = 20.0, bool $clean = false): array
+        {
+            throw new RuntimeException('falhou com '.config('bipolar.installer_token'));
+        }
+    });
+    Log::spy();
+    $res = $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertStatus(500)->assertSee('código');
+    expect($res->getContent())->not->toContain(LEGACY_TOKEN);
+    Log::shouldHaveReceived('error')->withArgs(fn ($m, $ctx) => $ctx['type'] === RuntimeException::class
+        && ! str_contains($ctx['message'], LEGACY_TOKEN) && strlen($ctx['code']) === 6)->once();
+});
+
+it('detecta APP_KEY malformada sem trocar', function () {
+    $orig = config('app.key');
+    expect(DataKeys::appKeyProblem())->toBeNull();
+    config(['app.key' => str_repeat('x', 32)]);
+    expect(DataKeys::appKeyProblem())->toBeNull();
+    config(['app.key' => 'chave-sem-prefixo-de-40-caracteres-xxxxx']);
+    expect(DataKeys::appKeyProblem())->toContain('APP_KEY= do .env parece errada')->not->toContain('chave-sem');
+    config(['app.key' => $orig]);
 });

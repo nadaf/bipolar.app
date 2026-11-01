@@ -1,3 +1,9 @@
+## [2.0.6] - 2026-11-01
+- `/migrar-dados`: qualquer erro vira mensagem com código curto e é registrado (`Log::error` com tipo/mensagem, sem conteúdo nem chaves; cópia no `error_log` do PHP se o log falhar). Nunca mais a tela genérica de erro.
+- `OLD_APP_KEY` é conferida: sem `base64:`/tamanho errado (ex.: a `secret_key` da 0.5), igual à `APP_KEY` atual → aviso amigável sem mostrar a chave e nada é feito. Aspas e espaços colados são ignorados.
+- "Consertar dados" agora confere também anotações e marcadores criados no próprio 2.0: tenta a `OLD_APP_KEY`; se não abrir, só conta e oferece o botão "Limpar os N que não abrem".
+- `/migrar-dados` e `/atualizar` avisam se a `APP_KEY` do `.env` parece malformada (nunca trocam a chave).
+
 ## [2.0.5] - 2026-11-01
 - Correção: tela do paciente dava erro 500 (`The MAC is invalid`) quando um dado cifrado não abria com a `APP_KEY` atual (dados copiados da 0.5 cifrados com outra chave). Campos cifrados (anotações, marcadores do dia, segredo e códigos da verificação em duas etapas) agora usam um cast tolerante: valor ilegível vira vazio e só um aviso sem conteúdo vai para o log.
 - Importador confere que cada valor cifrado abre com a chave atual antes de gravar.
