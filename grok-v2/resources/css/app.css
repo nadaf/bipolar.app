@@ -169,3 +169,173 @@
 
 /* marca no topo: herda a cor do texto, sem sublinhado */
 a.brand { color: inherit; text-decoration: none; }
+
+/* =====================================================================================
+   Tema "vivo" 2.0.11: cores do logo (medidor de humor), movimento leve e acolhedor.
+   - Sem fontes/CDN externas. Tudo CSS puro.
+   - Sem piscar: nenhuma animacao repete mais rapido que 1 vez a cada 6 s; entradas tocam 1 vez.
+   - prefers-reduced-motion OU html.menos-movimento (botao "Animações") desligam o movimento.
+   - Telas de crise (com .alert ou .rede) ficam calmas: sem animacao decorativa.
+   ===================================================================================== */
+:root {
+  --bp-azul: #0353c1; --bp-azul-claro: #037ecb; --bp-turquesa: #08a7bf; --bp-verde: #45c086; --bp-verde-ponto: #2ca634;
+  --bp-lima: #a8c83a; --bp-amarelo: #fdc209; --bp-laranja: #fc9a1e; --bp-vermelho: #fb3f4b; --bp-marinho: #294767;
+  --bp-sorriso: #7ba1c8; --bp-texto: #1d2b36;
+  --bp-arco: linear-gradient(90deg, var(--bp-azul), var(--bp-azul-claro), var(--bp-turquesa), var(--bp-verde), var(--bp-lima), var(--bp-amarelo), var(--bp-laranja), var(--bp-vermelho));
+  --bp-primario: linear-gradient(135deg, #0353c1 0%, #0461a6 100%);
+  --bp-sombra: 0 1px 2px rgb(41 71 103 / 0.08), 0 4px 16px -4px rgb(41 71 103 / 0.14);
+  --bp-sombra-alta: 0 2px 4px rgb(41 71 103 / 0.10), 0 12px 28px -8px rgb(3 83 193 / 0.28);
+  --bp-mola: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --bp-suave: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body {
+  background:
+    radial-gradient(60rem 30rem at -10% -10%, rgb(8 167 191 / 0.10), transparent 60%),
+    radial-gradient(50rem 28rem at 110% 0%, rgb(253 194 9 / 0.10), transparent 60%),
+    radial-gradient(50rem 30rem at 50% 120%, rgb(69 192 134 / 0.10), transparent 60%),
+    #f8fafc;
+  background-attachment: fixed;
+  color: var(--bp-texto);
+}
+html.dark body {
+  background:
+    radial-gradient(60rem 30rem at -10% -10%, rgb(3 83 193 / 0.22), transparent 60%),
+    radial-gradient(50rem 28rem at 110% 0%, rgb(252 154 30 / 0.10), transparent 60%),
+    radial-gradient(50rem 30rem at 50% 120%, rgb(69 192 134 / 0.12), transparent 60%),
+    #020617;
+  color: #f1f5f9;
+}
+a { color: var(--bp-azul); text-decoration-color: rgb(3 83 193 / 0.4); transition: color .2s, text-decoration-color .2s; }
+a:hover { text-decoration-color: currentColor; }
+html.dark a { color: #8cc4ff; }
+:focus-visible { outline-color: var(--bp-azul) !important; }
+html.dark :focus-visible { outline-color: #8cc4ff !important; }
+::selection { background: rgb(8 167 191 / 0.28); }
+
+/* faixa do arco no topo (barra superior, menu lateral e telas simples) */
+.topbar, .sidebar, body > header, .bp-faixa { position: relative; }
+.topbar::after, body > header::after {
+  content: ''; position: absolute; inset-inline: 0; bottom: -1px; height: 3px; background: var(--bp-arco); background-size: 200% 100%;
+  animation: bp-arco 18s linear infinite;
+}
+.sidebar::before {
+  content: ''; position: absolute; inset-block: 0; inset-inline-end: -1px; width: 3px; background: var(--bp-arco);
+  background-size: 100% 200%; animation: bp-arco-v 18s linear infinite;
+}
+.topbar, body > header { background: rgb(255 255 255 / 0.82) !important; backdrop-filter: saturate(1.4) blur(10px); }
+html.dark .topbar, html.dark body > header { background: rgb(15 23 42 / 0.82) !important; }
+@keyframes bp-arco { to { background-position: 200% 0; } }
+@keyframes bp-arco-v { to { background-position: 0 200%; } }
+
+/* marca: flutua devagar */
+a.brand img, .main > div > p:first-child > img[src='/favicon.svg'] { transition: transform .5s var(--bp-mola); }
+a.brand:hover img { transform: rotate(-8deg) scale(1.08); }
+.main > div > p:first-child > img[src='/favicon.svg'] { animation: bp-flutua 7s ease-in-out infinite; filter: drop-shadow(0 8px 14px rgb(3 83 193 / 0.22)); }
+@keyframes bp-flutua { 50% { transform: translateY(-6px) rotate(-2deg); } }
+
+/* entrada da pagina: sobe e aparece, em cascata (toca uma vez) */
+.main > * { animation: bp-entra .55s var(--bp-suave) both; }
+.main > *:nth-child(2) { animation-delay: .05s; } .main > *:nth-child(3) { animation-delay: .10s; }
+.main > *:nth-child(4) { animation-delay: .15s; } .main > *:nth-child(5) { animation-delay: .20s; }
+.main > *:nth-child(n+6) { animation-delay: .25s; }
+.card, .stat, .regblock { animation: bp-entra .5s var(--bp-suave) both; }
+@keyframes bp-entra { from { opacity: 0; transform: translateY(10px) scale(.99); } }
+
+/* cartoes */
+.card, .card-tight, .stat, .regblock {
+  border-radius: 1.1rem; box-shadow: var(--bp-sombra); border-color: rgb(41 71 103 / 0.12);
+  transition: transform .35s var(--bp-suave), box-shadow .35s var(--bp-suave), border-color .35s;
+}
+html.dark .card, html.dark .card-tight, html.dark .stat, html.dark .regblock { border-color: rgb(148 163 184 / 0.18); box-shadow: 0 6px 24px -10px rgb(0 0 0 / 0.6); }
+a.card:hover, .card:has(> a:only-child):hover, .stat:hover { transform: translateY(-2px); box-shadow: var(--bp-sombra-alta); }
+.regblock[open] { box-shadow: var(--bp-sombra-alta); border-color: rgb(3 83 193 / 0.35); }
+.stat dd { background: var(--bp-primario); -webkit-background-clip: text; background-clip: text; color: transparent; }
+html.dark .stat dd { background: none; color: #f1f5f9; }
+
+/* botoes: gradiente da marca, brilho que passa no hover, "mola" ao tocar */
+.btn-primary, .btn-secondary, .btn-danger { position: relative; overflow: hidden; border-radius: 0.9rem;
+  transition: transform .25s var(--bp-mola), box-shadow .25s var(--bp-suave), background-color .2s, filter .2s; }
+.btn-primary { background: var(--bp-primario) !important; color: #fff !important; box-shadow: 0 6px 16px -6px rgb(3 83 193 / 0.55); }
+html.dark .btn-primary { background: linear-gradient(135deg, #8cc4ff, #7fe0c0) !important; color: #04121f !important; }
+.btn-primary::after { content: ''; position: absolute; inset: 0; background: linear-gradient(110deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+  transform: translateX(-120%); transition: transform .7s var(--bp-suave); pointer-events: none; }
+.btn-primary:hover::after { transform: translateX(120%); }
+.btn-primary:hover, .btn-secondary:hover, .btn-danger:hover { transform: translateY(-2px); box-shadow: var(--bp-sombra-alta); }
+.btn-primary:active, .btn-secondary:active, .btn-danger:active, .side-link:active, .tab:active, .scale-option:active { transform: scale(.97); }
+.btn-secondary { border-color: rgb(3 83 193 / 0.45) !important; }
+.btn-primary:disabled, .btn-primary[aria-disabled='true'] { filter: saturate(.4); transform: none; }
+
+/* campos */
+.input { border-radius: 0.8rem; transition: border-color .2s, box-shadow .25s; }
+.input:focus { border-color: var(--bp-azul); box-shadow: 0 0 0 4px rgb(8 167 191 / 0.22); outline: none; }
+
+/* menu e abas */
+.side-link { border-radius: 0.8rem; transition: background-color .2s, transform .25s var(--bp-mola), color .2s; }
+.side-link:hover { transform: translateX(3px); }
+.side-link[aria-current='page'] { background: linear-gradient(90deg, rgb(3 83 193 / 0.12), rgb(8 167 191 / 0.08)) !important; color: var(--bp-azul) !important; box-shadow: inset 3px 0 0 var(--bp-azul); }
+html.dark .side-link[aria-current='page'] { color: #b9dcff !important; box-shadow: inset 3px 0 0 #8cc4ff; }
+.tabbar { background: rgb(255 255 255 / 0.9) !important; backdrop-filter: saturate(1.4) blur(10px); }
+html.dark .tabbar { background: rgb(15 23 42 / 0.9) !important; }
+.tab { transition: color .2s, transform .25s var(--bp-mola); }
+.tab[aria-current='page'] { color: var(--bp-azul) !important; }
+html.dark .tab[aria-current='page'] { color: #8cc4ff !important; }
+.tab[aria-current='page'] svg { animation: bp-pulo .5s var(--bp-mola) 1; }
+@keyframes bp-pulo { 40% { transform: translateY(-4px) scale(1.12); } }
+.period-tab { border-radius: 999px; transition: transform .25s var(--bp-mola), background-color .2s; }
+.period-tab[aria-current='page'] { background: var(--bp-primario) !important; border-color: transparent !important; color: #fff !important; }
+html.dark .period-tab[aria-current='page'] { background: #8cc4ff !important; color: #04121f !important; }
+
+/* escalas e calendario: toque com mola */
+.scale-option, .check, .rem-cell, .cal-day:not(.vazio) { transition: transform .25s var(--bp-mola), border-color .2s, box-shadow .25s, background-color .2s; border-radius: 0.8rem; }
+.scale-option:hover, .cal-day:not(.vazio):not(.futuro):hover, .rem-cell:hover { transform: translateY(-2px); box-shadow: var(--bp-sombra); }
+.scale-option:has(input:checked) { animation: bp-escolhe .4s var(--bp-mola) 1; }
+@keyframes bp-escolhe { 50% { transform: scale(1.04); } }
+.cal-day[aria-current='date'] { border-color: var(--bp-azul) !important; box-shadow: 0 0 0 3px rgb(8 167 191 / 0.25); }
+
+/* avisos */
+.ok, .warn, .info, .alert { border-radius: 0.9rem; border-width: 1px; }
+.ok { border-inline-start: 5px solid var(--bp-verde-ponto); }
+.info { border-inline-start: 5px solid var(--bp-turquesa); }
+.warn { border-inline-start: 5px solid var(--bp-laranja); }
+.ok, .info, .warn { animation: bp-entra .45s var(--bp-suave) both; }
+.badge { border-radius: 999px; }
+.aviso-senha { background: linear-gradient(135deg, rgb(8 167 191 / 0.10), rgb(253 194 9 / 0.12)), #fff; }
+html.dark .aviso-senha { background: linear-gradient(135deg, rgb(3 83 193 / 0.25), rgb(252 154 30 / 0.12)), #0f172a; }
+
+/* dialogos */
+dialog.modal { border-radius: 1.2rem; box-shadow: var(--bp-sombra-alta); }
+dialog.modal[open] { animation: bp-entra .3s var(--bp-suave); }
+
+/* graficos: linhas se desenham uma vez */
+.chart .mood, .chart .energy { stroke-dasharray: 2000; stroke-dashoffset: 0; animation: bp-traco 1.4s var(--bp-suave) 1 both; }
+@keyframes bp-traco { from { stroke-dashoffset: 2000; } }
+
+/* indicador htmx: anel girando devagar (sem piscar) */
+.htmx-request .spin, .htmx-request.spin { animation: bp-gira 1s linear infinite; }
+@keyframes bp-gira { to { transform: rotate(360deg); } }
+
+/* botao "Animações" */
+.motion-toggle[aria-pressed='true'] { background: rgb(41 71 103 / 0.10) !important; }
+
+/* telas de crise: calma total (nada se mexe sozinho) */
+body:has(.alert, .rede, [data-calma]) .main *, body:has(.alert, .rede, [data-calma]) .topbar::after,
+body:has(.alert, .rede, [data-calma]) > header::after, body:has(.alert, .rede, [data-calma]) .sidebar::before {
+  animation: none !important;
+}
+.alert, .rede, .crisis-line { animation: none !important; }
+
+/* menos movimento: sistema ou botao do app */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important; }
+}
+html.menos-movimento *, html.menos-movimento *::before, html.menos-movimento *::after {
+  animation-duration: .001ms !important; animation-iteration-count: 1 !important; transition-duration: .001ms !important; scroll-behavior: auto !important;
+}
+@media print { .topbar::after, .sidebar::before, body > header::after { display: none; } body { background: #fff !important; } }
+
+/* blocos privados mantem a borda violeta por cima do tema vivo */
+.regblock.regblock-private, .card.regblock-private { border-color: #6d28d9; }
+html.dark .regblock.regblock-private, html.dark .card.regblock-private { border-color: #a78bfa; }
+/* aviso de senha: sem corte de texto */
+.aviso-senha { overflow: visible; }

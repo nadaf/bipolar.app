@@ -1,8 +1,11 @@
 <!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer"><title>Trazer dados da versão antiga — Bipolar</title></head>
+<meta name="robots" content="noindex"><meta name="referrer" content="no-referrer"><title>Trazer dados da versão antiga — Bipolar</title>
+<script src="/theme-init.js"></script>
+@vite(['resources/css/app.css'])</head>
 <body>
-<main>
+<header><div class="mx-auto max-w-3xl px-4 h-13 flex items-center"><a href="/" class="brand font-semibold">Bipolar</a></div></header>
+<main id="conteudo" class="main migrar space-y-4">
 <h1>Trazer os dados da versão antiga (0.5)</h1>
 <p>O banco antigo só é <strong>lido</strong>; nada é apagado ou alterado nele. Pode clicar quantas vezes precisar: o que já foi copiado não é copiado de novo.</p>
 @if($message)<p role="status"><strong>{{ $message }}</strong></p>@endif
@@ -18,6 +21,16 @@
 </ul>
 @endif
 @if($error)<p role="alert"><strong>{{ $error }}</strong></p>@endif
+@if($totals)
+  <h2>Resumo (só números)</h2>
+  <ul>
+    @if($totals['old_accounts'] !== null)<li>Contas na versão antiga: {{ $totals['old_accounts'] }}</li>@endif
+    <li>Contas com os dados no 2.0: {{ $totals['accounts'] }}</li>
+    <li>Contas não copiadas: {{ $totals['accounts_skipped'] }} (o motivo está na lista abaixo, em "Contas")</li>
+    <li>Registros de humor no 2.0 dessas contas: {{ $totals['entries'] }}</li>
+    <li>Marcadores do dia no 2.0 dessas contas: {{ $totals['blocks'] }}</li>
+  </ul>
+@endif
 @if($report)
   <h2>{{ $report['done'] ? 'Pronto! Tudo foi copiado.' : 'Ainda falta uma parte: clique em "Continuar".' }}</h2>
   <ul>

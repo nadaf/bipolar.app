@@ -1,3 +1,9 @@
+## [2.0.11] - 2026-11-01
+- Visual novo em todo o site: cores da logomarca, degradês suaves, entrada animada, botões e cartões com micro-animações. Telas de crise ficam calmas (sem animação). Respeita "reduzir movimento" do sistema e tem botão "Reduzir animações" (menu e Conta → Aparência). Sem fontes ou CDNs externos.
+- Tela de entrada: aviso "Versão nova: é preciso criar uma senha nova" com botão "Criar senha nova".
+- /migrar-dados: "Resumo (só números)" — contas na versão antiga, contas trazidas, contas puladas e registros. Nenhum e-mail aparece.
+- Página /migrar-dados e páginas de erro com o mesmo visual do app.
+
 ## [2.0.10] - 2026-11-01
 - /migrar-dados: botão "Copiar tudo de novo (não precisa de chave)": passa de novo pelo banco antigo (só leitura) e regrava, com a APP_KEY atual, as anotações e marcadores que sumiram ou não abrem. Não duplica e não mexe no que abre normalmente.
 - OLD_JUNTAR_CONTAS (opcional, e-mails separados por vírgula): junta os dados da 0.5 numa conta do 2.0 que já existia com o mesmo e-mail.

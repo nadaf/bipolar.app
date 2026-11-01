@@ -34,6 +34,10 @@
     <button class="btn-primary">Salvar tema</button>
     <p class="hint">Também dá para trocar pelo botão de sol/lua no topo.</p>
   </form>
+  <div class="mt-4 flex flex-wrap items-center gap-3">
+    @include('partials.motion-toggle')
+    <p class="hint">Deixa o app parado, sem movimentos. Fica salvo neste aparelho.</p>
+  </div>
 </section>
 
 @if($patient)

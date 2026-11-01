@@ -5,6 +5,11 @@
 <p class="mb-4 flex justify-center"><img src="/favicon.svg" alt="Bipolar" width="72" height="72" class="rounded-2xl"></p>
 <h1 class="text-2xl font-semibold mb-1">Entrar</h1>
 <p class="hint mb-4">Seu diário de humor, só seu. Você decide o que compartilhar.</p>
+<section class="info aviso-senha mb-4" aria-labelledby="aviso-senha-t">
+  <h2 id="aviso-senha-t" class="text-base font-semibold">Versão nova: é preciso criar uma senha nova</h2>
+  <p class="text-sm mt-1">Seus registros continuam guardados. Se a sua senha não funcionar, crie uma nova pelo e-mail: leva um minuto.</p>
+  <p class="mt-3"><a class="btn-secondary" href="{{ route('password.forgot') }}">Criar senha nova</a></p>
+</section>
 <form method="post" action="/entrar" class="space-y-4 card" novalidate>
   @csrf
   <div>

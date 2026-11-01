@@ -69,20 +69,21 @@
     </nav>
     <div class="mt-auto space-y-2">
       @include('partials.theme-toggle')
+      @include('partials.motion-toggle')
       <form method="post" action="{{ route('logout') }}">@csrf<button class="side-link w-full">@include('partials.icon', ['name' => 'sair']) Sair</button></form>
     </div>
   </aside>
   <header class="topbar">
     <div class="flex items-center justify-between px-4 h-13">
       @include('partials.brand')
-      @include('partials.theme-toggle')
+      <div class="flex gap-2"><span class="hidden sm:contents">@include('partials.motion-toggle')</span>@include('partials.theme-toggle')</div>
     </div>
   </header>
   @else
   <header class="border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
     <div class="mx-auto max-w-3xl px-4 h-13 flex items-center justify-between">
       @include('partials.brand')
-      @include('partials.theme-toggle')
+      <div class="flex gap-2"><span class="hidden sm:contents">@include('partials.motion-toggle')</span>@include('partials.theme-toggle')</div>
     </div>
   </header>
   @endif

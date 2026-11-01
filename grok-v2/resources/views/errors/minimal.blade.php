@@ -7,6 +7,7 @@
 <meta name="robots" content="noindex">
 <title>@yield('title') — Bipolar</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<script src="/theme-init.js"></script>
 @vite(['resources/css/app.css'])
 </head>
 <body>

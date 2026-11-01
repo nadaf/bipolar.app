@@ -38,7 +38,7 @@ class LegacyImportController extends Controller
             $message = 'O banco do 2.0 ainda não foi atualizado para esta versão. Aguarde a atualização automática ou abra /atualizar. Nada foi feito.';
         }
 
-        return ['message' => $message, 'error' => null, 'report' => null, 'notCopied' => [], 'repair' => null,
+        return ['message' => $message, 'error' => null, 'totals' => null, 'report' => null, 'notCopied' => [], 'repair' => null,
             'noOld' => ! LegacyReader::configured(), 'refreshing' => LegacyImporter::ready() && app(LegacyImporter::class)->refreshing(), 'appKeyProblem' => DataKeys::appKeyProblem(), 'oldKeyProblem' => DataKeys::oldKeyProblem(),
             'token' => $tokenOk ? (string) $request->query('token', '') : ''];
     }
@@ -79,6 +79,7 @@ class LegacyImportController extends Controller
             $v = $this->base($request);
             if ($v['message'] === null && hash_equals($this->token(), (string) $request->query('token'))) {
                 $v['report'] = $importer->report(); // so leitura do 2.0
+                $v['totals'] = $importer->totals();
                 $v['repair'] = $repair->report();
             }
 
@@ -134,6 +135,7 @@ class LegacyImportController extends Controller
             }
             $wasDone = $importer->report()['done'];
             $v['report'] = $importer->run(20.0);
+            $v['totals'] = $importer->totals();
             if ($v['report']['done']) {
                 $v['notCopied'] = $importer->notCopied();
                 if ($wasDone) {

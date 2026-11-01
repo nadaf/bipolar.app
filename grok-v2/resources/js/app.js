@@ -42,6 +42,24 @@ Alpine.data('themeToggle', () => ({
   },
 }));
 
+// Reduzir animacoes: classe no <html> (theme-init.js aplica antes da pintura).
+Alpine.data('motionToggle', () => ({
+  pressed: 'false',
+  label: 'Reduzir animações',
+  init() { this.sync(); },
+  sync() {
+    const on = document.documentElement.classList.contains('menos-movimento');
+    this.pressed = on ? 'true' : 'false';
+    this.label = on ? 'Animações reduzidas' : 'Reduzir animações';
+  },
+  toggle() {
+    const on = !document.documentElement.classList.contains('menos-movimento');
+    document.documentElement.classList.toggle('menos-movimento', on);
+    try { localStorage.setItem('movimento', on ? 'menos' : 'normal'); } catch (_) { /* modo privado */ }
+    this.sync();
+  },
+}));
+
 // Escala segmentada: mostra o rotulo escolhido (o radio nativo guarda o valor).
 Alpine.data('scalePicker', () => ({
   label: null,

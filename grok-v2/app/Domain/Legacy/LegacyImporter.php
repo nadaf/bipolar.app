@@ -96,6 +96,29 @@ final class LegacyImporter
         return $r;
     }
 
+    /**
+     * Totais agregados (sem e-mail, nome ou conteudo): contas na 0.5, contas com conta no 2.0, registros.
+     *
+     * @return array{old_accounts: int|null, accounts: int, accounts_skipped: int, entries: int, blocks: int}
+     */
+    public function totals(): array
+    {
+        $old = null;
+        try {
+            $old = LegacyReader::configured() && $this->old->hasTable('users') ? $this->old->count('users') : null;
+        } catch (\Throwable) {
+        }
+        $users = DB::table('legacy_links')->where('kind', 'users')->whereNotNull('new_id')->pluck('new_id');
+
+        return [
+            'old_accounts' => $old,
+            'accounts' => $users->count(),
+            'accounts_skipped' => DB::table('legacy_links')->where('kind', 'users')->whereNull('new_id')->count(),
+            'entries' => DB::table('mood_entries')->whereIn('patient_id', $users)->count(),
+            'blocks' => DB::table('day_blocks')->whereIn('patient_id', $users)->count(),
+        ];
+    }
+
     /** Comeca "copiar tudo de novo" (se nao houver um em andamento). Nao apaga nada. */
     public function startRefresh(): void
     {

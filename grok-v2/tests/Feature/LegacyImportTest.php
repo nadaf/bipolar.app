@@ -398,3 +398,13 @@ it('OLD_APP_KEY colada sem base64: tambem funciona', function () {
     $this->post('/migrar-dados', ['token' => LEGACY_TOKEN, 'acao' => 'consertar'])->assertOk()->assertSee('consertados com a chave antiga');
     expect(DB::table('mood_entries')->whereNotNull('note')->count())->toBe(4);
 });
+
+it('mostra resumo so com numeros: contas e registros, sem e-mail', function () {
+    $this->post('/migrar-dados', ['token' => LEGACY_TOKEN])->assertOk()
+        ->assertSee('Contas na versão antiga: 5')->assertSee('Contas com os dados no 2.0: 4')
+        ->assertSee('Registros de humor no 2.0 dessas contas: 4')->assertDontSee('exemplo.test');
+});
+
+it('tela de entrar avisa da senha nova com botao para criar', function () {
+    $this->get('/entrar')->assertOk()->assertSee('Versão nova: é preciso criar uma senha nova')->assertSee('Criar senha nova')->assertSee('/esqueci-senha');
+});

@@ -7,6 +7,7 @@
   function apply() { d.classList.toggle('dark', t === 'escuro' || (t === 'sistema' && !!mq && mq.matches)); }
   d.setAttribute('data-tema-ativo', t);
   apply();
+  try { if (localStorage.getItem('movimento') === 'menos') d.classList.add('menos-movimento'); } catch (e) {}
   // abertura do app: so na primeira carga da sessao
   try { if (sessionStorage.getItem('aberto')) d.classList.add('sem-abertura'); else sessionStorage.setItem('aberto', '1'); } catch (e) { d.classList.add('sem-abertura'); }
   if (mq && mq.addEventListener) mq.addEventListener('change', function () { t = d.getAttribute('data-tema-ativo') || 'sistema'; apply(); });
