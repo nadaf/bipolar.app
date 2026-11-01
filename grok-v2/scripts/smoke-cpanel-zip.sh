@@ -14,7 +14,7 @@ MY=(mysql -h"$DB_HOST" -u"$DB_USER" -p"$DB_PASS")
 echo "==> Extraindo em $HOME_DIR"
 ( cd "$HOME_DIR" && unzip -q "$ZIP" )
 for f in LEIA-ME.txt cron.txt banco/instalar-banco-novo.sql banco/atualizar-banco.sql bipolar/vendor/autoload.php \
-         bipolar/.env.example bipolar-2-0-public/index.php bipolar-2-0-public/.htaccess bipolar-2-0-public/build/manifest.json bipolar-2-0-public/sw.js; do
+         bipolar/.env.example bipolar-2-0-public/index.php bipolar-2-0-public/.htaccess bipolar-2-0-public/build/manifest.json bipolar-2-0-public/sw.js bipolar/deploy/auto-update.php; do
   [ -f "$HOME_DIR/$f" ] || fail "falta $f"
 done
 for d in bipolar/storage/framework/sessions bipolar/storage/framework/views bipolar/storage/logs bipolar/bootstrap/cache; do

@@ -27,7 +27,7 @@ A) PRIMEIRA INSTALACAO
 1. Nao precisa mexer na public_html (o site antigo). O zip nao a altera.
 
 2. Envie o zip. Gerenciador de Arquivos -> abra a sua pasta inicial
-   (ex.: /home1/rona3541, a que mostra public_html dentro dela;
+   (ex.: /home1/SEU_USUARIO, a que mostra public_html dentro dela;
    NAO entre na public_html)
    -> Carregar -> escolha o cpanel.zip.
 
@@ -68,7 +68,8 @@ A) PRIMEIRA INSTALACAO
 
 7. Abra https://seu-site.com.br e crie sua conta.
 
-8. Tarefa automatica (lembretes): abra o arquivo cron.txt e siga o que ele diz.
+8. Tarefas automaticas (lembretes e atualizacao automatica): abra o arquivo
+   cron.txt e siga o que ele diz (sao 2 linhas no "Trabalhos Cron").
 
 9. E-mail ("Esqueci minha senha" e convites de clinica): crie uma conta de e-mail no cPanel
    e preencha no .env as linhas MAIL_HOST, MAIL_USERNAME, MAIL_PASSWORD e
@@ -85,7 +86,7 @@ com um banco NOVO.
 1. Copia de seguranca: phpMyAdmin -> seu banco -> Exportar -> Executar
    (guarda um arquivo .sql). Baixe tambem o arquivo bipolar/.env.
 
-2. Gerenciador de Arquivos -> pasta inicial (ex.: /home1/rona3541) ->
+2. Gerenciador de Arquivos -> pasta inicial (ex.: /home1/SEU_USUARIO) ->
    Carregar o cpanel.zip -> botao direito -> Extract -> aceite substituir.
    Ele atualiza as pastas bipolar e bipolar-2-0-public de uma vez.
    NAO precisa renomear nada. O seu .env NAO e apagado (nao vem no zip)
@@ -98,6 +99,35 @@ com um banco NOVO.
       e abra https://seu-site.com.br/atualizar , digite o codigo e confirme.
 
 4. Abra o site e confira se entra normalmente.
+
+
+-------------------------------------------------
+C) ATUALIZACAO AUTOMATICA (sem fazer nada a mao)
+-------------------------------------------------
+Depois de instalar ESTE zip uma vez (parte A ou B), o site pode se
+atualizar sozinho toda noite, as 3h, pegando a versao nova no GitHub.
+
+1. cPanel -> "Trabalhos Cron" (Cron Jobs) -> "Adicionar novo trabalho cron".
+2. Minuto: 0   Hora: 3   Dia: *   Mes: *   Dia da semana: *
+3. Comando: cole a linha abaixo trocando SEU_USUARIO pelo seu usuario
+   do cPanel (o nome que aparece em /home1/SEU_USUARIO):
+
+   /usr/local/bin/php /home1/SEU_USUARIO/bipolar/deploy/auto-update.php >/dev/null 2>&1
+
+4. Clique em "Adicionar novo trabalho cron". Pronto.
+
+O que ele faz sozinho: confere se ha versao nova, baixa, confere o
+codigo de seguranca (sha256), faz copia de seguranca dos arquivos e do
+banco em bipolar/storage/backups (guarda as 3 ultimas), coloca o site em
+manutencao por alguns segundos, troca os arquivos, atualiza o banco e
+volta o site. Se algo der errado, ele volta a copia anterior sozinho.
+NUNCA mexe em: bipolar/.env, bipolar/storage (dados, envios, logs) e um
+bipolar-2-0-public/.htaccess que voce tenha alterado.
+
+Ver o que aconteceu: bipolar/storage/logs/auto-update.log (horario de Fortaleza).
+Desligar: apague a linha no "Trabalhos Cron", ou no bipolar/.env coloque
+   AUTO_UPDATE_ENABLED=false
+So versoes finais (sem beta): no .env coloque AUTO_UPDATE_PRERELEASE=false
 
 
 -------------------------------------------------

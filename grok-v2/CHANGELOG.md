@@ -1,3 +1,7 @@
+## [2.0.2] - 2026-11-01
+- Atualização automática pelo Cron Jobs do cPanel (`bipolar/deploy/auto-update.php`, sem SSH): busca o release no GitHub, confere sha256, faz backup (arquivos + banco, guarda 3), manutenção, troca os arquivos preservando `.env`, `storage/` e `.htaccess` customizado, roda migrations e restaura tudo se falhar. Log em `storage/logs/auto-update.log`. Desligar: `AUTO_UPDATE_ENABLED=false`.
+- CI: release de tag `v*` recebe `cpanel.zip` + `cpanel.zip.sha256`; simulação do cron no CI (`scripts/smoke-auto-update.sh`).
+
 ## [2.0.0-beta.1] - 2026-10-31
 - Início da reescrita 2.0 (Laravel API-first, multi-tenant). Fatia vertical: registro de humor por período.
 - Energia passa a ser escala bipolar -3..+3 (Muito baixa..Muito alta).

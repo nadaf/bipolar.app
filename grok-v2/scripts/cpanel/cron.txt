@@ -1,5 +1,27 @@
-Tarefa automatica (lembretes e envios). No cPanel: "Trabalhos Cron" -> "Adicionar novo trabalho cron".
-Frequencia: "Uma vez por minuto" (* * * * *). No campo "Comando", cole a linha abaixo
-trocando SEUUSUARIO pelo seu usuario do cPanel (aparece no canto da tela do cPanel):
+TAREFAS AUTOMATICAS (Cron Jobs) - Bipolar
+==========================================
+SEU_USUARIO = o seu usuario do cPanel (aparece no canto direito do cPanel
+e no caminho da pasta inicial, ex.: /home1/SEU_USUARIO).
+Se a sua pasta inicial comeca com /home/ (sem o 1), use /home/ nas linhas.
 
-cd /home/SEUUSUARIO/bipolar && /usr/local/bin/php artisan schedule:run >> /dev/null 2>&1
+1) LEMBRETES (obrigatoria)
+   cPanel -> "Trabalhos Cron" (Cron Jobs) -> "Adicionar novo trabalho cron"
+   Configuracao comum: "Uma vez por minuto" (* * * * *)
+   Comando (cole trocando SEU_USUARIO):
+
+cd /home1/SEU_USUARIO/bipolar && /usr/local/bin/php artisan schedule:run >/dev/null 2>&1
+
+2) ATUALIZACAO AUTOMATICA (recomendada)
+   Busca a versao nova no GitHub 1x por dia, as 3h da manha, e instala sozinha.
+   Antes faz copia de seguranca (arquivos + banco) em bipolar/storage/backups.
+   Nao mexe no .env, nem em bipolar/storage (dados, envios, logs).
+   cPanel -> "Trabalhos Cron" -> "Adicionar novo trabalho cron"
+   Minuto: 0   Hora: 3   Dia: *   Mes: *   Dia da semana: *
+   Comando (cole trocando SEU_USUARIO):
+
+/usr/local/bin/php /home1/SEU_USUARIO/bipolar/deploy/auto-update.php >/dev/null 2>&1
+
+   Ver o que aconteceu: Gerenciador de Arquivos -> bipolar/storage/logs/auto-update.log
+   Desligar: apague a linha no "Trabalhos Cron"
+             (ou no bipolar/.env coloque AUTO_UPDATE_ENABLED=false).
+   So versoes finais (sem beta): no .env coloque AUTO_UPDATE_PRERELEASE=false.

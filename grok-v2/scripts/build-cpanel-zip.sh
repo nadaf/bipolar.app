@@ -26,7 +26,7 @@ php -r '$m=json_decode(file_get_contents("public/build/manifest.json"),true); fo
 echo "==> Copiando arquivos"
 APP="$STAGE/bipolar"; WEBDIR="${WEBDIR:-bipolar-2-0-public}"; WEB="$STAGE/$WEBDIR"; DB="$STAGE/banco"
 mkdir -p "$APP" "$WEB" "$DB"
-for p in app bootstrap config database lang resources routes artisan composer.json composer.lock VERSION .env.example INSTALL-CPANEL.md; do
+for p in app bootstrap config database deploy lang resources routes artisan composer.json composer.lock VERSION .env.example INSTALL-CPANEL.md; do
   [ -e "$p" ] && cp -R "$p" "$APP/"
 done
 rm -rf "$APP/resources/js" "$APP/resources/css"

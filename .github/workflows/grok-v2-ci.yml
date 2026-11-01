@@ -5,10 +5,12 @@ name: grok-v2 CI e pacote cPanel
 on:
   push:
     branches: [main]
-    tags: ['v2*']
+    tags: ['v*']
     paths: ['grok-v2/**', '.github/workflows/grok-v2-ci.yml']
   pull_request:
     paths: ['grok-v2/**', '.github/workflows/grok-v2-ci.yml']
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
@@ -151,6 +153,8 @@ jobs:
           (cd dist && sha256sum cpanel.zip > cpanel.zip.sha256)
       - name: Simulacao de cPanel (extrair, importar SQL no MySQL 5.7, php -S, /, /entrar, cadastro, assets, sem 500)
         run: env -i PATH="$PATH" HOME="$HOME" DB_HOST=127.0.0.1 DB_USER=bp DB_PASS=bp DB_NAME=smoke scripts/smoke-cpanel-zip.sh dist/cpanel.zip
+      - name: Simulacao do cron de atualizacao automatica (sem versao nova, instala e preserva, sha errado, migration quebrada)
+        run: env -i PATH="$PATH" HOME="$HOME" DB_HOST=127.0.0.1 DB_USER=bp DB_PASS=bp DB_NAME=smoke scripts/smoke-auto-update.sh dist/cpanel.zip
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: cpanel.zip
@@ -162,7 +166,7 @@ jobs:
 
   release:
     name: Publicar na Release
-    if: startsWith(github.ref, 'refs/tags/v2')
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: [package]
     runs-on: ubuntu-24.04
     timeout-minutes: 10
@@ -181,6 +185,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
+          (cd dist && sha256sum -c cpanel.zip.sha256)
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/cpanel.zip dist/cpanel.zip.sha256 --clobber --repo "$GITHUB_REPOSITORY"
           else
